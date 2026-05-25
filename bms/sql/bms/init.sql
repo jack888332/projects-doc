@@ -249,6 +249,16 @@ CREATE TABLE `main_order` (
   `total_receivable` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '总应收',
   `total_cost` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '总成本',
   `total_profit` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '总利润',
+  `bill_id` bigint(20) unsigned DEFAULT NULL COMMENT '归属账单ID',
+  `bill_no` varchar(64) DEFAULT NULL COMMENT '归属账单编号',
+  `bill_config_id` bigint(20) unsigned DEFAULT NULL COMMENT '账单配置ID',
+  `config_type` varchar(16) DEFAULT NULL COMMENT '账单配置类型：DEFAULT默认配置，BRANCH分支配置',
+  `generate_task_id` bigint(20) unsigned DEFAULT NULL COMMENT '账单生成任务ID',
+  `billing_period_start_date` date DEFAULT NULL COMMENT '归属账单账期开始日期',
+  `billing_period_end_date` date DEFAULT NULL COMMENT '归属账单账期结束日期',
+  `bill_currency` varchar(16) DEFAULT NULL COMMENT '归属账单结算币种',
+  `fin_currency` varchar(16) DEFAULT NULL COMMENT '财务本位币',
+  `billed_at` datetime DEFAULT NULL COMMENT '计入账单时间',
   `order_created_at` datetime DEFAULT NULL COMMENT '业务单创建时间',
   `billing_node_time` datetime DEFAULT NULL COMMENT '到达计费节点时间',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -258,7 +268,10 @@ CREATE TABLE `main_order` (
   KEY `idx_main_order_subject` (`sc_id`,`shop_id`,`user_id`,`member_code`,`order_created_at`),
   KEY `idx_main_order_waybill` (`last_mile_waybill_no`),
   KEY `idx_main_order_first_waybill` (`first_mile_waybill_no`),
-  KEY `idx_main_order_billing_node` (`billing_node_time`)
+  KEY `idx_main_order_billing_node` (`billing_node_time`),
+  KEY `idx_main_order_bill` (`bill_id`,`bill_no`),
+  KEY `idx_main_order_task` (`generate_task_id`),
+  KEY `idx_main_order_bill_period` (`bill_config_id`,`billing_period_start_date`,`billing_period_end_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='业务主单快照';
 
 CREATE TABLE `ar_bill` (

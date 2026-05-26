@@ -19,3 +19,8 @@ http://localhost:9528/#/billing/receivableBill
 
 核销列表
 http://localhost:9528/#/billing/paymentWriteoff
+
+账单生成任务监控
+http://localhost:9528/#/billing/billGenerateTask
+
+

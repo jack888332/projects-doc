@@ -524,6 +524,7 @@ BMS_JAVA_OPTS=(
   -Ddisconf.bootstrap.eagerLoad.enabled=false
   -Ddisconf.user_define_download_dir=disconf/download
   -Dszt.framework.disconf.enabled=false
+  -Dspring.autoconfigure.exclude=com.szt.framework.elastic_job.ElasticJobAutoConfiguration
   -Deureka.client.enabled=false
   -Dtmall-store-service.ribbon.listOfServers=$STORE_SERVICE_URL
 )

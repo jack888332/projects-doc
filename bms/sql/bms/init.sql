@@ -185,6 +185,27 @@ CREATE TABLE `business_type_fee_index` (
   KEY `idx_business_fee_index` (`fee_index_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='业务类型关联费项';
 
+CREATE TABLE `bill_config_fee_currency_rule` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `bill_config_id` bigint(20) unsigned NOT NULL COMMENT '账单配置ID',
+  `business_type_code` varchar(64) NOT NULL COMMENT '业务类型编码',
+  `fee_index_id` bigint(20) unsigned DEFAULT NULL COMMENT '费项索引ID',
+  `fee_code` varchar(64) NOT NULL COMMENT '费项编码',
+  `fee_name` varchar(128) DEFAULT NULL COMMENT '费项名称',
+  `charge_currency_mode` varchar(32) NOT NULL DEFAULT 'CONFIG_DEFAULT' COMMENT '收费币种模式：CONFIG_DEFAULT账单默认币种，SOURCE来源币种，FIXED固定币种',
+  `charge_currency` varchar(16) DEFAULT NULL COMMENT '固定收费币种',
+  `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用：0否，1是',
+  `remark` varchar(500) DEFAULT NULL COMMENT '备注',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否删除：0否，1是',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_bill_config_fee_currency` (`bill_config_id`,`business_type_code`,`fee_code`),
+  KEY `idx_bill_config_currency_rule` (`bill_config_id`,`enabled`,`is_deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='账单配置费项收费币种规则';
+
 
 CREATE TABLE `bill_generate_task` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
@@ -326,6 +347,25 @@ CREATE TABLE `ar_bill` (
   KEY `idx_ar_bill_task` (`generate_task_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='应收账单';
 
+CREATE TABLE `ar_bill_currency_summary` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `bill_id` bigint(20) unsigned NOT NULL COMMENT '账单ID',
+  `bill_no` varchar(64) NOT NULL COMMENT '账单编号',
+  `currency` varchar(16) NOT NULL COMMENT '收费币种',
+  `receivable_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '应收金额',
+  `paid_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '已核销金额',
+  `unpaid_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '未核销金额',
+  `fee_count` int(11) NOT NULL DEFAULT '0' COMMENT '费用明细数',
+  `order_count` int(11) NOT NULL DEFAULT '0' COMMENT '涉及订单数',
+  `summary_status` varchar(32) NOT NULL DEFAULT 'WAITING_PAY' COMMENT '币种核销状态：WAITING_PAY待收款，PART_PAID部分核销，PAID已核销',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_bill_currency_summary` (`bill_no`,`currency`),
+  KEY `idx_currency_summary_bill` (`bill_id`),
+  KEY `idx_currency_summary_status` (`currency`,`summary_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='应收账单按币种汇总';
+
 CREATE TABLE `fee_detail` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `fee_no` varchar(64) NOT NULL COMMENT '费用编号',
@@ -373,6 +413,8 @@ CREATE TABLE `fee_detail` (
   `fin_currency` varchar(16) NOT NULL DEFAULT 'CNY' COMMENT '财务本位币',
   `amount_fin_currency` decimal(18,4) NOT NULL COMMENT '费用金额<本位币>',
   `fee_status` varchar(32) NOT NULL DEFAULT 'NORMAL' COMMENT '费用状态：NORMAL/ADJUSTED/REVERSED/VOID',
+  `manual_flag` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否手工补录：0否，1是',
+  `manual_reason` varchar(500) DEFAULT NULL COMMENT '手工补录原因',
   `original_fee_id` bigint(20) unsigned DEFAULT NULL COMMENT '原费用ID，红冲/调账时使用',
   `offset_bill_no` varchar(64) DEFAULT NULL COMMENT '对冲账单号',
   `voucher_url` varchar(500) DEFAULT NULL COMMENT '费用凭证URL',
@@ -445,7 +487,11 @@ CREATE TABLE `bill_exchange_rate` (
   `exchange_rate` decimal(18,8) NOT NULL COMMENT '锁定汇率',
   `rate_date` date DEFAULT NULL COMMENT '汇率日期',
   `rate_source` varchar(64) DEFAULT NULL COMMENT '汇率来源',
+  `source_type` varchar(16) NOT NULL DEFAULT 'SYSTEM' COMMENT '来源：SYSTEM系统，MANUAL人工',
+  `edit_reason` varchar(500) DEFAULT NULL COMMENT '人工编辑原因',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_bill_rate` (`bill_id`,`bill_currency`,`conversion_currency`,`conversion_currency_type`),
   KEY `idx_bill_rate_no` (`bill_no`)
@@ -455,8 +501,13 @@ CREATE TABLE `fee_adjustment_order` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `adjustment_no` varchar(64) NOT NULL COMMENT '调账/红冲单号',
   `adjustment_type` varchar(32) NOT NULL COMMENT '类型：ADJUST调账，REVERSAL红冲',
+  `adjustment_period_type` varchar(16) NOT NULL DEFAULT 'CURRENT' COMMENT '调账账期类型：CURRENT本期，PREVIOUS往期',
   `trigger_bill_id` bigint(20) unsigned NOT NULL COMMENT '触发账单ID',
   `trigger_bill_no` varchar(64) NOT NULL COMMENT '触发账单编号',
+  `source_bill_no` varchar(64) DEFAULT NULL COMMENT '来源账单编号',
+  `target_bill_no` varchar(64) DEFAULT NULL COMMENT '计入目标账单编号',
+  `source_bill_config_id` bigint(20) unsigned DEFAULT NULL COMMENT '来源账单配置ID',
+  `source_main_order_id` bigint(20) unsigned DEFAULT NULL COMMENT '来源BMS订单快照ID',
   `sc_id` bigint(20) NOT NULL COMMENT '供应链/组织ID',
   `shop_id` bigint(20) NOT NULL COMMENT '店铺ID',
   `user_id` bigint(20) NOT NULL COMMENT '用户ID',
@@ -464,6 +515,10 @@ CREATE TABLE `fee_adjustment_order` (
   `adjustment_status` varchar(32) NOT NULL DEFAULT 'DRAFT' COMMENT '状态：DRAFT/SUBMITTED/APPROVED/REJECTED/POSTED/VOID',
   `adjustment_currency` varchar(16) NOT NULL COMMENT '调账币种',
   `adjustment_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '调账总金额',
+  `rebuild_flag` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否重整生成：0否，1是',
+  `import_batch_no` varchar(64) DEFAULT NULL COMMENT '导入批次号',
+  `original_amount` decimal(18,4) DEFAULT NULL COMMENT '原金额',
+  `rebuilt_amount` decimal(18,4) DEFAULT NULL COMMENT '重整后金额',
   `reason` varchar(500) DEFAULT NULL COMMENT '原因',
   `voucher_url` varchar(500) DEFAULT NULL COMMENT '凭证URL',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -476,6 +531,8 @@ CREATE TABLE `fee_adjustment_order` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_adjustment_no` (`adjustment_no`),
   KEY `idx_adjustment_bill` (`trigger_bill_id`),
+  KEY `idx_adjustment_source_bill` (`source_bill_no`,`target_bill_no`),
+  KEY `idx_adjustment_period` (`trigger_bill_no`,`adjustment_period_type`,`adjustment_status`),
   KEY `idx_adjustment_subject` (`sc_id`,`shop_id`,`user_id`,`member_code`,`adjustment_status`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='费用调账/红冲单';
 
@@ -516,6 +573,8 @@ CREATE TABLE `payment_writeoff_detail` (
   `receipt_no` varchar(64) NOT NULL COMMENT '收款单号',
   `bill_id` bigint(20) unsigned NOT NULL COMMENT '账单ID',
   `bill_no` varchar(64) NOT NULL COMMENT '账单编号',
+  `currency_summary_id` bigint(20) unsigned DEFAULT NULL COMMENT '核销的账单币种汇总ID',
+  `settlement_currency` varchar(16) DEFAULT NULL COMMENT '本次核销结算币种',
   `sc_id` bigint(20) NOT NULL COMMENT '供应链/组织ID',
   `shop_id` bigint(20) NOT NULL COMMENT '店铺ID',
   `user_id` bigint(20) NOT NULL COMMENT '用户ID',
@@ -534,6 +593,7 @@ CREATE TABLE `payment_writeoff_detail` (
   `remark` varchar(500) DEFAULT NULL COMMENT '备注',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_writeoff_no` (`writeoff_no`),
+  KEY `idx_writeoff_currency_summary` (`currency_summary_id`),
   KEY `idx_writeoff_receipt` (`receipt_id`),
   KEY `idx_writeoff_bill` (`bill_id`),
   KEY `idx_writeoff_subject_time` (`sc_id`,`shop_id`,`user_id`,`member_code`,`writeoff_time`)

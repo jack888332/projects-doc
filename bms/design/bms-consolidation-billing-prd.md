@@ -236,12 +236,14 @@ FeeSourceDatasource.datasource_code
 4. 收款登记（同币种分摊）-> 状态更新为 `PARTIALLY_PAID/PAID`。
 5. 调账/红冲/导入调整 -> 回退 `PENDING_REVIEW` -> 复核通过后重新 `ISSUED`。
 
+[业财一体流程图](C:/Coding/bms/aidocs/uml/primary/R1.业财一体流程图.md)
+
 ## 9. 功能需求（FR）
 
 ### 9.1 账单配置
 
 1. 支持周、半月、月、自定义天数。
-2. 支持结算节点：核重、签收。
+2. 支持结算节点：出库核重、广义签收。
 3. 支持配置生效时间段与自动出账开关。
 
 ### 9.2 费项配置与采集

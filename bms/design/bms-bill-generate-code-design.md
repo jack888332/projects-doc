@@ -52,18 +52,46 @@ member_code + shop_id + 账期时间
 
 ### 2.2 履约节点没有真正按配置选择
 
-当前 SQL 使用：
+此前 SQL 容易写成：
 
 ```sql
 COALESCE(h.check_time, h.measure_time, h.signed_time)
 ```
 
-但配置里有 `contract_node`，业务要求是：
+但配置里有 `contract_node`，现在明确为：核重出库只用 `h.measure_time`，签收只用 `h.signed_time`。
 
 - 核重出库：按核重/出库时间进入账期。
 - 签收：按签收时间进入账期。
 
 现在没有根据 `contract_node` 切换时间字段。
+
+### 2.2.1 订单/附加费时间字段配置口径
+
+当前代码已支持“按公共配置选择时间字段”，不再要求每个账单配置单独选择，口径如下：
+
+1. 主订单拉取时间字段：
+   - 优先从公共配置文件 `bms/disconf/download/bill_generate_conf.properties` 读取：
+     - `order.time.field.default`
+     - `order.time.field.sign`
+   - 支持值：
+     - `measure_time`
+     - `signed_time`
+   - 如果公共配置未配置，则按 `contract_node` 默认：
+     - `SIGN/SIGNED` -> `signed_time`
+     - 其他 -> `measure_time`
+
+2. 附加费增量拉取时间字段：
+   - 统一从公共数据集/公共配置读取 `create_time`，不再按履约节点切换。
+   - 公共配置文件 `bms/disconf/download/bill_generate_conf.properties`：
+     - `additional.time.field.default`
+     - `additional.time.field.sign`
+   - 支持值：
+     - `create_time`
+   - 附加费查询固定追加条件：`sale_order_additional_matter.fee_pay_status = waiting_pay`。
+
+3. 限制：
+   - 同一个账单配置命中的附加费规则，当前只支持 `a.create_time` 作为增量时间字段。
+   - 如果多个 `sale_order_additional_matter` 规则配置了不同时间字段，生成任务直接报错，避免公共口径不一致。
 
 ### 2.3 附加费没有按履约节点和计费状态完整归集
 
@@ -114,6 +142,22 @@ ofp_ofdb1.sale_order_additional_matter
 - `scope_snapshot_json`：当次使用的目的国/仓库限定范围快照。
 
 生成账单时以任务快照为准，不再受后续配置修改影响。
+
+### 2.6.1 任务缺少源数据查询 SQL 快照
+
+仅有配置快照还不够。排查“为什么这次少拉/多拉了订单、附加费”时，还需要看到任务当时到底执行了什么源 SQL。
+
+建议在 `bill_generate_task` 增加：
+
+- `order_source_sql`：本次主订单宽表查询的实际执行 SQL
+- `additional_source_sql`：本次附加费查询的实际执行 SQL
+
+要求：
+
+1. 记录的是“带具体账期、member_code、shop_id、orderIds 的实际 SQL”，不是模板 SQL。
+2. `order_source_sql` 在创建任务时即可写入。
+3. `additional_source_sql` 在主订单 ID 集合确定后回写。
+4. 任务失败时也必须保留这两个字段，便于排查。
 
 ### 2.7 幂等粒度还不够完整
 
@@ -250,14 +294,34 @@ sc_id + shop_id + user_id/member_code + bill_period_start + bill_period_end + bi
 
 | contract_node | 业务含义 | 推荐字段 |
 | --- | --- | --- |
-| `WEIGHT_OUTBOUND` | 核重出库 | `check_time` 优先，缺失再用 `measure_time` |
+| `WEIGHT_OUTBOUND` | 核重出库 | `measure_time` |
 | `SIGNED` / `SIGN` | 签收 | `signed_time` |
 
 生成 SQL 不建议继续固定 `COALESCE(check_time, measure_time, signed_time)`，而应该在 Java 侧根据配置决定查询条件。
 
+业务场景还需要映射到 `sale_order_header.order_type`：
+
+| 账单业务场景 | `sale_order_header.order_type` | OFP枚举含义 |
+| --- | --- | --- |
+| 同行订单 `PEER` | `YBCK01` | 预报出库单 |
+| 集运订单 `CONSOLIDATION` | `YBCK01` | 预报出库单 |
+| 电商订单 `ECOMMERCE` | `SO` | 销售订单 |
+
 ## 6. 订单拉取设计
 
 ### 6.1 候选订单查询
+
+除费用字段外，订单宽表还应同步保留关键重量快照字段，至少包含：
+
+- `total_weight`：源订单总重量
+- `warehouse_weight`：仓库核重重量
+- `fee_weight`：计费重量
+- `throw_weight`：抛重/体积重
+- `volume`：体积
+- `package_amount`：包裹数
+- `actual_total_piece`：实际总件数
+
+这些字段一方面用于账单详情页和导出展示，另一方面用于后续红冲、补录、争议核对时还原“当次出账时看到的重量口径”。
 
 候选订单至少按以下条件过滤：
 
@@ -282,7 +346,6 @@ SELECT
   h.member_code,
   h.country_code,
   h.dest_warehouse_code,
-  h.check_time,
   h.measure_time,
   h.signed_time,
   h.bms_bill_no,

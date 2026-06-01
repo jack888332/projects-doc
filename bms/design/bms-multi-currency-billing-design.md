@@ -20,6 +20,14 @@ ar_bill_currency_summary 是账单按币种的应收、已收、未收汇总。
 payment_writeoff_detail 核销到 ar_bill_currency_summary。
 ```
 
+当前这版落地语义再强调一次：
+
+```text
+fee_detail.bill_currency / amount_bill_currency
+= 客户真实收费币种 / 该收费币种下的真实应收金额
+不是“统一折算后的账单金额”。
+```
+
 ## 2. 当前代码和表结构问题
 
 ### 2.1 现有表已经具备的能力
@@ -31,7 +39,7 @@ payment_writeoff_detail 核销到 ar_bill_currency_summary。
 - `source_converted_amount_column`
 - `source_converted_currency_column`
 
-`fee_detail` 已经有费用原币、账单币种、财务币种字段：
+`fee_detail` 已经有费用原币、收费币种、财务币种字段：
 
 - `fee_currency`
 - `amount_fee_currency`
@@ -69,6 +77,13 @@ payment_writeoff_detail 核销到 ar_bill_currency_summary。
 7. 当前没有 `ar_bill_currency_summary` 表来承载多币种应收、已收、未收。
 8. 核销没有明确指向某个账单币种汇总行。
 
+最新代码整改目标：
+
+1. 当 `fee_currency = charge_currency` 时，`amount_bill_currency` 必须直接等于 `amount_fee_currency`。
+2. 只有 `fee_currency != charge_currency` 时，才允许使用 `exchange_rate_to_bill` 做换算。
+3. 当 `charge_currency = fin_currency` 时，`amount_fin_currency` 必须直接等于 `amount_bill_currency`。
+4. `ar_bill_currency_summary.receivable_amount` 必须汇总客户真实收费币种金额，而不是换算后的伪金额。
+
 因此，如果运费应收 CNY、代收手续费应收 TWD，现在系统没有稳定位置表达这个业务规则。
 
 ## 3. 核心设计原则
@@ -82,6 +97,100 @@ payment_writeoff_detail 核销到 ar_bill_currency_summary。
 7. 财务本位币金额只用于财务统计和展示，不影响客户真实应收与核销。
 
 ## 4. 账单配置如何定义费项收费币种
+
+### 4.0 目的国费项币种模板
+
+为了避免每次新增/修改账单配置时重复逐条选择费项收费币种，也避免配置人员误选，目的国维度的费项收费币种规则应沉淀为公共模板。
+
+核心思路：
+
+1. 模板按“业务场景 + 目的国”维度维护。
+2. 账单配置页面的分支方案，在选择目的国时可以直接选择对应模板。
+3. 选择模板后，自动带出该模板下的费项收费币种规则，作为当前分支方案的初始规则。
+4. 模板属于公共基础数据，不挂在某一个客户的账单配置上单独维护。
+5. 账单生成时，如果某个费项在当前账单配置中没有显式配置收费币种规则，应优先使用当前账单配置已选择的模板；未选择模板或模板未覆盖该费项时，再允许按订单/附加费的目的国去命中公共模板，作为兜底规则。
+
+建议新增两张表：
+
+```sql
+bill_fee_currency_template
+bill_fee_currency_template_rule
+```
+
+用途：
+
+- `bill_fee_currency_template`：定义模板头，例如“台湾集运费项币种模板”
+- `bill_fee_currency_template_rule`：定义模板下每个费项的收费币种规则
+
+模板头建议字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `template_code` | 模板编码 |
+| `template_name` | 模板名称 |
+| `business_type_code` | 业务场景 |
+| `country_code` | 目的国编码 |
+| `country_name` | 目的国名称 |
+| `enabled` | 是否启用 |
+
+模板规则建议字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `template_id` | 模板ID |
+| `fee_index_id` | 费项ID |
+| `fee_code` | 费项编码 |
+| `fee_name` | 费项名称 |
+| `charge_currency_mode` | 收费币种模式 |
+| `charge_currency` | 固定收费币种 |
+| `enabled` | 是否启用 |
+
+账单配置页面规则：
+
+1. 默认方案不强制使用模板。
+2. 分支方案因为天然与“目的国”绑定，应提供“目的国费项币种模板”下拉。
+3. 选中模板后：
+   - 自动回填 `feeCurrencyRules`
+   - 若当前分支方案尚未选择目的国，可自动带入模板目的国
+4. 保存账单配置时：
+   - `extra_json` 中记录模板ID、模板编码、模板名称、模板目的国
+   - 同时仍然落一份展开后的 `bill_config_fee_currency_rule`，确保历史账单配置独立可追溯
+
+这样做的好处：
+
+1. 模板是公共配置，一处维护，多处复用。
+2. 客户账单配置只做“选择模板”，不用每次重头配置全部费项币种。
+3. 即使后续模板被修改，历史账单配置因为已经展开保存，不会影响历史生成口径。
+
+### 4.0.1 生成账单时的模板命中顺序
+
+账单生成阶段，费项收费币种规则匹配顺序建议固定为：
+
+1. **账单配置显式规则优先**  
+   先查 `bill_config_fee_currency_rule`
+2. **账单配置选中模板优先**  
+   若当前账单配置没有命中显式规则，但 `extra_json` 中保存了 `feeCurrencyTemplateId`，则按该模板ID匹配：
+   - `template_id`
+   - `business_type_code`
+   - `fee_code`
+3. **目的国公共模板兜底**  
+   若选中模板未命中，则根据：
+   - `business_type_code`
+   - `destination_country`
+   - `fee_code`
+   去匹配 `bill_fee_currency_template_rule`
+4. **通用模板兜底**  
+   若没有命中目的国模板，则允许命中 `country_code` 为空的通用模板
+5. **账单默认币种兜底**  
+   若仍未命中任何规则，则回退到 `bill_config.billing_currency`
+
+推荐说明：
+
+- 模板是“公共规则来源”，不是“账单生成时唯一规则来源”。
+- 显式配置优先，保证客户特殊约定不会被公共模板覆盖。
+- 已选择模板优先于目的国公共模板，避免同一目的国维护多套模板时出现运行时漂移。
+- 目的国公共模板只在“该费项未显式配置、且选中模板未覆盖”时参与兜底。
+- 生成任务需把本次参与匹配的模板规则一并写入 `bill_generate_task.fee_rule_snapshot_json`，确保后续模板被修改时仍可追溯当次生成口径。
 
 ### 4.1 新增账单配置费项币种规则表
 
@@ -236,6 +345,37 @@ ALTER TABLE `fee_detail`
 ```text
 bill_currency = charge_currency
 amount_bill_currency = amount_charge_currency
+```
+
+在现有代码兼容阶段，先按下面的固定语义执行：
+
+| 现有字段 | 实际业务语义 |
+| --- | --- |
+| `bill_currency` | 客户收费币种 |
+| `amount_bill_currency` | 客户收费币种金额 |
+| `exchange_rate_to_bill` | 来源费用币种 -> 客户收费币种汇率 |
+
+也就是说，虽然字段名还叫 `bill_currency`，但在多币种账单链路里，它已经是“收费币种桶”。
+
+## 6.1 当前实现边界
+
+这次程序整改先把“同一账单可同时挂 CNY/TWD 等多个真实应收币种”跑通，优先保证：
+
+1. 生成账单后，币种汇总与核销口径正确。
+2. 手工补录费项时，同币种不再错误折算。
+3. 汇率编辑时，同币种行不再被错误改写。
+
+对于“来源金额是 CNY，但配置要求向客户按 TWD 收费”的自动换算场景，后续需要补齐：
+
+- `fee_source_rule.source_converted_amount_column`
+- `fee_source_rule.source_converted_currency_column`
+- 或者明确的计费换汇规则
+
+在这套换汇来源补齐之前，自动生成部分默认要求：
+
+```text
+来源费用金额本身就已经是目标收费币种金额，
+或者来源费用币种与收费币种一致。
 ```
 
 ## 7. 账单生成逻辑调整
@@ -581,4 +721,3 @@ WHERE is_deleted = 0;
 - `admin_front/src/views/billing/billConfig`：费项收费币种配置。
 - `admin_front/src/views/billing/receivableBill`：多币种列表、详情、登记收款。
 - `admin_front/src/views/billing/paymentWriteoff`：按币种核销流水和汇总。
-

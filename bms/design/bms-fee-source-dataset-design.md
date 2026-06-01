@@ -14,6 +14,7 @@
 3. 订单类费用的归集时间跟随账单配置的履约节点：核重出库使用 `sale_order_header.measure_time`，签收使用 `sale_order_header.signed_time`。
 4. 附加费类数据只按 `sale_order_additional_matter.create_time` 增量拉取，并固定过滤 `fee_pay_status = waiting_pay`。
 5. 同行订单、电商订单按 `sale_order_header.order_type` 区分：同行订单 `YBCK01`，电商订单 `SO`。
+6. 源数据查询拆分规则沉到 `fee_source_dataset`：`query_window_days` 控制每次查询窗口天数，`query_page_size` 控制分页条数，不再放到公共配置文件。
 
 ## 当前内置数据集
 
@@ -21,6 +22,8 @@
 | --- | --- | --- |
 | `CONSOLIDATION_ORDER` | `sale_order_header h LEFT JOIN sale_order_header_extend e` | 集运订单主费用，支持核重出库和签收 |
 | `CONSOLIDATION_ADDITIONAL_FEE` | `sale_order_additional_matter a JOIN sale_order_header h` | 集运附加费，只按 `a.create_time` 增量归集，过滤 `a.fee_pay_status = waiting_pay` |
+
+默认查询策略：`query_window_days = 1` 按自然日拆分，`query_page_size = 500` 分页拉取。不同来源数据集可以单独调整，避免所有来源共用一份隐藏配置。
 
 ## 页面调整
 

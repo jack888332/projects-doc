@@ -1,0 +1,7 @@
+start-all.sh脚本的要求
+1.super-admin-front前端能获取sc_id的，所以要在这个前端登录
+2.admin-front前端BMS的页面
+3.访问bms相关的接口链路是admin-front->gateway->platform-admin->bms
+4.我要求的是我能临时改变admin-front请求某些页面内的请求指向本地gateway->本地platform-admin->本地bms
+5.所有后端的服务都去获取远程disconf-web的配置文件，不要依赖本地配置文件
+6.所有后端的服务不要注册到远程erueka，但是服务又用远程的服务，我只是不想远程环境会跳入到我本机的服务

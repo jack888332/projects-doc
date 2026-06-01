@@ -91,6 +91,8 @@ CREATE TABLE `fee_source_dataset` (
   `sign_time_column` varchar(255) DEFAULT NULL COMMENT '签收时间表达式',
   `incremental_time_column` varchar(255) DEFAULT NULL COMMENT '追加/增量时间表达式',
   `supported_contract_nodes` varchar(255) DEFAULT NULL COMMENT '支持履约节点，逗号分隔：WEIGHT_OUTBOUND,SIGN,INCREMENTAL',
+  `query_window_days` int(11) NOT NULL DEFAULT '1' COMMENT '源数据查询窗口天数，1表示按天拆分',
+  `query_page_size` int(11) NOT NULL DEFAULT '500' COMMENT '源数据分页条数',
   `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用',
   `priority` int(11) NOT NULL DEFAULT '0' COMMENT '优先级',
   `remark` varchar(500) DEFAULT NULL COMMENT '备注',
@@ -677,7 +679,7 @@ INSERT INTO `fee_source_dataset` (
   `dataset_code`, `dataset_name`, `source_system`, `datasource_code`, `source_database`,
   `main_table`, `main_alias`, `join_sql`, `base_where_expr`, `billed_flag_column`, `bill_no_column`,
   `weight_outbound_time_column`, `sign_time_column`, `incremental_time_column`,
-  `supported_contract_nodes`, `enabled`, `priority`, `remark`
+  `supported_contract_nodes`, `query_window_days`, `query_page_size`, `enabled`, `priority`, `remark`
 ) VALUES
 (
   'CONSOLIDATION_ORDER', '集运订单主数据', 'OFP', 'OFP_DB', 'ofp_ofdb1',
@@ -685,7 +687,7 @@ INSERT INTO `fee_source_dataset` (
   NULL,
   'e.bms_billed_flag', 'e.bms_bill_no',
   'h.measure_time', 'h.signed_time', NULL,
-  'WEIGHT_OUTBOUND,SIGN', 1, 10, 'sale_order_header + sale_order_header_extend；核重使用measure_time，签收使用signed_time'
+  'WEIGHT_OUTBOUND,SIGN', 1, 500, 1, 10, 'sale_order_header + sale_order_header_extend；核重使用measure_time，签收使用signed_time'
 ),
 (
   'CONSOLIDATION_ADDITIONAL_FEE', '集运订单附加费', 'OFP', 'OFP_DB', 'ofp_ofdb1',
@@ -693,7 +695,7 @@ INSERT INTO `fee_source_dataset` (
   'a.fee_pay_status = ''waiting_pay''',
   'a.bms_billed_flag', 'a.bms_bill_no',
   NULL, NULL, 'a.create_time',
-  'INCREMENTAL', 1, 20, '附加费仅按create_time增量拉取，并过滤fee_pay_status=waiting_pay'
+  'INCREMENTAL', 1, 500, 1, 20, '附加费仅按create_time增量拉取，并过滤fee_pay_status=waiting_pay'
 );
 
 SET FOREIGN_KEY_CHECKS = 1;

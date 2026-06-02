@@ -158,7 +158,7 @@ CREATE TABLE `bill_config` (
   `billing_currency` varchar(16) NOT NULL COMMENT '账单结算币种',
   `billing_period_type` varchar(32) NOT NULL COMMENT '账期类型：DAY/WEEK/HALF_MONTH/MONTH',
   `fin_currency` varchar(16) NOT NULL DEFAULT 'CNY' COMMENT '财务本位币',
-  `bill_send_offset_days` int(11) NOT NULL DEFAULT '0' COMMENT '账单结束后第几天发送账单',
+  `bill_send_offset_days` int(11) NOT NULL DEFAULT '3' COMMENT '账单结束后第几天发送账单（用于催复核提醒的预定天数）',
   `contract_node` varchar(64) DEFAULT NULL COMMENT '履约/归集节点',
   `credit_period_days` int(11) NOT NULL DEFAULT '0' COMMENT '信用期天数',
   `credit_level` varchar(32) DEFAULT NULL COMMENT '信用评级',

@@ -1,4 +1,4 @@
-# BMS 账单生成与附加费增量归集设计
+﻿# BMS 账单生成与附加费增量归集设计
 
 ## 1. 背景
 
@@ -404,6 +404,35 @@ SO10001 + 超重费 + 20
 9. `bill_generate_task` 标记 `SUCCESS`。
 
 失败时不要物理删除已写数据，依靠幂等键和来源归集标记支持重跑。
+
+
+### 6.8 应收账单编号规则与按【业务板块+目的国】拆单
+
+应收账单（ARB）账单编号按如下结构动态生成：
+
+```
+ARB-[结算主体]-[账期起始日 yyyymmdd]-[业务板块+目的国 哈希4位]
+```
+
+- 结算主体：客户编号（customer_no），缺省回退到 member_code。
+- 账期起始日：账单账期起始日的 yyyymmdd 形式。
+- 后缀：业务板块与目的国拼接后取 MD5 截前 4 位的小写16进制，例 fsha。
+- 样例：ARB-OG4155-20260101-fsha。
+
+应付账单（APB）、返款账单（PCB）按新规则：
+
+```
+APB-[结算主体]-[yyyymmdd]
+PCB-[结算主体]-[yyyymmdd]
+```
+
+#### 拆单规则
+
+1. 系统本期采集的全部费用项，必须严格按照其所关联订单的【业务板块】和【目的国】分组归集。
+2. 同一账单配置、同一账期内，业务板块或目的国不同的费用项拆分为多份应收账单。
+3. 拆单分组键：(business_sector, destination_country)，缺值时账单生成任务直接报错。
+4. 唯一键调整为 (bill_config_id, billing_period_start_date, billing_period_end_date, business_sector, destination_country)。
+5. 拆分后每张账单拥有独立 bill_no，可独立复核、发送、付款、核销。
 
 ## 7. 来源表打标设计
 

@@ -1,4 +1,4 @@
-# BMS 应收账单生成逻辑设计
+﻿# BMS 应收账单生成逻辑设计
 
 > 基于当前代码 `BillGenerateServiceImpl` / `BillGenerateMapper` 梳理。目标是让“默认方案 + 分支方案”生成出来的数据互不重叠，并支持按履约节点、费项规则、附加费增量归集生成账单。
 
@@ -702,7 +702,17 @@ BillSourceMarkService
   - 源表打标
 ```
 
-## 14. 推荐生成伪代码
+## 14. 应收账单按【业务板块+目的国】拆单与编号生成
+
+基于当前 BillGenerateServiceImpl 的改造点：
+
+1. 拆单分组键 BillGroupKey = (business_sector, destination_country)，缺一不可。
+2. 账单编号由 buildArBillNo 统一生成，格式：ARB-{customerNo|fallback memberCode}-{yyyyMMdd}-{md5(sector+country)前4位}。
+3. 同一 bill_config、同一账期内，按分组键分桶后逐桶生成 ar_bill，互不干扰。
+4. ar_bill 唯一键调整为 (bill_config_id, billing_period_start_date, billing_period_end_date, business_sector, destination_country)。
+5. BillGenerateServiceImpl.executeTaskInternal 在拉取订单后、创建账单前增加分组步骤；后续 executeBillGroup 按组执行原有的 buildBill -> insertBill -> 订单快照 -> fee_detail -> 来源打标 -> 币种汇总 -> 状态 流程。
+
+## 16. 推荐生成伪代码
 
 ```java
 public BillGenerateRespDTO generate(req) {
@@ -731,7 +741,7 @@ public BillGenerateRespDTO generate(req) {
 }
 ```
 
-## 15. 结论
+## 17. 结论
 
 当前代码已经具备“按账单配置生成账单、按规则拆费用竖表、写任务记录”的基础，但还需要重点补齐：
 

@@ -180,8 +180,8 @@ Controller 只做入口转发，业务逻辑在 `SourceDataMigrationService`。
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `scId` | Long | Platform Admin 注入 | 当前供应链 ID |
-| `sourceDatasourceCode` | String | 否 | 源数据源编码，默认 `OFP_DB_SOURCE` |
-| `targetDatasourceCode` | String | 否 | 目标数据源编码，默认 `OFP_DB_TARGET` |
+| `sourceDatasourceCode` | String | 否 | 源数据源编码，默认 `OFP_TEST_MIGRATION_SOURCE` |
+| `targetDatasourceCode` | String | 否 | 目标数据源编码，默认 `OFP_TEST_MIGRATION_TARGET` |
 | `sourceShopId` | Long | 否 | 源店铺 ID |
 | `sourceUserId` | Long | 否 | 源用户 ID |
 | `sourceMemberCode` | String | 否 | 源会员编码 |
@@ -277,12 +277,12 @@ LIMIT 1
 
 默认数据源编码：
 
-| 用途 | 默认编码 | 兜底编码 |
+| 用途 | 默认编码 | 是否允许与账单生成共用 |
 | --- | --- | --- |
-| 源库 | `OFP_DB_SOURCE` | `OFP_DB` |
-| 目标库 | `OFP_DB_TARGET` | `OFP_DB` |
+| 源库 | `OFP_TEST_MIGRATION_SOURCE` | 否 |
+| 目标库 | `OFP_TEST_MIGRATION_TARGET` | 否 |
 
-如果默认编码不存在且允许兜底，则使用 `OFP_DB`。连接密码读取 `password_cipher` 字段，当前实现直接作为 JDBC 密码使用。
+迁移功能不再兜底使用 `OFP_DB`。`OFP_DB` 保留给账单生成、费项数据集和费项来源规则使用，测试迁移必须配置独立的数据源编码，避免测试迁移源库/目标库和账单生成运行时取数连接混用。连接密码读取 `password_cipher` 字段，当前实现直接作为 JDBC 密码使用。
 
 ### 7.4 源订单查询
 
@@ -439,7 +439,7 @@ targetConn.setAutoCommit(false)
 | 未指定订单号且未填时间范围 | `未指定订单号时，必须填写时间范围` |
 | 开始日期晚于结束日期 | `开始日期不能晚于结束日期` |
 | 时间字段不在白名单 | `不支持的时间字段：xxx` |
-| 数据源不存在 | `未找到可用数据源配置：xxx` |
+| 数据源不存在 | `未找到测试迁移专用数据源配置：xxx` |
 | 未命中订单 | `没有命中可迁移订单` |
 | 预览成功 | `预览完成，未写入目标库` |
 | 执行成功 | `迁移成功，目标库已提交` |

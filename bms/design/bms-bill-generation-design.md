@@ -6,7 +6,7 @@ BMS 账单配置已经支持按客户维度配置：
 
 `sc_id -> shop_id -> user_id -> member_code`
 
-同时支持默认方案、目的国/仓库分支方案，以及业务类型：
+同时支持默认方案、目的国/仓库分支方案，以及分支方案的业务类型：
 
 1. `PEER`：同行订单。
 2. `ECOMMERCE`：电商订单。
@@ -269,7 +269,7 @@ ALTER TABLE `bill_generate_task`
 生成前根据客户和范围匹配配置：
 
 1. 先按 `sc_id/shop_id/user_id/member_code` 锁定客户。
-2. 再按 `business_type_codes` 判断业务类型。
+2. 分支方案按 `business_type_codes` 判断业务类型；默认方案不按订单类型过滤。
 3. 如果存在 `bill_config_scope` 非默认配置，优先匹配：
    - `DEST_COUNTRY`
    - `WAREHOUSE`
@@ -433,6 +433,15 @@ PCB-[结算主体]-[yyyymmdd]
 3. 拆单分组键：(business_sector, destination_country)，缺值时账单生成任务直接报错。
 4. 唯一键调整为 (bill_config_id, billing_period_start_date, billing_period_end_date, business_sector, destination_country)。
 5. 拆分后每张账单拥有独立 bill_no，可独立复核、发送、付款、核销。
+
+#### 同账期增量同步
+
+1. 手动生成入口允许同一账单配置、同一账期再次触发生成，不再因为已有账单直接跳过。
+2. 任务执行时只扫描源表中未被 BMS 打标的订单、附加费、理赔数据。
+3. 对同一 (bill_config_id, billing_period_start_date, billing_period_end_date, business_sector, destination_country) 已存在且仍处于 DRAFT/GENERATED 的账单，增量数据追加到原账单，并重建币种汇总和账单金额。
+4. 如果同账期账单已发生核销，或状态已进入待结清/已结清等不可修改状态，本次增量同步应失败并提示业务处理。
+5. 对历史缺少 business_sector/destination_country 字段的账单，可按同配置、同账期、同 bill_no 兜底定位，避免重复插入同编号账单。
+6. 由于 `bill_generate_task.uk_task_period` 限制同一 (bill_config_id, period_start, period_end, trigger_type) 只能有一条任务，手动增量同步在没有活动任务时复用历史任务行，将其重置为 `PENDING` 并刷新任务快照；`PENDING/RUNNING/NEED_RETRY` 任务仍通过活动任务校验避免并发执行。
 
 ## 7. 来源表打标设计
 

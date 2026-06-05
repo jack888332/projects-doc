@@ -229,7 +229,7 @@ ofp_ofdb1.sale_order_additional_matter
    - 目的国命中分支 scope；如果分支没有配置目的国则视为不限制。
    - 集运仓命中分支 scope；如果分支没有配置集运仓则视为不限制。
 4. 第一条命中的分支拿走该订单。
-5. 没有命中任何分支的订单进入默认配置。
+5. 没有命中任何分支的订单进入默认配置；默认配置不按订单类型过滤，作为客户维度兜底方案。
 
 这样可以保证：
 
@@ -299,7 +299,7 @@ sc_id + shop_id + user_id/member_code + bill_period_start + bill_period_end + bi
 
 生成 SQL 不建议继续固定 `COALESCE(check_time, measure_time, signed_time)`，而应该在 Java 侧根据配置决定查询条件。
 
-业务场景还需要映射到 `sale_order_header.order_type`：
+分支方案的业务场景需要映射到 `sale_order_header.order_type`；默认方案不使用该映射做订单类型限定：
 
 | 账单业务场景 | `sale_order_header.order_type` | OFP枚举含义 |
 | --- | --- | --- |
@@ -711,6 +711,7 @@ BillSourceMarkService
 3. 同一 bill_config、同一账期内，按分组键分桶后逐桶生成 ar_bill，互不干扰。
 4. ar_bill 唯一键调整为 (bill_config_id, billing_period_start_date, billing_period_end_date, business_sector, destination_country)。
 5. BillGenerateServiceImpl.executeTaskInternal 在拉取订单后、创建账单前增加分组步骤；后续 executeBillGroup 按组执行原有的 buildBill -> insertBill -> 订单快照 -> fee_detail -> 来源打标 -> 币种汇总 -> 状态 流程。
+6. 手动生成同一 bill_config、同一账期时，如果 `uk_task_period` 已存在历史任务且当前没有 PENDING/RUNNING/NEED_RETRY 活动任务，则复用该任务行并重置为 PENDING；executeBillGroup 先按分组唯一键查已有 ar_bill，找不到再按同配置、同账期、同 bill_no 兜底查历史账单。命中 DRAFT/GENERATED 账单时追加未打标源数据并重算金额；命中已核销或待结清/已结清账单时拒绝增量同步。
 
 ## 16. 推荐生成伪代码
 

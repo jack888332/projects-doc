@@ -11,7 +11,7 @@ ALTER TABLE `main_order`
   ADD COLUMN `generate_task_id` bigint(20) unsigned DEFAULT NULL COMMENT '账单生成任务ID' AFTER `config_type`,
   ADD COLUMN `billing_period_start_date` date DEFAULT NULL COMMENT '归属账单账期开始日期' AFTER `generate_task_id`,
   ADD COLUMN `billing_period_end_date` date DEFAULT NULL COMMENT '归属账单账期结束日期' AFTER `billing_period_start_date`,
-  ADD COLUMN `bill_currency` varchar(16) DEFAULT NULL COMMENT '归属账单结算币种' AFTER `billing_period_end_date`,
+  ADD COLUMN `bill_currency` varchar(16) DEFAULT NULL COMMENT '归属结算币种' AFTER `billing_period_end_date`,
   ADD COLUMN `fin_currency` varchar(16) DEFAULT NULL COMMENT '财务本位币' AFTER `bill_currency`,
   ADD COLUMN `billed_at` datetime DEFAULT NULL COMMENT '计入账单时间' AFTER `fin_currency`;
 

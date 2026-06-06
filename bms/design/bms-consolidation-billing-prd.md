@@ -96,7 +96,7 @@
 1. 账单配置（周期、结算节点、生效范围）。
 2. 费项配置（来源、规则、税率、方向）。
 3. 账单主单/明细。
-4. 账单币种汇总（按币种桶）。
+4. 结算币种汇总（按币种桶）。
 5. 调账单、红冲单。
 6. 收款单、分摊单。
 7. 导入批次与行日志。
@@ -118,7 +118,7 @@
 
 `Customer(客户)` `1` -> `N` `CustomerBillProfile(客户账单配置)`  
 `CustomerBillProfile` `1` -> `N` `Bill(账单)`  
-`Bill` `1` -> `N` `BillCurrencySummary(账单币种汇总)`  
+`Bill` `1` -> `N` `BillCurrencySummary(结算币种汇总)`
 `Bill` `1` -> `N` `BillItem(账单明细)`  
 `Bill` `1` -> `N` `Adjustment/Writeoff(调账/红冲)`  
 `Bill` `N` <-> `N` `Receipt(收款)`（通过 `ReceiptAllocation` 关联）
@@ -375,7 +375,7 @@ USD 应收 120.00，EUR 应收 40.00
 
 验收：
 
-1. 账单币种汇总与明细汇总一致。
+1. 结算币种汇总与明细汇总一致。
 2. 不允许使用 USD 收款直接抵扣 EUR 未收（V1 规则）。
 
 ### UC-04 调账导致回审

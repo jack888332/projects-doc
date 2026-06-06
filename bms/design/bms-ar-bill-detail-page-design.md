@@ -94,7 +94,7 @@
 
 | 字段 | 来源 |
 | --- | --- |
-| 账单结算币种 | `bill_currency` |
+| 结算币种 | `bill_currency` |
 | 原始应收金额 | `initial_receivable_amount_in_bill_currency` |
 | 本期调账金额 | `this_bill_amount_adjustment_delta_in_bill_currency` |
 | 往期调账金额 | `previous_bill_amount_adjustment_delta_in_bill_currency` |
@@ -106,14 +106,14 @@
 
 ### 4.3 汇率区
 
-增加“账单汇率”区块，用于解释费用币种、账单币种、财务本位币之间的换算。
+增加“结算汇率”区块，用于解释费用币种、结算币种、财务本位币之间的换算。
 
 汇率不是只读数据，需要支持编辑。账单生成时保存当次汇率快照，详情页展示快照，财务可在账单复核前编辑汇率并重算账单金额。
 
 | 字段 | 说明 |
 | --- | --- |
 | 原币种 | `fee_currency` |
-| 账单币种 | `bill_currency` |
+| 结算币种 | `bill_currency` |
 | 汇率 | `exchange_rate_to_bill` |
 | 财务本位币 | `fin_currency` |
 | 财务汇率 | `exchange_rate_to_fin` |
@@ -124,7 +124,7 @@
 编辑规则：
 
 - 只有 `GENERATED`、`CONFIRMED` 前的待复核状态允许编辑汇率；已结清、已作废、已冲销不允许编辑。
-- 编辑汇率后必须重算该账单下所有关联费项的账单币种金额、财务本位币金额、费项汇总和 `ar_bill` 金额。
+- 编辑汇率后必须重算该账单下所有关联费项的结算币种金额、财务本位币金额、费项汇总和 `ar_bill` 金额。
 - 汇率编辑必须记录操作日志，包含编辑前/后汇率、影响金额、操作人和原因。
 - 不建议直接把汇率只放在 `fee_detail`；应该增加账单级汇率快照表，`fee_detail` 保存最终使用的汇率结果，便于审计和导出。
 
@@ -136,7 +136,7 @@ CREATE TABLE bill_exchange_rate_snapshot (
   bill_no varchar(64) NOT NULL COMMENT '账单编号',
   source_currency varchar(16) NOT NULL COMMENT '原币种',
   target_currency varchar(16) NOT NULL COMMENT '目标币种',
-  exchange_direction varchar(16) NOT NULL COMMENT '换算方向：TO_BILL账单币种，TO_FIN财务本位币',
+  exchange_direction varchar(16) NOT NULL COMMENT '换算方向：TO_BILL结算币种，TO_FIN财务本位币',
   exchange_rate decimal(18,8) NOT NULL COMMENT '锁定汇率',
   source_type varchar(16) NOT NULL DEFAULT 'SYSTEM' COMMENT '来源：SYSTEM系统，MANUAL人工',
   edit_reason varchar(500) DEFAULT NULL COMMENT '人工编辑原因',
@@ -146,7 +146,7 @@ CREATE TABLE bill_exchange_rate_snapshot (
   updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_bill_exchange_rate_snapshot_bill (bill_no)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='BMS账单汇率快照';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='BMS结算汇率快照';
 ```
 
 ## 5. Tab 设计
@@ -163,7 +163,7 @@ CREATE TABLE bill_exchange_rate_snapshot (
 - 订单数
 - 费用币种
 - 费用金额
-- 账单币种
+- 结算币种
 - 账单金额
 - 财务本位币金额
 - 操作：查看明细
@@ -180,7 +180,7 @@ CREATE TABLE bill_exchange_rate_snapshot (
 - 费用补录入口放在“费用汇总”标题右侧，按钮文案为 `补录费项`。
 - 补录对象支持账单级、订单级、尾程包裹级，优先支持订单级。
 - 补录字段至少包含：费项、挂靠对象、业务主单号、尾程单号、首程单号、费用币种、原币金额、凭证、备注。
-- 补录时按账单汇率快照自动换算账单币种和财务本位币金额。
+- 补录时按结算汇率快照自动换算结算币种和财务本位币金额。
 - 补录成功后插入 `fee_detail`，同时刷新费用汇总和 `ar_bill` 应收金额。
 - 已结清账单不允许直接补录影响应收金额的费项；必须走往期冲正进入后续账单，或者先反核销再处理。
 
@@ -210,7 +210,7 @@ CREATE TABLE bill_exchange_rate_snapshot (
 - 来源单据号
 - 费用币种
 - 原币金额
-- 账单汇率
+- 结算汇率
 - 账单金额
 - 财务汇率
 - 财务本位币金额
@@ -233,7 +233,7 @@ CREATE TABLE bill_exchange_rate_snapshot (
 - 调账币种
 - 调账金额
 - 调账后金额
-- 账单币种金额
+- 结算币种金额
 - 财务本位币金额
 - 凭证
 - 录入人
@@ -265,7 +265,7 @@ CREATE TABLE bill_exchange_rate_snapshot (
 - 来源账单号
 - 来源订单号
 - 关联费项
-- 原账单币种
+- 原结算币种
 - 本期冲正币种
 - 金额变动
 - 审核状态
@@ -308,7 +308,7 @@ ALTER TABLE fee_adjustment_order
 - 账单编号
 - 收款币种
 - 核销金额
-- 账单币种核销金额
+- 结算币种核销金额
 - 财务本位币核销金额
 - 收款方式
 - 核销状态
@@ -585,7 +585,7 @@ admin_front/src/views/billing/receivableBill/components/BillOrderTable.vue
 
 新增 Mapper 查询：
 
-- 账单汇率聚合：从 `fee_detail` group by fee_currency, bill_currency, exchange_rate_to_bill, fin_currency, exchange_rate_to_fin。
+- 结算汇率聚合：从 `fee_detail` group by fee_currency, bill_currency, exchange_rate_to_bill, fin_currency, exchange_rate_to_fin。
 - 账单订单分页：从 `main_order` 按 `bill_no` 查询。
 - 本期/往期调账拆分：从 `fee_adjustment_order` 查询。
 

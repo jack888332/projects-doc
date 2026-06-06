@@ -1,4 +1,4 @@
--- 目的国费项收费币种模板
+-- 目的国费项结算币种模板
 -- 适用库：tmall_bms
 
 CREATE TABLE IF NOT EXISTS `bill_fee_currency_template` (
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS `bill_fee_currency_template` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_bill_fee_currency_template_code` (`template_code`),
   KEY `idx_bill_fee_currency_template_country` (`country_code`, `business_type_code`, `enabled`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='目的国费项收费币种模板';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='目的国费项结算币种模板';
 
 CREATE TABLE IF NOT EXISTS `bill_fee_currency_template_rule` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
@@ -25,12 +25,12 @@ CREATE TABLE IF NOT EXISTS `bill_fee_currency_template_rule` (
   `fee_index_id` bigint(20) unsigned DEFAULT NULL COMMENT '费项索引ID',
   `fee_code` varchar(64) NOT NULL COMMENT '费项编码',
   `fee_name` varchar(128) DEFAULT NULL COMMENT '费项名称',
-  `charge_currency_mode` varchar(32) NOT NULL DEFAULT 'SOURCE' COMMENT '收费币种模式：CONFIG_DEFAULT/SOURCE/FIXED',
-  `charge_currency` varchar(16) DEFAULT NULL COMMENT '固定收费币种',
+  `charge_currency_mode` varchar(32) NOT NULL DEFAULT 'SOURCE' COMMENT '结算币种模式：CONFIG_DEFAULT/SOURCE/FIXED',
+  `charge_currency` varchar(16) DEFAULT NULL COMMENT '固定结算币种',
   `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_bill_fee_currency_template_rule_tpl` (`template_id`, `enabled`),
   KEY `idx_bill_fee_currency_template_rule_fee` (`fee_code`, `business_type_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='目的国费项收费币种模板明细';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='目的国费项结算币种模板明细';

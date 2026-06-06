@@ -64,7 +64,7 @@
 
 1. 补录 `MANUAL_USD / 手工补录USD测试费`，金额 `10 USD`。
 2. 补录 `MANUAL_EUR / 手工补录EUR测试费`，金额 `5 EUR`。
-3. 编辑账单汇率：
+3. 编辑结算汇率：
    - `CNY -> CNY = 1`
    - `USD -> CNY = 7.2`
    - `EUR -> CNY = 7.9`

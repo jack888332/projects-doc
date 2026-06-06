@@ -1,4 +1,4 @@
-﻿# BMS 应收账单生成逻辑设计
+# BMS 应收账单生成逻辑设计
 
 > 基于当前代码 `BillGenerateServiceImpl` / `BillGenerateMapper` 梳理。目标是让“默认方案 + 分支方案”生成出来的数据互不重叠，并支持按履约节点、费项规则、附加费增量归集生成账单。
 
@@ -173,7 +173,7 @@ ofp_ofdb1.sale_order_additional_matter
 
 当前 `fee_detail.exchange_rate_to_bill`、`exchange_rate_to_fin` 固定写 1。
 
-如果原始费用币种和账单币种不一致，应按 `bill_exchange_rate` 或汇率表换算，否则账单金额不准。
+如果原始费用币种和结算币种不一致，应按 `bill_exchange_rate` 或汇率表换算，否则账单金额不准。
 
 ## 3. 推荐目标流程
 
@@ -624,7 +624,7 @@ source_order_id + billing_period_start + billing_period_end
 生成 `fee_detail` 时要区分：
 
 - `fee_currency`：来源费用币种。
-- `bill_currency`：账单结算币种。
+- `bill_currency`：结算币种。
 - `fin_currency`：财务本位币。
 
 如果三者不同：

@@ -35,7 +35,7 @@ BMS 页面统一放在 `admin_front`，不在 `super_admin_front` 开发业务�
 | 客户账单 | 生成任务 | `bill_generate_task` | `/billing/billGenerateTask` | 否 | 账单生成任务流水和配置维度监控 |
 | 客户账单 | 费项管理 | `bms_fee_item` | `/billing/feeItem` | 否 | fee_index 和业务场景费项对应管理 |
 | 客户账单 | 数据源规则 | `bms_fee_source_dataset` | `/billing/feeSourceDataset` | 否 | 维护 fee_source_dataset，定义来源库表、联表关系、核重/签收/增量时间口径 |
-| 客户账单 | 币种模板 | `bms_fee_currency_template` | `/billing/feeCurrencyTemplate` | 否 | 维护目的国费项收费币种模板，支持目的国别名、模板规则和币种映射 |
+| 客户账单 | 币种模板 | `bms_fee_currency_template` | `/billing/feeCurrencyTemplate` | 否 | 维护目的国费项结算币种模板，支持目的国别名、模板规则和币种映射 |
 
 ## 侧边栏本地兜底规则
 
@@ -62,7 +62,7 @@ BMS 页面统一放在 `admin_front`，不在 `super_admin_front` 开发业务�
 | 账单生成任务 | `BillGenerateTask`、`BmsBillGenerateTask`、`bill_generate_task`、`账单生成任务`、`生成任务` |
 | BMS费项管理 | `BmsFeeItem`、`bms_fee_item`、`BMS费项管理`、`费项管理` |
 | BMS数据源规则 | `BmsFeeSourceDataset`、`bms_fee_source_dataset`、`BMS数据源规则`、`数据源规则`、`费项数据源` |
-| BMS币种模板 | `BmsFeeCurrencyTemplate`、`bms_fee_currency_template`、`BMS币种模板`、`币种模板`、`收费币种模板` |
+| BMS币种模板 | `BmsFeeCurrencyTemplate`、`bms_fee_currency_template`、`BMS币种模板`、`币种模板`、`结算币种模板` |
 
 ## 费项管理相关菜单拆分
 

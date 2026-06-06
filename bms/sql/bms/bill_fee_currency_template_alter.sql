@@ -1,4 +1,4 @@
--- 目的国费项收费币种模板别名字段
+-- 目的国费项结算币种模板别名字段
 -- 适用库：tmall_bms
 
 ALTER TABLE `bill_fee_currency_template`

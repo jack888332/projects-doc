@@ -44,7 +44,7 @@
 - `bill_id`、`bill_no`：关联账单。
 - `sc_id`、`shop_id`、`user_id`、`member_code`：维度冗余，便于按组织和客户查询。
 - `writeoff_amount_receipt_currency`：收款币种核销金额。
-- `writeoff_amount_bill_currency`：账单币种核销金额。
+- `writeoff_amount_bill_currency`：结算币种核销金额。
 - `writeoff_amount_fin_currency`：财务本位币核销金额。
 - `writeoff_status`：`NORMAL`、`REVERSED`、`VOID`。
 - `writeoff_time`、`writeoff_by`：核销时间和操作人。
@@ -55,8 +55,8 @@
 
 关键字段：
 
-- `paid_amount`：已收金额，按账单结算币。
-- `unpaid_amount`：未收金额，按账单结算币。
+- `paid_amount`：已收金额，按结算币种。
+- `unpaid_amount`：未收金额，按结算币种。
 - `paid_amount_fin`：已收金额，按财务本位币。
 - `bill_status`：核销后按金额更新为 `PART_PAID` 或 `PAID`。
 
@@ -219,7 +219,7 @@ GET /api/bms/ar-bill/detail?billNo=xxx
 
 - 账单编号。
 - 客户名称。
-- 账单币种。
+- 结算币种。
 - 未收金额。
 - 本次核销金额。
 - 核销后未收金额。

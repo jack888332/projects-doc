@@ -310,7 +310,7 @@ fee_source_datasource.datasource_code
 2. `bms_fee_item_config`：费项配置。
 3. `bms_bill`：账单头。
 4. `bms_bill_item`：账单明细。
-5. `bms_bill_currency_summary`：账单币种汇总（应收/已收/未收）。
+5. `bms_bill_currency_summary`：结算币种汇总（应收/已收/未收）。
 6. `bms_adjustment`：调账单。
 7. `bms_writeoff`：红冲记录。
 8. `bms_receipt`：收款单。
@@ -441,7 +441,7 @@ fee_source_datasource.datasource_code
 2. `POST /api/bms/receipt/allocate` 手工分摊收款。
 3. `POST /api/bms/receipt/auto-allocate` 自动分摊收款。
 4. `GET /api/bms/bill/{billNo}/receipts` 查询账单收款记录。
-5. `GET /api/bms/bill/{billNo}/currency-summary` 查询账单币种汇总。
+5. `GET /api/bms/bill/{billNo}/currency-summary` 查询结算币种汇总。
 
 ### 11.6 账单通知
 

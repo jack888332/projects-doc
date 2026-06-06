@@ -173,7 +173,7 @@ ofp_ofdb1.sale_order_additional_matter
 
 当前 `fee_detail.exchange_rate_to_bill`、`exchange_rate_to_fin` 固定写 1。
 
-如果原始费用币种和结算币种不一致，应按 `bill_exchange_rate` 或汇率表换算，否则账单金额不准。
+如果原始费用币种和结算币种不一致，应按 `bill_exchange_rate` 或汇率表换算，否则账单金额不准。来源币种与目标币种相同时直接按汇率 `1` 计算，不记录账单关联汇率。
 
 ## 3. 推荐目标流程
 

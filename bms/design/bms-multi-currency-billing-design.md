@@ -400,6 +400,12 @@ amount_fin_currency = amount_bill_currency * exchange_rate_to_fin
 3. 账单任务生成费用明细时，必须同时保存当时使用的 L1、L2 汇率快照。
 4. 已生成费用明细的汇率不随来源数据或后续汇率配置变化而自动更新。
 5. 缺少必要汇率时，不允许把不同币种按汇率 `1` 直接换算，应中止该费用或账单任务并记录错误。
+6. 账单生成时优先读取 `bill_exchange_rate` 中已锁定的账单汇率；不存在时使用店铺启用汇率兜底，并立即写入 `bill_exchange_rate`。
+7. `bill_exchange_rate.conversion_currency_type` 使用 `FEE_TO_BILL`、`BILL_TO_FIN` 区分两段转换。
+8. `bill_exchange_rate` 同一 `bill_id + 目标币种 + 来源币种 + conversion_currency_type` 只能存在一条汇率快照。
+9. 每条 `bill_exchange_rate` 独立维护 `enabled` 和 `conversion_direction`；关闭时按倍率 `1` 重算，`DIV` 方向按 `1 / exchange_rate` 换算。
+10. 来源币种与目标币种相同时直接按汇率 `1` 计算，不查询、不新增 `bill_exchange_rate` 关联汇率记录。
+9. `ar_bill_currency_summary` 只保存按结算币种汇总的应收、已收、未收金额，不保存汇率转换类型。
 
 示例：
 
@@ -411,24 +417,10 @@ L2：0.22000000，财务本位币金额：99 CNY
 
 ## 6.2 当前实现边界
 
-这次程序整改先把“同一账单可同时挂 CNY/TWD 等多个真实应收币种”跑通，优先保证：
-
-1. 生成账单后，币种汇总与核销口径正确。
-2. 手工补录费项时，同币种不再错误折算。
-3. 汇率编辑时，同币种行不再被错误改写。
-
-对于“来源金额是 CNY，但配置要求向客户按 TWD 收费”的自动换算场景，后续需要补齐：
-
-- `fee_source_rule.source_converted_amount_column`
-- `fee_source_rule.source_converted_currency_column`
-- 或者明确的计费换汇规则
-
-在这套换汇来源补齐之前，自动生成部分默认要求：
-
-```text
-来源费用金额本身就已经是目标结算币种金额，
-或者来源费用币种与结算币种一致。
-```
+1. 账单生成时，所有费项的结算币种统一取账单配置的 `billing_currency`。
+2. 财务本位币统一取账单配置的 `fin_currency`。
+3. 账单汇率缺失时只使用店铺启用汇率兜底，不使用来源单据转换金额反推汇率。
+4. 店铺缺少对应币种对汇率时，账单生成任务失败。
 
 ## 7. 账单生成逻辑调整
 
@@ -464,19 +456,11 @@ bms/dao/.../BillGenerateMapper.java
 
 ### 7.3 结算币种决定规则
 
-伪代码：
+结算币种和财务本位币均由账单配置决定：
 
 ```java
-String sourceCurrency = feeCurrency;
-FeeCurrencyRule rule = findRule(billConfigId, businessTypeCode, feeCode);
-
-if (rule == null || rule.mode == CONFIG_DEFAULT) {
-    chargeCurrency = billConfig.getBillingCurrency();
-} else if (rule.mode == SOURCE) {
-    chargeCurrency = sourceCurrency;
-} else if (rule.mode == FIXED) {
-    chargeCurrency = rule.getChargeCurrency();
-}
+String chargeCurrency = billConfig.getBillingCurrency();
+String finCurrency = billConfig.getFinCurrency();
 ```
 
 金额计算：
@@ -485,9 +469,14 @@ if (rule == null || rule.mode == CONFIG_DEFAULT) {
    - `amountChargeCurrency = amountFeeCurrency`
    - `exchangeRateToBill = 1`
 2. 如果 `sourceCurrency != chargeCurrency`：
-   - V1 不建议自动换算客户应收，除非该费项明确配置了换算规则。
-   - 如果业务要求固定收 TWD，而来源是 CNY，必须按锁定汇率换算并保存快照。
-   - 没有汇率时生成任务失败，不允许静默按 1 写入。
+   - 优先读取账单已锁定的 `FEE_TO_BILL` 汇率。
+   - 账单无对应汇率时，读取店铺启用汇率并写入账单汇率快照。
+   - `amountChargeCurrency = amountFeeCurrency * exchangeRateToBill`。
+3. 财务本位币由账单配置决定：
+   - 优先读取账单已锁定的 `BILL_TO_FIN` 汇率。
+   - 账单无对应汇率时，读取店铺启用汇率并写入账单汇率快照。
+   - `amountFinCurrency = amountChargeCurrency * exchangeRateToFin`。
+4. 店铺没有对应启用汇率时生成任务失败，不允许使用来源单据转换金额反推汇率。
 
 ### 7.4 ar_bill_currency_summary 汇总规则
 

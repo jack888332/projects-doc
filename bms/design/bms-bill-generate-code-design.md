@@ -681,6 +681,7 @@ BillPeriodResolver
 
 BillConfigMatcher
   - 默认/分支互斥匹配
+  - 默认方案和分支方案都独立保存账单发出时间，生成账单时使用命中的配置计算 bill_send_date
 
 OrderSourceReader
   - 按履约节点分页读取订单宽数据

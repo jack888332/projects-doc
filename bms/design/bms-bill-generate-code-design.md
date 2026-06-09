@@ -768,7 +768,7 @@ public BillGenerateRespDTO generate(req) {
 | 4 | 跨库源表打标补偿 | 已落地待验证 | 源表打标已接入 `PENDING -> MARKED/FAILED` 独立事务归集标记，源库 UPDATE 失败或影响 0 行时记录 `FAILED` 并中断生成；后续仍需补充只补打标的重试入口。 | 基于 `bill_source_collect_mark` 的 `FAILED` 记录做补偿重试，只补源表打标，不重复生成费用明细。 | P0 |
 | 5 | 任务配置快照按快照执行 | 已落地待验证 | 新任务已写入默认配置、分支配置、scope、按配置分组的费项规则快照；执行任务时优先反序列化快照作为规则来源，老任务或快照解析失败时才回退当前配置。 | 联调验证修改 `bill_config` / `bill_config_scope` / 费项规则后，历史待执行任务仍按创建任务时的快照执行。 | P0 |
 | 6 | 来源 SQL 快照准确性 | 已落地待验证 | 主订单/理赔 SQL 已按默认+分支配置组分段记录，附加费 SQL 已在实际订单 ID 集合确定后追加回写；分页 SQL 记录首个 offset，并在注释中保留 windowDays/pageSize/offset 递增口径。 | 联调验证任务详情中 `order_source_sql` / `additional_source_sql` 能覆盖默认、分支、附加费和理赔来源排查。 | P1 |
-| 7 | 附加费增量归集 | 未开始 | 当前同步附加费查询排除了 `bms_after_bill_added_flag = 1`，但未看到独立增量任务处理这类费用。 | 新增附加费增量任务，扫描 `bms_after_bill_added_flag = 1 AND bms_billed_flag = 0`，按原账单状态决定追加原账单或进入后续账单。 | P0 |
+| 7 | 附加费增量归集 | 已落地待验证 | 账单任务已独立扫描 `bms_after_bill_added_flag = 1 AND bms_billed_flag = 0` 的附加费，按默认/分支规则互斥归属，仅生成增量附加费明细并使用 `ADDITIONAL_INCREMENT` 打标；当前账期账单不可追加时会寻找最近可追加账单。 | 联调验证已出账订单新增附加费、跨账期追加、无可追加账单失败重试、重复扫描幂等场景。 | P0 |
 | 8 | 附加费时间字段口径统一 | 部分落地 | 文档中同时出现“固定 `create_time`”和“优先 `handle_time`，否则 `create_time`”两种口径。 | 明确一期只支持 `create_time`，或正式支持 `handle_time/create_time` 优先级，并同步公共配置和规则校验。 | P1 |
 | 9 | 数据源配置运行时生效 | 部分落地 | `fee_source_rule.datasource_code` 已查询，但运行时仍固定从 Disconf `DS_ds0_conf.properties` 推导 OFP 源库连接。 | 让 `fee_source_datasource` 参与连接解析，按 `datasource_code` 选择数据源，避免代码硬编码源库。 | P1 |
 | 10 | 复杂 SQL 迁移到 XML | 未开始 | `BillGenerateMapper` 仍存在 `@SelectProvider` 和 Provider 拼 SQL，不符合 BMS Mapper 规范。 | 将复杂查询迁移到 `sqlmap/BillGenerateMapper.xml`，使用 `<sql>`、`<include>`、`<if>` 和显式 `resultMap`。 | P1 |

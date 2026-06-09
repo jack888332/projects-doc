@@ -1,4 +1,5 @@
-images/
+**/prototype/*
+!**/prototype/readme.txt
 
 # Runtime artifacts
 **/logs/

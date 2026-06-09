@@ -58,8 +58,8 @@
 
 建议枚举 `settlement_node`：
 
-1. `WEIGHT_CONFIRMED`：核重。
-2. `SIGNED`：签收。
+1. `WEIGHT_CONFIRMED`：出库核重。
+2. `SIGNED`：广义签收。
 
 ### 4.3 配置关键字段
 

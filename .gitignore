@@ -1,0 +1,16 @@
+images/
+
+# Runtime artifacts
+**/logs/
+**/log/
+**/runtime/
+**/tmp/
+**/temp/
+**/.cache/
+**/cache/
+**/*.pid
+**/*.pid.lock
+**/*.seed
+**/*.out
+**/*.err
+**/*.stackdump

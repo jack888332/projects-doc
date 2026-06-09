@@ -755,3 +755,31 @@ public BillGenerateRespDTO generate(req) {
 6. 汇率换算。
 
 这几个点做好后，账单生成逻辑才可以支撑多供应链、多店铺、多客户、多业务类型的稳定出账。
+
+## 18. 优化记录跟踪表
+
+> 状态说明：未开始、部分落地、已落地待验证、已完成、暂缓。
+
+| 序号 | 优化项 | 当前状态 | 问题说明 | 建议处理方式 | 优先级 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 默认方案/分支方案互斥归属 | 已落地待验证 | 生成任务已归并到默认配置维度执行，并按“分支优先、默认兜底”分配订单；仍需联调验证源库订单字段和分支 scope 编码完全一致。 | 生成任务按客户、账期加载默认配置及其分支配置，先按 `priority ASC, id ASC` 匹配分支，再由默认配置兜底。 | P0 |
+| 2 | 同客户同账期串行锁 | 已落地待验证 | 创建任务时已按 `sc_id + shop_id + user_id + member_code + bill_period_start + bill_period_end` 拦截活动任务，执行领取时同维度只允许一个任务进入 `RUNNING`；当前实现比原建议更严格，未再细分 `bill_type`。 | 联调验证多任务并发领取场景；如后续确认同客户同账期允许不同 `bill_type` 并行，再把锁维度补回 `bill_type`。 | P0 |
+| 3 | 失败任务状态独立提交 | 未完成 | `executeTask` 仍在事务内更新 `FAILED` 后抛异常，失败状态可能随主事务回滚。 | 拆出 `BillGenerateTaskService`，`createTask`、`finishSuccess`、`finishFailed` 使用 `REQUIRES_NEW`。 | P0 |
+| 4 | 跨库源表打标补偿 | 已落地待验证 | 源表打标已接入 `PENDING -> MARKED/FAILED` 独立事务归集标记，源库 UPDATE 失败或影响 0 行时记录 `FAILED` 并中断生成；后续仍需补充只补打标的重试入口。 | 基于 `bill_source_collect_mark` 的 `FAILED` 记录做补偿重试，只补源表打标，不重复生成费用明细。 | P0 |
+| 5 | 任务配置快照按快照执行 | 已落地待验证 | 新任务已写入默认配置、分支配置、scope、按配置分组的费项规则快照；执行任务时优先反序列化快照作为规则来源，老任务或快照解析失败时才回退当前配置。 | 联调验证修改 `bill_config` / `bill_config_scope` / 费项规则后，历史待执行任务仍按创建任务时的快照执行。 | P0 |
+| 6 | 来源 SQL 快照准确性 | 已落地待验证 | 主订单/理赔 SQL 已按默认+分支配置组分段记录，附加费 SQL 已在实际订单 ID 集合确定后追加回写；分页 SQL 记录首个 offset，并在注释中保留 windowDays/pageSize/offset 递增口径。 | 联调验证任务详情中 `order_source_sql` / `additional_source_sql` 能覆盖默认、分支、附加费和理赔来源排查。 | P1 |
+| 7 | 附加费增量归集 | 未开始 | 当前同步附加费查询排除了 `bms_after_bill_added_flag = 1`，但未看到独立增量任务处理这类费用。 | 新增附加费增量任务，扫描 `bms_after_bill_added_flag = 1 AND bms_billed_flag = 0`，按原账单状态决定追加原账单或进入后续账单。 | P0 |
+| 8 | 附加费时间字段口径统一 | 部分落地 | 文档中同时出现“固定 `create_time`”和“优先 `handle_time`，否则 `create_time`”两种口径。 | 明确一期只支持 `create_time`，或正式支持 `handle_time/create_time` 优先级，并同步公共配置和规则校验。 | P1 |
+| 9 | 数据源配置运行时生效 | 部分落地 | `fee_source_rule.datasource_code` 已查询，但运行时仍固定从 Disconf `DS_ds0_conf.properties` 推导 OFP 源库连接。 | 让 `fee_source_datasource` 参与连接解析，按 `datasource_code` 选择数据源，避免代码硬编码源库。 | P1 |
+| 10 | 复杂 SQL 迁移到 XML | 未开始 | `BillGenerateMapper` 仍存在 `@SelectProvider` 和 Provider 拼 SQL，不符合 BMS Mapper 规范。 | 将复杂查询迁移到 `sqlmap/BillGenerateMapper.xml`，使用 `<sql>`、`<include>`、`<if>` 和显式 `resultMap`。 | P1 |
+| 11 | 业务数据载体去 Map 化 | 未开始 | 订单宽表、附加费、理赔、任务构建等大量使用 `Map<String, Object>`，字段可读性和编译期校验不足。 | 新增明确 DTO/Row 类，如 `OrderWideRowDTO`、`AdditionalFeeSourceRowDTO`、`ClaimSourceRowDTO`。 | P1 |
+| 12 | 源订单数据隔离条件收紧 | 待确认 | 源订单查询使用 `(h.sc_id = ? OR h.sc_id IS NULL)`，可能放宽供应链隔离。 | 确认历史源数据是否存在 `sc_id IS NULL`；若无业务必要，改为严格 `h.sc_id = ?`。 | P0 |
+| 13 | 源表打标影响行数校验 | 未开始 | 源库 UPDATE 可能影响 0 行，例如缺少 `sale_order_header_extend` 记录，但当前打标结果未强校验。 | `executeSourceUpdate` 返回影响行数；影响 0 行时标记失败并进入补偿或人工处理。 | P0 |
+| 14 | 无费用订单处理规则 | 待确认 | 文档要求无费用订单原则上不打标，但需要确认代码是否严格遵守，以及是否需要跳过原因记录。 | 明确无费用订单是否跳过、下次继续扫描，或新增跳过原因表。 | P1 |
+| 15 | 账单唯一键初始化脚本一致性 | 未完成 | 增量脚本已调整为按 `business_sector + destination_country` 唯一，但 `init.sql` 仍保留旧唯一键。 | 同步更新 `aidocs/bms/sql/bms/init.sql`，避免新库和老库结构不一致。 | P0 |
+| 16 | 订单归属幂等约束 | 部分落地 | 已有源表打标和归集标记，但缺少按 `source_order_id + billing_period_start + billing_period_end` 的归属唯一约束。 | 在 `bill_source_collect_mark` 或独立归属表增加账期维度唯一约束，限制同一订单同账期跨配置重复归集。 | P0 |
+| 17 | 费用幂等键粒度 | 部分落地 | 当前 `dedupe_key` 接近可用，但需要确保包含 `business_type_fee_id`，避免同源 ID 同 fee_code 多规则冲突。 | 统一费用幂等键为 `source_system:source_table:source_id:business_type_fee_id:bill_config_id`。 | P1 |
+| 18 | 汇率生成兜底策略 | 部分落地 | 已有汇率表和费用明细汇率字段，但仍需确认无汇率时是否允许不同币种出账。 | 币种不一致且无有效汇率时阻断生成；币种一致时汇率按 1，不重复记录无意义汇率。 | P0 |
+| 19 | `fee_source_datasource` 与数据集规则审计 | 部分落地 | 费项规则已关联数据集，但运行时策略、字段白名单、窗口大小不一致时的异常提示还需要强化。 | 按数据集维度校验来源表、时间字段、分页窗口、金额字段白名单，配置错误提前失败。 | P1 |
+| 20 | 任务监控可观测性 | 部分落地 | 任务已有部分统计字段，但排障还需要展示来源 SQL、快照、失败来源表/ID、补偿状态。 | 任务详情页增加配置快照、来源 SQL、归集标记明细、失败原因和重试入口。 | P1 |
+| 21 | 文档状态化维护 | 未开始 | 当前文档混合了已落地设计、待办、长期规划，读者难判断真实状态。 | 后续每次改造同步更新本表状态、代码文件、SQL 脚本和验证结果。 | P2 |

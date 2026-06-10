@@ -38,6 +38,8 @@
 6. 同一笔 `fee_detail` 可以关联不同账单类型；同一账单类型和结算角色下，同一时刻只能有一条有效正向关联。
 7. `ar_bill_currency_summary` 和 `ar_bill` 金额统一从有效关联记录汇总，不再从 `fee_detail` 汇总。
 8. 账单类型、费用准入、账期、分组、金额方向、汇率和汇总公式必须由账单类型策略决定，不能写死为应收账单规则。
+9. `bill_config` 当前默认配置唯一约束和所有配置读写 SQL 必须包含 `bill_type`，否则多账单类型不能上线。
+10. 旧 `fee_status` 必须按明确映射迁移：`ADJUSTED` 是有效调账记录，`REPLACED` 仅表示来源版本替换，`REVERSED` 仅表示红冲记录。
 
 ## 2. 源表同步标识复用方案
 
@@ -111,7 +113,217 @@ bill_no_column = 可选字段；费用尚未关联账单时允许为空
 
 ## 3. 数据模型拆分
 
-### 3.1 `fee_detail`：BMS 费用源数据池
+### 3.0 实施前置：确认生产 `fee_detail` 真实 Schema
+
+当前项目内存在多套互相不一致的 `fee_detail` 定义。在完成生产 Schema 摸底之前，本文 3.1 节描述的字段只能作为目标模型，不能直接据此编写或执行 DDL。
+
+#### 当前已确认的不一致
+
+| 事实来源 | 当前字段体系 | 主要问题 |
+| --- | --- | --- |
+| `aidocs/technical-caliber/bms/sql/ddl/tmall_bms_backup.sql` | `amount_in_fee_currency / exchange_rate_c1 / amount_in_bill_currency / exchange_rate_c2 / amount_in_fin_currency` | 2026-05-22 备份中的旧生产结构，字段较少，账单归属和来源轨迹能力不足 |
+| `FeeDetail.java + FeeDetailMapper.java + FeeDetailMapper.xml` | 使用旧字段命名和旧精简字段模型 | 仍按旧生产结构读写；XML 还使用了疑似拼写错误字段 `voucher_rul` |
+| `BillGenerateMapper.insertFeeDetail` | `amount_fee_currency / exchange_rate_to_bill / amount_bill_currency / exchange_rate_to_fin / fin_currency`，并写入大量 `bill_* / source_* / fee_status` 字段 | 与旧实体和 XML 完全不同，依赖扩展后的 `fee_detail` |
+| `aidocs/technical-caliber/bms/sql/ddl/init.sql` | 扩展后的新字段体系 | 初始化脚本不等于生产真实结构，不能直接作为生产依据 |
+
+因此当前至少存在两套字段命名：
+
+```text
+旧命名：
+amount_in_fee_currency
+exchange_rate_c1
+amount_in_bill_currency
+exchange_rate_c2
+amount_in_fin_currency
+
+新命名：
+amount_fee_currency
+exchange_rate_to_bill
+amount_bill_currency
+exchange_rate_to_fin
+amount_fin_currency
+```
+
+在未确认真实生产 Schema 前，无法判断：
+
+1. `BillGenerateMapper.insertFeeDetail` 在生产是否可正常执行。
+2. `FeeDetailMapper.xml` 是否仍被生产接口调用。
+3. 哪套字段需要保留、删除或重命名。
+4. 新的来源费用池 DDL 应基于哪套真实结构调整。
+
+#### P0-0 Schema 摸底门禁
+
+开发前必须连接目标生产等价环境执行：
+
+```sql
+SELECT DATABASE();
+SHOW CREATE TABLE fee_detail;
+SHOW FULL COLUMNS FROM fee_detail;
+SHOW INDEX FROM fee_detail;
+
+SHOW CREATE TABLE bill_source_collect_mark;
+SHOW CREATE TABLE bill_generate_task;
+SHOW CREATE TABLE bill_exchange_rate;
+SHOW CREATE TABLE bill_config;
+SHOW INDEX FROM bill_config;
+
+SELECT fee_status, COUNT(1)
+FROM fee_detail
+GROUP BY fee_status;
+```
+
+同时必须确认：
+
+1. 生产应用当前部署版本及对应 Git commit。
+2. `fee_detail` 最近一次成功 DDL 变更记录。
+3. `BillGenerateMapper.insertFeeDetail` 是否在生产任务中实际执行成功。
+4. `FeeDetailController / FeeDetailService / FeeDetailMapper.xml` 是否仍有真实调用方。
+5. `ArBillMapper` 和 `BillGenerateMapper` 中所有直接读写 `fee_detail` 的 SQL。
+6. 生产 `bill_config` 当前版本唯一索引的真实名称、列顺序，以及是否包含 `bill_type`。
+7. 生产 `fee_detail.fee_status` 是否仅存在 `NORMAL / ADJUSTED / REVERSED / VOID`，以及各状态金额正负分布。
+
+未完成以上摸底前：
+
+1. 禁止执行 `fee_detail` 新 DDL。
+2. 禁止直接删除旧字段、实体或 Mapper。
+3. 禁止假设 `init.sql` 就是生产结构。
+4. 禁止同时维护两套字段命名继续开发。
+
+#### 摸底输出物
+
+摸底完成后必须形成一份 `fee_detail-schema-baseline.md`，至少包含：
+
+| 输出项 | 内容 |
+| --- | --- |
+| 生产真实 DDL | `SHOW CREATE TABLE fee_detail` 原始结果 |
+| 字段差异矩阵 | 生产表、备份 SQL、`init.sql`、旧 Entity/XML、新 Mapper SQL 五方对比 |
+| SQL 调用清单 | 每个直接读写 `fee_detail` 的 Mapper 方法、调用入口和是否仍使用 |
+| 唯一命名结论 | 明确后续只保留哪一套 Java 属性名和数据库列名 |
+| 删除清单 | 确认无调用后删除的实体、DTO、Service、Mapper、XML 和 SQL |
+| 重写清单 | 仍有调用但需要改为新模型的查询和写入路径 |
+
+#### 唯一模型收敛原则
+
+生产 Schema 确认后，必须收敛为一套模型：
+
+1. `fee_detail` 只保留来源费用池职责对应字段。
+2. 账单归属、结算币种、汇率和换算金额只保存在 `bill_fee_detail_relation`。
+3. `FeeDetail.java` 必须与最终 `fee_detail` 一一对应，不允许保留不存在的数据库列。
+4. `FeeDetailMapper.xml` 若仍需保留，必须完全按最终 Schema 重写；若无真实调用则删除整个旧调用链。
+5. `BillGenerateMapper.insertFeeDetail` 改为明确 DTO 入参，并只写最终来源费用字段。
+6. 所有账单详情查询改为 `bill_fee_detail_relation LEFT JOIN fee_detail`。
+7. 最终数据库列命名、Entity 属性和 Mapper resultMap 必须形成唯一映射，不再允许 `amount_in_fee_currency` 与 `amount_fee_currency` 两套命名并存。
+
+### 3.1 费项身份与来源规则边界
+
+`fee_index` 和 `fee_source_rule` 不合并。两者分别表达“是什么费用”和“如何从来源数据中取出这笔费用”。
+
+| 模型 | 核心职责 | 是否进入 `fee_detail` 身份 |
+| --- | --- | --- |
+| `fee_index` | 定义稳定费项身份：`fee_code / fee_name / fee_type / attachment_object` | 是，`fee_index_id + fee_code` 是费用身份 |
+| `fee_source_rule` | 定义来源取值方式：数据集、金额字段、币种字段、过滤条件、来源业务键 | 仅保存审计轨迹，不作为稳定费用身份 |
+| `business_type_fee_index` | 定义某业务类型允许使用哪些费项 | 影响账单准入，不决定来源如何取值 |
+| `bill_config_fee_currency_rule` / 币种模板 | 定义某账单配置中的费项结算币种 | 只影响账单关联，不影响来源费用身份 |
+
+目标关系：
+
+```text
+fee_index 1
+  -> N fee_source_rule
+
+business_type N
+  -> N fee_index
+
+fee_source_rule
+  -> 读取来源数据
+  -> 生成 fee_detail，并保存 fee_index_id
+```
+
+明确规则：
+
+1. 一个 `fee_index` 可以配置多条 `fee_source_rule`，例如“超重费”可以来自订单扩展表、订单主表或附加费表。
+2. 一条 `fee_source_rule` 只能指向一个 `fee_index`。
+3. `fee_source_rule.fee_code` 只是 `fee_index.fee_code` 的快照；保存规则时必须由 `fee_index` 带出，不允许人工录入不同值。
+4. `fee_index` 不再保存具体数据源路径；旧 `data_source / legacy_data_source` 字段仅属于待清理的旧模型。
+5. 修改或替换来源规则不能改变费项身份，也不能因为 `fee_source_rule_id` 变化重复生成同一逻辑费用。
+6. 同一来源宽数据可以通过多条规则生成多个不同 `fee_index` 的费用。
+7. 多条来源规则也可能命中同一个 `fee_index`；是否属于同一逻辑费用必须通过来源费用业务键判断。
+
+#### `business_type_fee_index` 解耦
+
+当前 `business_type_fee_index` 同时保存 `fee_index_id + fee_source_rule_id`，把“业务类型适用费项”和“来源取值规则”混在一起。来源费用同步独立于账单生成后，该关系需要拆开：
+
+```text
+business_type_fee_index
+  只保留 business_type_code + fee_index_id
+
+fee_source_rule
+  通过 dataset_code + 自身过滤条件决定如何同步费用
+```
+
+建议调整：
+
+1. 从 `business_type_fee_index` 移除 `fee_source_rule_id`。
+2. 唯一键调整为 `business_type_code + fee_index_id`。
+3. 来源费用同步任务直接查询当前数据集启用的 `fee_source_rule`，不通过 `business_type_fee_index` 反查来源规则。
+4. 账单生成任务使用 `business_type_fee_index` 判断某个 `fee_detail.fee_index_id` 是否允许进入当前业务类型账单。
+5. 如果某条来源规则只适用于特定业务类型，应在 `fee_source_rule` 增加明确的 `applicable_business_type_codes`，或通过来源行本身的业务类型过滤，不重新把规则绑定回 `business_type_fee_index`。
+
+#### 来源费用业务键与唯一键
+
+`fee_source_rule_id` 只用于追溯“本次费用由哪条规则生成”，不能直接作为来源费用唯一键。否则停用旧规则并新建等价规则后，会重复生成同一笔费用。
+
+建议在 `fee_detail` 增加：
+
+```text
+dataset_code
+source_fee_key
+fee_source_rule_id
+fee_source_rule_version
+```
+
+字段含义：
+
+| 字段 | 用途 |
+| --- | --- |
+| `dataset_code` | 标识来源宽数据所属公共数据集 |
+| `source_fee_key` | 标识来源系统中的一笔逻辑费用，由来源规则 `dedupe_key_expr` 计算 |
+| `fee_source_rule_id` | 记录本次使用的来源规则，仅用于审计 |
+| `fee_source_rule_version` | 固化生成时使用的规则版本 |
+
+推荐唯一键：
+
+```text
+source_system
++ dataset_code
++ source_fee_key
++ fee_index_id
++ source_version_no
+```
+
+`source_fee_key` 示例：
+
+| 来源场景 | 推荐 `source_fee_key` |
+| --- | --- |
+| 订单宽表一个金额列对应一笔费用 | `order_id + ':' + source_amount_column` |
+| 附加费表一行就是一笔费用 | `additional_fee_id` |
+| 同一来源行包含同费项的多个组成部分 | `source_id + ':' + component_code` |
+
+为什么不只使用 `source_id + fee_code`：
+
+1. 同一来源行可能存在两个相同 `fee_code` 的独立费用组成部分。
+2. 不同来源规则可能只是同一逻辑费用的新旧取值方式，不应因规则 ID 不同重复生成。
+3. `fee_code` 是业务费项身份，无法单独表达来源侧费用业务键。
+
+规则约束：
+
+1. `fee_source_rule.dedupe_key_expr` 必须配置并能够稳定计算 `source_fee_key`。
+2. 等价规则替换前后必须生成相同 `source_fee_key`。
+3. 确实需要将同一来源行拆成两笔相同费项时，必须提供不同 `component_code`。
+4. `fee_source_rule` 规则变化后，来源行哈希或规则版本变化可以生成新 `source_version_no`，但不能产生两个同版本有效费用。
+5. `fee_detail.fee_code / fee_name / fee_type` 保存 `fee_index` 快照，实际关联仍以 `fee_index_id` 为准。
+
+### 3.2 `fee_detail`：BMS 费用源数据池
 
 `fee_detail` 调整后的职责：
 
@@ -125,9 +337,10 @@ bill_no_column = 可选字段；费用尚未关联账单时允许为空
 
 | 分类 | 字段 |
 | --- | --- |
-| 费用身份 | `id`、`fee_no`、`fee_index_id`、`fee_source_rule_id`、`fee_code`、`fee_name`、`fee_type`、`attached_object` |
+| 费用身份 | `id`、`fee_no`、`fee_index_id`、`fee_code`、`fee_name`、`fee_type`、`attached_object` |
 | 客户与业务身份 | `sc_id`、`shop_id`、`user_id`、`member_code`、`business_order_no`、目的国、仓库、首尾程单号 |
-| 来源身份 | `source_system`、`source_table`、`source_id`、`source_order_id`、`source_biz_no`、`source_fee_field`、`source_fee_time` |
+| 来源身份 | `source_system`、`dataset_code`、`source_table`、`source_id`、`source_fee_key`、`source_order_id`、`source_biz_no`、`source_fee_field`、`source_fee_time` |
+| 来源规则审计 | `fee_source_rule_id`、`fee_source_rule_version` |
 | 来源原始金额 | `fee_currency`、`amount_fee_currency` |
 | 来源版本 | `source_row_hash`、`source_version_no`、`previous_fee_detail_id`、`source_snapshot_json` |
 | 平台状态 | `source_fee_status`、`effective_flag`、审计字段 |
@@ -148,12 +361,12 @@ bill_no_column = 可选字段；费用尚未关联账单时允许为空
 `fee_detail` 推荐唯一键：
 
 ```text
-source_system + source_table + source_id + fee_code + source_version_no
+source_system + dataset_code + source_fee_key + fee_index_id + source_version_no
 ```
 
-不能继续使用只包含来源行和费项的唯一键阻止新版本写入。
+不能将 `fee_source_rule_id` 放入唯一键，也不能继续使用无法区分来源费用组成部分的简单 `source_id + fee_code`。
 
-### 3.2 `bill_fee_detail_relation`：账单费用关联及账单侧快照
+### 3.3 `bill_fee_detail_relation`：账单费用关联及账单侧快照
 
 新增 `bill_fee_detail_relation`。该表不是简单的中间表，而是账单侧费用明细，是账单金额、币种、汇率、调整和导出的事实依据。
 
@@ -238,7 +451,102 @@ CREATE TABLE bill_fee_detail_relation (
 9. `calculation_rule_code + calculation_snapshot_json` 固化本次计算口径，避免后续策略变化影响已生成账单。
 10. `sc_id / shop_id / user_id` 继续承担数据隔离；`settlement_subject_type / settlement_subject_code` 表达真正结算对象，不能使用 `member_code` 兼代供应商。
 
-### 3.3 多账单类型扩展边界
+#### 3.3.1 `fee_status` 到关系模型的唯一映射
+
+生产现有 `fee_detail.fee_status` 取值为 `NORMAL / ADJUSTED / REVERSED / VOID`。新模型不得将旧状态直接等名复制到 `relation_status`，因为旧字段同时混合了“记录业务性质”和“记录是否有效”两种语义。
+
+新模型必须分别使用：
+
+1. `relation_type`：表达该记录是什么，取值 `SOURCE / MANUAL / ADJUSTMENT / REVERSAL`。
+2. `relation_status`：表达该记录当前生命周期状态，取值 `NORMAL / REPLACED / REVERSED / VOID`。
+
+迁移映射固定如下：
+
+| 旧 `fee_detail.fee_status` | 新 `relation_type` | 新 `relation_status` | 是否参与有效金额汇总 | 说明 |
+| --- | --- | --- | --- | --- |
+| `NORMAL` 且 `manual_flag = 0` | `SOURCE` | `NORMAL` | 是 | 正常来源费用 |
+| `NORMAL` 且 `manual_flag = 1` | `MANUAL` | `NORMAL` | 是 | 手工补录费用 |
+| `ADJUSTED` | `ADJUSTMENT` | `NORMAL` | 是 | 现有调账增量记录；`ADJUSTED` 不映射为 `REPLACED` |
+| `REVERSED` | `REVERSAL` | `REVERSED` | 是 | 现有红冲负数记录；通过 `original_relation_id` 指向被红冲记录 |
+| `VOID` | 按来源性质映射 | `VOID` | 否 | 已作废记录，仅保留审计 |
+
+`REPLACED` 和 `REVERSED` 的边界必须严格区分：
+
+1. `REPLACED` 仅用于未复核账单中发生来源数据版本切换：旧版本关系退出有效口径，新版本关系重新入账。
+2. `REVERSED` 仅用于红冲记录；红冲记录本身必须保留负数金额并参与汇总。
+3. 调账记录使用 `relation_type = ADJUSTMENT, relation_status = NORMAL`，不得使用 `REPLACED` 或 `REVERSED` 表达普通调账。
+4. 有效金额汇总范围为 `relation_status IN ('NORMAL', 'REVERSED')`；`REPLACED / VOID` 不参与汇总。
+5. 被红冲的原关系不改为 `REPLACED`；原关系与负数红冲关系共同参与汇总，才能得到正确净额。
+
+迁移时先落临时映射表，禁止用一条不可追溯的 `INSERT ... SELECT` 直接覆盖：
+
+```sql
+CREATE TABLE bill_fee_relation_migration_map (
+  legacy_fee_detail_id bigint unsigned NOT NULL COMMENT '旧fee_detail.id',
+  relation_id bigint unsigned NOT NULL COMMENT '新账单费用关系ID',
+  PRIMARY KEY (legacy_fee_detail_id),
+  UNIQUE KEY uk_relation_id (relation_id)
+) COMMENT='旧费用明细到新账单费用关系迁移映射';
+```
+
+关系类型和状态必须按以下 SQL 表达式生成：
+
+```sql
+CASE
+  WHEN fd.fee_status = 'ADJUSTED' THEN 'ADJUSTMENT'
+  WHEN fd.fee_status = 'REVERSED' THEN 'REVERSAL'
+  WHEN fd.manual_flag = 1 THEN 'MANUAL'
+  ELSE 'SOURCE'
+END AS relation_type,
+CASE
+  WHEN fd.fee_status = 'REVERSED' THEN 'REVERSED'
+  WHEN fd.fee_status = 'VOID' THEN 'VOID'
+  ELSE 'NORMAL'
+END AS relation_status
+```
+
+`original_relation_id` 必须在首轮关系迁移和映射表写入完成后回填：
+
+```sql
+UPDATE bill_fee_detail_relation r
+JOIN bill_fee_relation_migration_map current_map
+  ON current_map.relation_id = r.id
+JOIN fee_detail legacy_fd
+  ON legacy_fd.id = current_map.legacy_fee_detail_id
+JOIN bill_fee_relation_migration_map original_map
+  ON original_map.legacy_fee_detail_id = legacy_fd.original_fee_id
+SET r.original_relation_id = original_map.relation_id
+WHERE legacy_fd.original_fee_id IS NOT NULL;
+```
+
+迁移校验必须至少包含：
+
+```sql
+-- 不允许出现未知旧状态
+SELECT fee_status, COUNT(1)
+FROM fee_detail
+WHERE fee_status NOT IN ('NORMAL', 'ADJUSTED', 'REVERSED', 'VOID')
+GROUP BY fee_status;
+
+-- REVERSED 按红冲负数记录迁移；若查询有结果，必须先人工确认，禁止直接迁移
+SELECT id, bill_no, fee_no, amount_bill_currency, original_fee_id
+FROM fee_detail
+WHERE fee_status = 'REVERSED'
+  AND amount_bill_currency > 0;
+
+-- 按账单对比迁移前后有效金额；两侧结果必须一致
+SELECT bill_no, SUM(amount_bill_currency)
+FROM fee_detail
+WHERE fee_status <> 'VOID'
+GROUP BY bill_no;
+
+SELECT bill_no, SUM(amount_bill_currency)
+FROM bill_fee_detail_relation
+WHERE relation_status IN ('NORMAL', 'REVERSED')
+GROUP BY bill_no;
+```
+
+### 3.4 多账单类型扩展边界
 
 `fee_detail` 是所有账单类型共享的费用源数据池，不能增加只服务于某一种账单的字段。新增账单类型时，费用仍通过 `bill_fee_detail_relation` 与账单关联。
 
@@ -264,7 +572,82 @@ CREATE TABLE bill_fee_detail_relation (
 10. `bill_config` 默认配置、分支配置和当前版本的唯一性及匹配维度必须包含 `bill_type`；同一客户可以分别拥有应收、成本和返款默认配置。
 11. 账单配置匹配顺序必须先按 `bill_type` 隔离配置组，再在该类型内执行分支优先、默认兜底。
 
-### 3.4 `bill_exchange_rate` 和币种汇总
+#### 3.4.1 `bill_config` 当前版本唯一约束调整
+
+当前 `BillConfigServiceImpl.buildBillConfig()` 在未传 `bill_type` 时默认写入 `MEMBER_AR`。生产当前版本唯一约束若仍为：
+
+```text
+sc_id + shop_id + user_id + member_code + is_current_version
+```
+
+则同一客户创建第二种账单类型的当前配置时必然冲突。多账单类型上线前，必须先完成索引调整和存量数据清理，禁止先发布应用代码再补 DDL。
+
+目标约束不是“同一客户只能有一个当前配置”，而是：
+
+```text
+同一 sc_id + shop_id + user_id + member_code + bill_type
+只能有一个未删除的当前 DEFAULT 配置；
+允许存在多个当前 BRANCH 配置和多个历史版本。
+```
+
+由于 MySQL 普通联合唯一键会同时限制历史版本和分支配置，推荐使用生成列只约束当前默认配置：
+
+```sql
+-- 1. 先确认并记录生产旧唯一索引名称；以下按 uk_bill_config_current 示例
+SHOW INDEX FROM bill_config;
+
+-- 2. 存量空账单类型按当前代码默认语义回填为 MEMBER_AR
+UPDATE bill_config
+SET bill_type = 'MEMBER_AR'
+WHERE bill_type IS NULL OR TRIM(bill_type) = '';
+
+-- 3. 执行前必须保证该查询无结果；若有重复，业务确认保留项后将其他记录置为非当前版本
+SELECT sc_id, shop_id, user_id, member_code, bill_type, COUNT(1) AS duplicate_count
+FROM bill_config
+WHERE config_type = 'DEFAULT'
+  AND is_current_version = 1
+  AND is_deleted = 0
+GROUP BY sc_id, shop_id, user_id, member_code, bill_type
+HAVING COUNT(1) > 1;
+
+-- 4. 删除不含 bill_type 的旧当前版本唯一索引
+ALTER TABLE bill_config
+  DROP INDEX uk_bill_config_current;
+
+-- 5. 仅对“未删除的当前默认配置”生成非 NULL 唯一标识；历史版本和分支配置返回 NULL
+ALTER TABLE bill_config
+  ADD COLUMN current_default_guard tinyint
+    GENERATED ALWAYS AS (
+      CASE
+        WHEN config_type = 'DEFAULT' AND is_current_version = 1 AND is_deleted = 0 THEN 1
+        ELSE NULL
+      END
+    ) STORED COMMENT '当前默认配置唯一约束辅助列',
+  ADD UNIQUE KEY uk_bill_config_current_default (
+    sc_id, shop_id, user_id, member_code, bill_type, current_default_guard
+  );
+```
+
+如果生产旧唯一索引名称不是 `uk_bill_config_current`，第 4 步必须替换为 `SHOW INDEX` 查到的真实名称；如果生产仅有普通索引，则跳过第 4 步并在变更单中记录真实索引差异，不得盲目执行 `DROP INDEX`。
+
+存量数据处理规则：
+
+1. `bill_type` 为空的存量配置统一回填 `MEMBER_AR`，因为当前代码默认值和已有账单链路均为客户应收。
+2. 同一客户同一 `bill_type` 存在多个当前默认配置时，不允许脚本自动按最大 ID 删除；必须结合已生成账单、任务和生效时间确认保留项，其余记录置 `is_current_version = 0`。
+3. 每个分支配置的 `bill_type` 必须与其父默认配置一致；不一致记录必须修正后才能上线。
+4. `config_no + version` 仍保持全局唯一时，自动生成的 `config_no` 必须包含 `bill_type`；否则不同账单类型仍会命中 `uk_bill_config_version`。
+5. 索引变更后再插入 `COST_AP / COD_REFUND` 默认配置，旧 `MEMBER_AR` 配置不得被停用。
+6. 一旦已创建多账单类型当前默认配置，不能直接回滚为不含 `bill_type` 的旧唯一索引；回滚前必须先停用新增类型配置并重新执行重复检查。
+
+代码调整门禁：
+
+1. `queryCurrentDefault`、`queryCurrentByCustomer`、默认/分支配置匹配查询必须增加 `bill_type` 入参和过滤条件。
+2. `disableOtherCurrentDefaults`、`deactivateCurrentDefaults`、`disableCurrentBranches`、`deactivateCurrentBranches` 必须增加 `bill_type` 条件，禁止跨账单类型停用配置。
+3. `buildConfigNo()` 生成默认配置编号时必须包含 `bill_type`，或明确保证调用方传入全局唯一编号。
+4. `BillGenerateMapper.queryEnabledDefaultConfigs()` 和任务创建逻辑必须按 `bill_type` 分组并写入任务快照。
+5. 完成以上代码调整前，即使数据库索引已放开，也不得开放多账单类型配置入口。
+
+### 3.5 `bill_exchange_rate` 和币种汇总
 
 保留现有 `bill_exchange_rate` 作为账单级汇率快照：
 
@@ -295,13 +678,13 @@ SELECT bill_id,
 FROM bill_fee_detail_relation
 WHERE bill_type = 'MEMBER_AR'
   AND bill_id = ?
-  AND relation_status = 'NORMAL'
+  AND relation_status IN ('NORMAL', 'REVERSED')
 GROUP BY bill_id, bill_no, bill_currency;
 ```
 
 `ar_bill` 的应收和本位币金额同样从有效关联记录及币种汇总刷新，不再直接汇总 `fee_detail`。成本账单和返款账单使用各自的账单主表、币种汇总表及汇总策略。
 
-### 3.5 `bill_source_collect_mark` 调整
+### 3.6 `bill_source_collect_mark` 调整
 
 `bill_source_collect_mark` 继续用于跨库打标补偿，但其职责调整为“来源行抓取轨迹”，不再作为费用和账单的一对一关系。
 
@@ -703,17 +1086,18 @@ LIMIT #{queryPageSize}
 1. 金额字段为空或金额为 `0` 时，该规则不生成 `fee_detail`。
 2. `ARD` 等扣减类来源费用在标准化时保存明确费用性质；不得由某类账单生成任务反向修改来源金额。
 3. 来源币种必须按来源规则取得，禁止使用任一账单配置币种兜底。
-4. 每条生成费用必须保存 `dataset_code / fee_source_rule_id / source_system / source_table / source_id / source_row_hash / source_version_no`。
-5. 一条来源行匹配多条费用规则时，所有费用共享同一来源行版本，但拥有独立 `fee_code` 和幂等键。
+4. 每条生成费用必须保存 `dataset_code / source_fee_key / fee_index_id / fee_source_rule_id / fee_source_rule_version / source_system / source_table / source_id / source_row_hash / source_version_no`。
+5. 一条来源行匹配多条费用规则时，所有费用共享同一来源行版本；每条规则必须计算稳定的 `source_fee_key`。
 6. 规则处理顺序使用 `fee_source_rule.priority ASC, id ASC`，但不同费项规则可以同时生成，不采用先到先得排斥。
+7. 多条规则生成相同 `fee_index_id + source_fee_key` 时，只允许生成一笔费用；若金额或币种结果不一致，当前来源行进入 `RULE_CONFLICT` 待处理状态，不允许静默选择其中一条。
 
 首次同步 `fee_detail` 幂等键：
 
 ```text
 source_system
-+ source_table
-+ source_id
-+ fee_code
++ dataset_code
++ source_fee_key
++ fee_index_id
 + source_version_no
 ```
 
@@ -726,6 +1110,7 @@ source_system
 | `COLLECTED` | 至少成功生成一条费用，且该来源行所有应生成费用均落库成功 | 是 | 是 |
 | `NO_AMOUNT` | 已匹配启用规则，但所有金额均为空或为 `0` | 否 | 是 |
 | `NO_RULE` | 当前数据集没有任何可匹配启用规则 | 否 | 否 |
+| `RULE_CONFLICT` | 多条规则生成相同逻辑费用但金额、币种或费项快照不一致 | 否 | 否 |
 | `INVALID` | 缺少来源主键、数据隔离字段、来源币种等必要字段 | 否 | 否 |
 | `FAILED` | 查询、转换、落库或源表打标失败 | 视失败阶段而定 | 否或进入补偿 |
 
@@ -733,8 +1118,9 @@ source_system
 
 1. `NO_AMOUNT` 必须记录跳过原因后打标，否则同一空金额数据会被每次任务重复扫描；后续来源金额变化由来源变化识别任务处理。
 2. `NO_RULE` 不打标，并写入来源费用待处理队列；新增规则后由待处理重放任务重新处理。
-3. `INVALID` 不打标，并写入来源费用待处理队列；数据修复或人工触发后重新处理。
-4. 一条来源行拆出的费用必须整体成功，禁止只写入部分费用后直接打标。
+3. `RULE_CONFLICT` 不打标，并记录冲突的规则 ID、金额和币种结果，必须修正规则后重放。
+4. `INVALID` 不打标，并写入来源费用待处理队列；数据修复或人工触发后重新处理。
+5. 一条来源行拆出的费用必须整体成功，禁止只写入部分费用后直接打标。
 
 建议新增 `source_fee_collect_pending` 保存游标已经越过但尚未完成同步的来源行：
 
@@ -749,7 +1135,7 @@ dataset_code
 + source_snapshot_json
 ```
 
-`NO_RULE / INVALID / FAILED` 记录进入待处理队列后，主同步窗口允许继续推进。新增来源规则、修复数据或技术重试时，优先重放待处理队列，不能依赖重新扫描已经越过的历史时间窗口。
+`NO_RULE / RULE_CONFLICT / INVALID / FAILED` 记录进入待处理队列后，主同步窗口允许继续推进。新增来源规则、修复数据或技术重试时，优先重放待处理队列，不能依赖重新扫描已经越过的历史时间窗口。
 
 #### 4.1.8 事务、打标和重试边界
 
@@ -1180,7 +1566,7 @@ bill_fee_detail_relation
 
 ```text
 fee_detail:
-source_system + source_table + source_id + fee_code + source_version_no
+source_system + dataset_code + source_fee_key + fee_index_id + source_version_no
 
 bill_fee_detail_relation:
 bill_type + bill_id + fee_detail_id + settlement_role + relation_type + original_relation_id + relation_status有效版本
@@ -1519,13 +1905,20 @@ public class BillOperationStatePolicy {
 
 重点调整：
 
-1. `BillGenerateMapper.insertFeeDetail` 只写来源费用字段。
-2. 新增 `BillFeeDetailRelationMapper`，负责账单费用关联写入和查询。
-3. `ArBillMapper` 中所有从 `fee_detail` 汇总账单金额、币种和汇率的 SQL 改为读取 `bill_fee_detail_relation`。
-4. `manualFee / adjustment / rebuildAdjustment` 改为写关联表。
-5. 删除 `selectSettlementExchangeRatesFromFeeDetail / selectFinancialExchangeRatesFromFeeDetail`，账单汇率只查询 `bill_exchange_rate`。
-6. 源表字段名从 `fee_source_dataset` 读取，避免继续硬编码 `bms_billed_flag / bms_bill_no`。
-7. 复杂 SQL 调整到 XML，并使用明确 DTO，不新增 `Map<String, Object>` 入参或返回值。
+1. 先根据 P0-0 Schema 摸底结果确认 `fee_detail` 唯一字段命名体系。
+2. 清理或重写旧 `FeeDetail.java / FeeDetailMapper.java / FeeDetailMapper.xml / FeeDetailService` 调用链。
+3. 修正旧 XML 中 `voucher_rul` 等与最终生产 Schema 不一致的字段。
+4. `BillGenerateMapper.insertFeeDetail` 只写来源费用字段，并改为明确 DTO 入参。
+5. 新增 `BillFeeDetailRelationMapper`，负责账单费用关联写入和查询。
+6. `ArBillMapper` 中所有从 `fee_detail` 汇总账单金额、币种和汇率的 SQL 改为读取 `bill_fee_detail_relation`。
+7. `manualFee / adjustment / rebuildAdjustment` 改为写关联表。
+8. 删除 `selectSettlementExchangeRatesFromFeeDetail / selectFinancialExchangeRatesFromFeeDetail`，账单汇率只查询 `bill_exchange_rate`。
+9. 源表字段名从 `fee_source_dataset` 读取，避免继续硬编码 `bms_billed_flag / bms_bill_no`。
+10. 复杂 SQL 调整到 XML，并使用明确 DTO，不新增 `Map<String, Object>` 入参或返回值。
+11. 拆分 `FeeIndexMapper` 中混合查询：费项主数据、来源规则、业务类型费项关系、币种模板分别使用明确 Mapper 或明确方法边界。
+12. 来源同步查询直接返回 `FeeSourceRule`，不得通过 `business_type_fee_index` 拼成账单生成专用的 `FeeCollectRule`。
+13. 账单生成查询只读取 `business_type_fee_index + fee_index` 判断费用准入，不携带 `fee_source_rule_id`。
+14. 币种模板和账单费项币种规则以 `fee_index_id` 为关联主键，`fee_code` 只作快照和展示。
 
 ### 6.11 API 和 DTO 调整
 
@@ -1549,14 +1942,23 @@ sourceVersionNo         来源版本号
 
 ### 6.12 基于现有代码的实施顺序
 
-以下顺序是代码重构和新功能开发顺序，不涉及历史数据迁移：
+以下顺序同时覆盖结构调整、存量数据迁移和代码切换。历史数据必须先完成可校验迁移，不能在没有迁移方案的情况下直接切换读写模型：
+
+#### 第零步：完成数据库门禁和存量数据迁移准备
+
+1. 完成 P0-0 生产 Schema 摸底并输出 `fee_detail-schema-baseline.md`。
+2. 确认 `bill_config` 生产当前版本唯一索引，并按 3.4.1 完成 `bill_type` 回填、重复检查和索引调整。
+3. 统计生产 `fee_status`，确认仅存在 `NORMAL / ADJUSTED / REVERSED / VOID`。
+4. 准备并演练 `fee_detail -> bill_fee_detail_relation` 迁移脚本、迁移映射表、金额对账 SQL 和回滚脚本。
+5. 迁移演练未通过前，禁止切换账单详情、汇总、导出和核销查询。
 
 #### 第一步：建立新模型和统一 DTO
 
-1. 创建 `BillFeeRelation` 实体、DTO 和 `BillFeeDetailRelationMapper`。
-2. 创建 `SourceFeeRowDTO`、`SourceFeeMarkDTO`、`BillGenerateContext`、`BillFeeRelationContext`。
-3. `BillGenerateServiceImpl` 新增代码禁止继续使用 `Map<String, Object>`。
-4. 现有代码暂未调整的 Map 仅允许在原方法内部存在，抽取时逐个替换。
+1. 确认唯一字段命名，清理或重写僵尸 `FeeDetail` 实体、Mapper、XML 和 Service。
+2. 创建 `BillFeeRelation` 实体、DTO 和 `BillFeeDetailRelationMapper`。
+3. 创建 `SourceFeeRowDTO`、`SourceFeeMarkDTO`、`BillGenerateContext`、`BillFeeRelationContext`。
+4. `BillGenerateServiceImpl` 新增代码禁止继续使用 `Map<String, Object>`。
+5. 现有代码暂未调整的 Map 仅允许在原方法内部存在，抽取时逐个替换。
 
 #### 第二步：抽取账单金额汇总
 
@@ -1610,19 +2012,23 @@ sourceVersionNo         来源版本号
 
 ## 7. 直接落地范围
 
-本方案不处理历史数据，不设计数据迁移、双写、兼容视图或灰度切换。
+本方案不长期保留双写、兼容视图或新旧两套实现，但必须处理 `bill_config` 和 `fee_detail` 存量数据。上线采用“停写窗口内迁移、对账通过后一次切换”的方式；未完成迁移和对账不得直接落地。
 
 直接落地要求：
 
-1. 按新职责调整 `fee_detail` 表结构。
-2. 创建 `bill_fee_detail_relation`。
-3. `bill_fee_detail_relation`、`bill_exchange_rate` 和 `bill_generate_task` 增加 `bill_type` 维度。
-4. 为来源固定币种场景增加 `fee_source_rule.default_source_currency` 或等价数据集配置。
-5. 调整 `bill_source_collect_mark`，删除账单归属字段并增加来源版本字段。
-6. 来源费用同步任务只写 `fee_detail` 和来源抓取轨迹。
-7. 账单生成、详情、导出、汇总、核销直接读取 `bill_fee_detail_relation`。
-8. 补录、调账、红冲和汇率调整直接操作账单费用关联。
-9. 删除从 `fee_detail` 读取或更新账单侧字段的代码。
+1. 先完成生产 Schema 摸底，确认 `fee_detail` 真实结构、`fee_status` 分布、`bill_config` 唯一索引和唯一命名体系。
+2. 先调整 `bill_config` 当前默认配置唯一约束，并将所有配置查询、停用和版本切换 SQL 增加 `bill_type` 条件。
+3. 按新职责调整 `fee_detail` 表结构。
+4. 创建 `bill_fee_detail_relation` 和 `bill_fee_relation_migration_map`。
+5. 按 3.3.1 映射迁移现有 `NORMAL / ADJUSTED / REVERSED / VOID` 数据，并完成账单金额对账。
+6. `bill_fee_detail_relation`、`bill_exchange_rate` 和 `bill_generate_task` 增加 `bill_type` 维度。
+7. 为来源固定币种场景增加 `fee_source_rule.default_source_currency` 或等价数据集配置。
+8. 调整 `bill_source_collect_mark`，删除账单归属字段并增加来源版本字段。
+9. 来源费用同步任务只写 `fee_detail` 和来源抓取轨迹。
+10. 账单生成、详情、导出、汇总、核销直接读取 `bill_fee_detail_relation`。
+11. 补录、调账、红冲和汇率调整直接操作账单费用关联。
+12. 删除从 `fee_detail` 读取或更新账单侧字段的代码。
+13. 清理确认无调用的僵尸实体、Mapper、XML、Service 和 Controller。
 
 ## 8. 验收用例
 
@@ -1641,17 +2047,38 @@ sourceVersionNo         来源版本号
 | 源表打标失败 | `fee_detail` 已落库 | `bill_source_collect_mark = FAILED`，重试只补打标 |
 | 账单生成失败 | `fee_detail` 已同步成功 | 保留来源费用和源表标识，修复后继续建立账单关联 |
 | 账单重跑 | 源表已同步 | 不清空源表标识，不作废来源 `fee_detail` |
+| 多账单类型默认配置 | 同一客户已有 `MEMBER_AR` 当前默认配置 | 可新增 `COST_AP / COD_REFUND` 当前默认配置，原应收配置不被停用 |
+| 同账单类型重复默认配置 | 同一客户同一 `bill_type` 已有当前默认配置 | 数据库唯一约束拒绝新增第二条当前默认配置 |
+| 存量 `ADJUSTED` 迁移 | 存在调账增量费用 | 迁移为 `ADJUSTMENT + NORMAL`，参与金额汇总，不误标为 `REPLACED` |
+| 存量 `REVERSED` 迁移 | 存在红冲负数费用 | 迁移为 `REVERSAL + REVERSED`，关联原关系并参与金额汇总 |
+| 来源版本替换 | 未复核账单中的来源费用产生新版本 | 仅旧版本关系置 `REPLACED`，不使用 `REVERSED` |
+| 迁移金额对账 | 完成关系表存量迁移 | 每张账单迁移前 `fee_status <> 'VOID'` 金额等于迁移后有效关系金额 |
 
 ## 9. 实施优先级
 
+### P0-0：生产 Schema 真相确认
+
+1. 执行 `SHOW CREATE TABLE fee_detail` 等生产等价环境摸底 SQL。
+2. 输出 `fee_detail-schema-baseline.md` 和字段差异矩阵。
+3. 确认 `BillGenerateMapper.insertFeeDetail` 与旧 `FeeDetailMapper.xml` 的实际调用情况。
+4. 摸底 `fee_index / fee_source_rule / business_type_fee_index` 生产关系、重复规则和 `dedupe_key_expr` 配置情况。
+5. 摸底 `bill_config` 当前版本唯一索引、空 `bill_type`、重复当前默认配置和分支父子账单类型一致性。
+6. 统计 `fee_detail.fee_status` 及金额正负分布，确认状态迁移映射无未知值。
+7. 确认最终唯一数据库字段命名、Java 模型和来源费用业务键规则。
+8. 在该阶段完成前，禁止执行本方案中的 `fee_detail` DDL、`bill_config` 索引调整和代码结构调整。
+
 ### P0：模型边界修正
 
-1. 创建 `bill_fee_detail_relation`。
-2. 将来源费用同步和账单生成拆为两个独立任务。
-3. 账单生成只消费 `fee_detail` 并写关联表。
-4. 账单金额和币种汇总切换到关联表。
-5. 移除重跑时回退源表标识的逻辑。
-6. 调账、红冲、手工补录改为操作关联表。
+1. 调整 `bill_config` 当前默认配置唯一约束，并使配置读写 SQL 全部按 `bill_type` 隔离。
+2. 清理或重写僵尸 `fee_detail` Entity、Mapper、XML 和 Service。
+3. 解耦 `fee_index / fee_source_rule / business_type_fee_index`，统一以 `fee_index_id` 表达费项身份。
+4. 为来源规则补齐稳定 `dedupe_key_expr`，生成 `source_fee_key`。
+5. 创建 `bill_fee_detail_relation`，按唯一映射迁移存量 `fee_status` 并完成金额对账。
+6. 将来源费用同步和账单生成拆为两个独立任务。
+7. 账单生成只消费 `fee_detail` 并写关联表。
+8. 账单金额和币种汇总切换到关联表。
+9. 移除重跑时回退源表标识的逻辑。
+10. 调账、红冲、手工补录改为操作关联表。
 
 ### P1：来源变化识别
 

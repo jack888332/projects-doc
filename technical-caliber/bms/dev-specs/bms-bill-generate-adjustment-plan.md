@@ -332,43 +332,477 @@ source_system + source_table + source_id + collect_type + source_version_no
 
 ### 4.1 任务一：来源费用同步任务
 
-职责：
+来源费用同步任务负责把业务源系统中已经具备费用含义的数据同步为 BMS 公共费用源数据。该任务只解决“哪些来源费用进入 `fee_detail`”，不决定费用进入哪种账单。
 
-1. 按 `fee_source_dataset` 配置读取未同步来源行。
-2. 标准化并写入 `fee_detail`。
-3. 写入 `bill_source_collect_mark`。
-4. 使用 `billed_flag_column` 回写源表同步标识。
-5. 不创建账单，不计算结算币种和财务本位币。
+#### 4.1.1 同步边界
 
-处理顺序：
+来源费用同步与账单生成必须彻底解耦：
+
+| 来源费用同步任务负责 | 来源费用同步任务不负责 |
+| --- | --- |
+| 按数据集连接和读取业务源表 | 不按应收、成本、返款等账单类型筛选 |
+| 判断来源行是否已具备同步条件 | 不按 `bill_config` 的账期筛选 |
+| 按启用的 `fee_source_rule` 拆分标准费用 | 不决定费用属于哪张账单 |
+| 保存来源原始金额、币种和业务身份 | 不决定客户结算币种和财务本位币 |
+| 保存来源版本、抓取轨迹和幂等标识 | 不查询或锁定账单汇率 |
+| 回写源表已有同步标识 | 不写 `bill_fee_detail_relation` |
+
+同步任务按 `fee_source_dataset` 运行，不按 `bill_config` 运行。同一份 `fee_detail` 后续可以被应收、成本、返款等不同账单类型分别消费。
+
+#### 4.1.2 同步配置来源
+
+每次同步只读取启用状态的数据集及来源规则：
 
 ```text
-读取未同步源行
-  -> 计算 source_row_hash
-  -> 写 fee_detail
-  -> 写 bill_source_collect_mark
-  -> 回写源表已有同步标识
+fee_source_datasource
+  -> fee_source_dataset
+  -> fee_source_rule
 ```
 
-首次同步查询条件必须通过数据集配置生成，当前内置数据集以 `billed_flag_column` 为准，等价于：
+配置职责：
+
+| 配置 | 决定内容 |
+| --- | --- |
+| `fee_source_datasource` | 从哪个数据库连接读取 |
+| `fee_source_dataset.main_table / join_sql` | 来源宽数据如何组成 |
+| `fee_source_dataset.base_where_expr` | 数据集公共有效性条件 |
+| `fee_source_dataset.billed_flag_column` | 首次同步标识字段 |
+| `fee_source_dataset.initial_sync_time_column` | 首次同步时间游标字段 |
+| `fee_source_dataset.modified_time_column` | 来源变化扫描时间字段 |
+| `fee_source_dataset.query_window_days / query_page_size` | 查询窗口和分页大小 |
+| `fee_source_rule` | 一条来源宽数据如何拆成费用、金额和币种如何读取 |
+
+当前 `fee_source_dataset` 缺少统一的首次同步游标字段，建议增加：
 
 ```sql
-COALESCE(bms_billed_flag, 0) = 0
+ALTER TABLE fee_source_dataset
+  ADD COLUMN initial_sync_time_column varchar(255) DEFAULT NULL
+  COMMENT '首次同步时间表达式，必须使用源表已有可索引时间字段';
 ```
 
-`bill_no_column` 不再参与首次同步查询。
+配置示例：
 
-不得在服务代码中为每个源表重复硬编码字段名。
+| 数据集 | `initial_sync_time_column` | `modified_time_column` | 公共过滤条件 |
+| --- | --- | --- | --- |
+| `CONSOLIDATION_ORDER` | 使用订单已有的费用准备时间或更新时间字段 | 使用订单已有更新时间字段 | 订单有效、未删除 |
+| `CONSOLIDATION_ADDITIONAL_FEE` | `a.create_time` | 使用附加费已有更新时间字段 | `a.fee_pay_status = 'waiting_pay'` |
+
+订单数据集具体使用哪个已有字段作为首次同步时间，必须由业务确认“该时间点之后费用字段已经具备可同步条件”。不能继续由某张账单配置的 `contract_node` 临时决定。
+
+#### 4.1.3 数据范围
+
+一次来源费用同步任务的数据范围由以下维度共同确定：
+
+```text
+dataset_code
++ source_system / datasource_code / source_database
++ initial_sync_time_column 的时间窗口 [window_start, window_end)
++ billed_flag_column = 未同步
++ base_where_expr
++ 来源主键游标
+```
+
+明确规则：
+
+1. 只处理 `fee_source_dataset.enabled = 1` 的数据集。
+2. 只使用 `fee_source_rule.enabled = 1` 且绑定当前 `dataset_code` 的规则拆分费用。
+3. 不按 `bill_config`、`bill_type`、账期或账单状态过滤来源数据。
+4. 不只拉取已有账单配置客户的数据；只要数据集和来源规则启用，就进入公共费用池。
+5. 数据隔离字段 `sc_id / shop_id / user_id / member_code` 必须能从来源宽数据解析，否则该行同步失败。
+6. `base_where_expr` 只保存稳定的公共业务条件，例如有效状态、未删除和附加费待支付状态。
+7. 费项特有过滤条件使用 `fee_source_rule.filter_params_json`，不得污染数据集公共条件。
+8. `bill_no_column` 不参与同步范围判断。
+
+当前内置数据集的首次同步条件等价于：
+
+```sql
+-- 订单主数据集
+WHERE COALESCE(e.bms_billed_flag, 0) = 0
+  AND {initial_sync_time_column} >= #{windowStart}
+  AND {initial_sync_time_column} <  #{windowEnd}
+
+-- 附加费数据集
+WHERE COALESCE(a.bms_billed_flag, 0) = 0
+  AND a.fee_pay_status = 'waiting_pay'
+  AND a.create_time >= #{windowStart}
+  AND a.create_time <  #{windowEnd}
+```
+
+所有时间条件必须使用左闭右开区间，不允许在 WHERE 列上使用日期格式化函数。
+
+#### 4.1.4 时间窗口和同步游标
+
+每个数据集独立维护同步游标，建议新增 `fee_source_sync_checkpoint`：
+
+```sql
+CREATE TABLE fee_source_sync_checkpoint (
+  id bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  dataset_code varchar(64) NOT NULL COMMENT '来源数据集编码',
+  sync_type varchar(32) NOT NULL COMMENT '同步类型：INITIAL/MODIFIED',
+  checkpoint_time datetime NOT NULL COMMENT '已完成同步的时间游标',
+  checkpoint_source_id varchar(128) DEFAULT NULL COMMENT '同一时间点已完成的来源主键游标',
+  last_task_id bigint unsigned DEFAULT NULL COMMENT '最近成功任务ID',
+  updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_dataset_sync_type (dataset_code, sync_type)
+) COMMENT='来源费用同步游标';
+```
+
+##### `windowStart / windowEnd` 来源
+
+`windowStart / windowEnd` 是来源费用同步窗口，不是账单账期。它们按 `dataset_code + sync_type` 独立计算，不读取 `bill_config.billing_period_type`，也不使用账单的 `billing_period_start_date / billing_period_end_date`。
+
+每个数据集必须维护两条互不影响的同步游标：
+
+| `sync_type` | 扫描对象 | `windowStart` 来源 | 使用的时间字段 |
+| --- | --- | --- | --- |
+| `INITIAL` | 尚未同步到 BMS 的来源行 | `INITIAL checkpoint_time` | `initial_sync_time_column` |
+| `MODIFIED` | 已同步后又发生修改的来源行 | `MODIFIED checkpoint_time` | `modified_time_column` |
+
+两条游标不能共用。首次同步窗口已经越过某条数据后，该数据后续发生修改，由 `MODIFIED` 窗口重新拉取。
+
+这里必须区分两类时间：
+
+| 时间范围 | 使用任务 | 解决的问题 |
+| --- | --- | --- |
+| 来源同步窗口 `windowStart / windowEnd` | 来源费用同步任务 | 本次应该扫描源库中哪些新增或变化的数据 |
+| 账单账期 `billing_period_start_date / billing_period_end_date` | 账单生成任务 | 已进入 `fee_detail` 的费用最终归入哪一期、哪一种账单 |
+
+来源同步不能直接使用某张账单的账期作为唯一拉取范围，原因如下：
+
+1. `fee_detail` 是应收、成本、返款等账单类型共享的费用源数据池，不属于某一张账单。
+2. 同一笔费用可能进入不同账单类型，而这些账单类型的账期可能不同。例如应收按月、返款按周。
+3. 来源数据可能迟到。费用业务发生时间属于五月账期，但来源数据在六月才创建或更新；若六月同步任务仍只拉六月账期，将永远漏掉这笔费用。
+4. 新增账单配置或账单类型时，来源费用可能已经同步到 `fee_detail`，无需重新回扫业务源库。
+5. 来源同步时间字段表达“数据何时准备好供 BMS 读取”，账单归属时间字段表达“费用业务上属于哪个期间”，两者不是同一含义。
+
+示例：
+
+```text
+费用业务发生时间 source_fee_time：2026-05-30
+来源记录最终准备完成时间：2026-06-03
+
+来源同步任务：
+使用同步窗口 [2026-06-03 00:00:00, 2026-06-04 00:00:00)
+将费用同步到 fee_detail
+
+应收账单生成任务：
+根据 source_fee_time = 2026-05-30
+判断费用属于五月账期或按账单规则进入后续调整账单
+```
+
+因此，两个任务的查询边界分别为：
+
+```sql
+-- 来源费用同步：按来源数据准备/变化时间扫描
+WHERE initial_sync_time_column >= #{windowStart}
+  AND initial_sync_time_column <  #{windowEnd}
+  AND billed_flag_column = 0
+
+-- 账单生成：按账单归属时间和账单配置消费 fee_detail
+WHERE BillTypeStrategy.resolveBillingAttributionTime(fee_detail) >= #{billingPeriodStart}
+  AND BillTypeStrategy.resolveBillingAttributionTime(fee_detail) <  #{billingPeriodEnd}
+  AND 当前账单类型策略判断该费用允许入账
+```
+
+需要强调：来源同步任务仍然会保存账单归属所需的业务时间，例如 `source_fee_time`、订单签收时间、核重时间、回款时间等。账单类型策略根据自己的归集节点，从这些来源时间快照中选择账单归属时间。
+
+如果强制使用账单账期直接拉取业务源表，会使“来源同步”和“账单生成”重新耦合，`fee_detail` 也不再是真正的公共费用池。本方案不采用该方式。
+
+任务创建时先固定：
+
+```text
+task_cutoff_time = 当前时间 - safe_delay_minutes
+```
+
+然后按以下规则确定窗口：
+
+```text
+windowStart = 本次需要处理的起点
+windowEnd   = MIN(windowStart + query_window_days, task_cutoff_time)
+```
+
+不同场景的 `windowStart` 来源：
+
+| 场景 | `windowStart` 来源 | `windowEnd` 来源 |
+| --- | --- | --- |
+| 数据集首次启用，不同步启用前数据 | 数据集启用时间或人工初始化时间 | `MIN(windowStart + query_window_days, task_cutoff_time)` |
+| 数据集首次启用，需要指定起点补采 | 人工配置的 `initial_start_time` | `MIN(windowStart + query_window_days, task_cutoff_time)` |
+| 正常定时续跑 | `fee_source_sync_checkpoint.checkpoint_time` | `MIN(windowStart + query_window_days, task_cutoff_time)` |
+| 窗口执行失败重试 | 原失败任务快照中的 `window_start` | 原失败任务快照中的 `window_end`，不得重新计算 |
+| 手工补跑指定时间段 | 手工请求的 `manual_start_time` | `MIN(manual_end_time, windowStart + query_window_days)` |
+| 来源变化识别任务 | `MODIFIED` 类型 checkpoint | `MIN(windowStart + query_window_days, task_cutoff_time)` |
+
+建议为 `fee_source_dataset` 增加首次启动配置：
+
+```sql
+ALTER TABLE fee_source_dataset
+  ADD COLUMN initial_start_time datetime DEFAULT NULL
+  COMMENT '首次同步起点；为空时首次启用默认从启用时间开始，不回扫此前数据',
+  ADD COLUMN safe_delay_minutes int NOT NULL DEFAULT 5
+  COMMENT '同步安全延迟分钟数，避免读取仍在提交或更新中的来源数据',
+  ADD COLUMN modified_lookback_minutes int NOT NULL DEFAULT 10
+  COMMENT '修改扫描回看分钟数，用于避免边界竞争导致漏数';
+```
+
+首次创建 checkpoint 时：
+
+```text
+INITIAL checkpoint_time
+  = initial_start_time 有值 ? initial_start_time : 数据集启用时间
+
+MODIFIED checkpoint_time
+  = 数据集启用时间
+```
+
+如果启用时需要识别此前已经同步但后续可能变化的数据，应由人工明确设置 `MODIFIED checkpoint_time`，不能默认全量回扫。
+
+示例：
+
+```text
+数据集：CONSOLIDATION_ADDITIONAL_FEE
+initial_start_time：2026-06-01 00:00:00
+query_window_days：1
+safe_delay_minutes：5
+任务创建时间：2026-06-10 10:00:00
+
+task_cutoff_time = 2026-06-10 09:55:00
+
+第一个窗口：
+windowStart = 2026-06-01 00:00:00
+windowEnd   = 2026-06-02 00:00:00
+
+后续连续窗口：
+[2026-06-02 00:00:00, 2026-06-03 00:00:00)
+...
+[2026-06-10 00:00:00, 2026-06-10 09:55:00)
+```
+
+checkpoint 推进规则：
+
+1. 每个窗口使用左闭右开区间 `[windowStart, windowEnd)`。
+2. 当前窗口全部完成后，将 `checkpoint_time` 更新为当前 `windowEnd`。
+3. 下一窗口的 `windowStart` 直接取上一次成功窗口的 `windowEnd`，保证时间连续且不重叠。
+4. 窗口执行失败时，不推进 `checkpoint_time`。
+5. 重试必须使用原任务快照中的窗口，不使用当前时间重新计算，避免扩大或缩小失败范围。
+6. 手工补跑不修改正常 `INITIAL / MODIFIED` checkpoint，避免破坏定时任务连续性。
+7. 当 `windowStart >= task_cutoff_time` 时，本次没有可同步窗口，任务直接结束。
+
+##### 已同步数据修改后如何再次拉取
+
+假设来源行首次创建于 `2026-06-01 10:00:00`，首次同步完成后：
+
+```text
+bms_billed_flag = 1
+INITIAL checkpoint 已推进到 2026-06-02 00:00:00
+```
+
+该来源行在 `2026-06-05 15:30:00` 被修改，来源表已有更新时间字段同步更新：
+
+```text
+updated_at = 2026-06-05 15:30:00
+```
+
+此时：
+
+1. `INITIAL` 任务不会再拉取该行，因为 `bms_billed_flag = 1`。
+2. `MODIFIED` 任务按 `modified_time_column = updated_at` 扫描 `2026-06-05 15:30:00` 所在窗口。
+3. `MODIFIED` 查询不要求 `bms_billed_flag = 0`，它专门扫描已经同步或可能发生变化的数据。
+4. 系统重新计算来源行 `source_row_hash`。
+5. 新哈希与最近一次 `bill_source_collect_mark.source_row_hash` 相同则跳过。
+6. 哈希不同则新增一条 `fee_detail` 来源版本，并更新最近采集轨迹。
+7. 后续由账单生成或账单侧调整任务处理新版本费用，不回退源表同步标识。
+
+修改扫描查询示例：
+
+```sql
+SELECT ...
+FROM {main_table}
+{join_sql}
+WHERE {modified_time_column} >= #{windowStart}
+  AND {modified_time_column} <  #{windowEnd}
+  AND {base_where_expr}
+ORDER BY {modified_time_column}, {source_id_column}
+```
+
+注意：
+
+1. 修改扫描不能添加 `billed_flag_column = 0` 条件，否则已同步数据永远无法再次被拉取。
+2. `modified_time_column` 必须在来源数据任何影响费用的字段发生变化时同步更新。
+3. 来源数据修改和 `modified_time_column` 更新必须处于同一事务。
+4. 如果源表没有可靠的更新时间字段，也没有变更日志、消息或上游主动通知，则系统无法可靠识别已同步数据被修改。
+5. 对没有可靠修改时间的数据集，必须先补充上游变更能力，不能通过反复全表扫描或清空 `bms_billed_flag` 兜底。
+
+为避免更新时间相同、数据库提交延迟或任务边界竞争导致漏数，`MODIFIED` 扫描建议使用短时间回看：
+
+```text
+modifiedQueryStart = MODIFIED checkpoint_time - modified_lookback_minutes
+```
+
+例如 `modified_lookback_minutes = 10`。回看窗口可能重复读取数据，但通过 `source_row_hash + source_version_no` 幂等判断不会重复生成费用版本。`MODIFIED checkpoint_time` 仍只向前推进，不回退。
+
+窗口生成规则：
+
+1. `window_start` 取该数据集 `INITIAL` 类型的 `checkpoint_time`。
+2. `window_end = MIN(window_start + query_window_days, task_cutoff_time)`。
+3. `task_cutoff_time` 在任务创建时固定，执行期间新增的数据留到下一次任务。
+4. 默认 `query_window_days = 1`，即按自然时间连续拆分窗口。
+5. 一个窗口全部分页处理成功后，才推进 `checkpoint_time`。
+6. 窗口内部分页失败时不推进窗口游标，重试从已保存的 `checkpoint_source_id` 继续。
+7. 为避免来源事务尚未提交或数据仍在更新，`task_cutoff_time` 应预留可配置安全延迟，例如只同步当前时间之前若干分钟的数据。
+8. 不允许每次任务直接扫描所有 `bms_billed_flag = 0` 数据。
+9. `initial_sync_time_column` 必须表达“来源费用已具备首次同步条件”的时间，而不能随意使用早于费用准备完成的创建时间。
+10. 来源行在旧窗口结束后才满足公共过滤条件时，必须通过 `modified_time_column` 变化扫描重新进入同步流程。
+
+如果首次启用数据集时不需要同步历史数据，初始 `checkpoint_time` 直接设置为启用时间，不回扫启用时间之前的数据。
+
+#### 4.1.5 分页与稳定排序
+
+来源查询必须使用稳定排序和游标分页：
+
+```text
+ORDER BY initial_sync_time_column ASC, source_id ASC
+```
+
+下一页条件：
+
+```sql
+AND (
+     {initial_sync_time_column} > #{lastTime}
+     OR (
+          {initial_sync_time_column} = #{lastTime}
+          AND {source_id_column} > #{lastSourceId}
+     )
+)
+LIMIT #{queryPageSize}
+```
+
+规则：
+
+1. 禁止对大表使用不断增大的 `OFFSET` 分页。
+2. `source_id_column` 必须由数据集明确配置或约定为主表主键。
+3. `query_page_size` 使用数据集配置，当前默认值为 `500`。
+4. 每页处理完成后保存页级游标。
+5. 同一来源行只能由一个分片处理；分片规则必须稳定，不能因任务重试改变。
+
+#### 4.1.6 一条来源行如何拆分费用
+
+来源查询按数据集读取宽数据，一条来源行可以根据多条启用的 `fee_source_rule` 拆成多条 `fee_detail`：
+
+```text
+来源宽数据行
+  -> 匹配当前 dataset_code 下启用的 fee_source_rule
+  -> 校验 filter_params_json
+  -> 读取 source_amount_column
+  -> 读取 source_currency_column 或默认来源币种
+  -> 标准化为 fee_detail
+```
+
+生成规则：
+
+1. 金额字段为空或金额为 `0` 时，该规则不生成 `fee_detail`。
+2. `ARD` 等扣减类来源费用在标准化时保存明确费用性质；不得由某类账单生成任务反向修改来源金额。
+3. 来源币种必须按来源规则取得，禁止使用任一账单配置币种兜底。
+4. 每条生成费用必须保存 `dataset_code / fee_source_rule_id / source_system / source_table / source_id / source_row_hash / source_version_no`。
+5. 一条来源行匹配多条费用规则时，所有费用共享同一来源行版本，但拥有独立 `fee_code` 和幂等键。
+6. 规则处理顺序使用 `fee_source_rule.priority ASC, id ASC`，但不同费项规则可以同时生成，不采用先到先得排斥。
+
+首次同步 `fee_detail` 幂等键：
+
+```text
+source_system
++ source_table
++ source_id
++ fee_code
++ source_version_no
+```
+
+#### 4.1.7 来源行处理结果
+
+一条来源行处理完成后必须得到明确结果：
+
+| 结果 | 条件 | 是否写 `fee_detail` | 是否回写 `billed_flag_column = 1` |
+| --- | --- | --- | --- |
+| `COLLECTED` | 至少成功生成一条费用，且该来源行所有应生成费用均落库成功 | 是 | 是 |
+| `NO_AMOUNT` | 已匹配启用规则，但所有金额均为空或为 `0` | 否 | 是 |
+| `NO_RULE` | 当前数据集没有任何可匹配启用规则 | 否 | 否 |
+| `INVALID` | 缺少来源主键、数据隔离字段、来源币种等必要字段 | 否 | 否 |
+| `FAILED` | 查询、转换、落库或源表打标失败 | 视失败阶段而定 | 否或进入补偿 |
+
+说明：
+
+1. `NO_AMOUNT` 必须记录跳过原因后打标，否则同一空金额数据会被每次任务重复扫描；后续来源金额变化由来源变化识别任务处理。
+2. `NO_RULE` 不打标，并写入来源费用待处理队列；新增规则后由待处理重放任务重新处理。
+3. `INVALID` 不打标，并写入来源费用待处理队列；数据修复或人工触发后重新处理。
+4. 一条来源行拆出的费用必须整体成功，禁止只写入部分费用后直接打标。
+
+建议新增 `source_fee_collect_pending` 保存游标已经越过但尚未完成同步的来源行：
+
+```text
+dataset_code
++ source_system
++ source_table
++ source_id
++ pending_reason
++ pending_status
++ retry_count
++ source_snapshot_json
+```
+
+`NO_RULE / INVALID / FAILED` 记录进入待处理队列后，主同步窗口允许继续推进。新增来源规则、修复数据或技术重试时，优先重放待处理队列，不能依赖重新扫描已经越过的历史时间窗口。
+
+#### 4.1.8 事务、打标和重试边界
+
+单条来源行或小批次处理顺序：
+
+```text
+读取来源宽数据
+  -> 拆分并校验全部费用
+  -> 在 BMS 本地事务中写 fee_detail
+  -> 写 bill_source_collect_mark
+  -> 提交 BMS 本地事务
+  -> 回写源表 billed_flag_column
+  -> 更新 mark_status = MARKED
+```
+
+约束：
+
+1. BMS 本地事务失败时，不回写源表同步标识。
+2. BMS 数据已提交但源表打标失败时，`bill_source_collect_mark = FAILED`，补偿任务只补源表打标。
+3. 补偿打标成功前，不重复写入 `fee_detail`；通过费用幂等键防止重复。
+4. 一个来源行处理失败，不应回滚同窗口中已成功提交的其他来源行。
+5. 只有窗口内所有页均已读取并完成分类，且失败记录已经写入待处理队列后，才能推进窗口 checkpoint。
+6. 对长期无法修复的待处理项必须支持人工标记为忽略，并记录原因。
+
+#### 4.1.9 完整处理顺序
+
+```text
+加载启用 fee_source_dataset 和 fee_source_rule
+  -> 读取 dataset INITIAL checkpoint
+  -> 固定 task_cutoff_time
+  -> 按 query_window_days 生成 [window_start, window_end)
+  -> 按 initial_sync_time_column + source_id 游标分页读取未同步来源行
+  -> 对每条来源行执行规则匹配和费用拆分
+  -> 写 fee_detail 和 bill_source_collect_mark
+  -> 回写 billed_flag_column
+  -> NO_RULE / INVALID / FAILED 写入待处理队列
+  -> 处理打标失败补偿
+  -> 当前窗口全部完成后推进 checkpoint
+  -> 继续下一窗口，直到 task_cutoff_time
+```
+
+不得在服务代码中为每个源表重复硬编码字段名；来源表差异通过 `fee_source_dataset` 配置和 `SourceDatasetReader` 策略处理。
 
 ### 4.2 任务二：来源变化识别任务
 
 职责：
 
-1. 按 `fee_source_dataset.modified_time_column` 扫描已同步后发生变化的数据。
+1. 按 `fee_source_dataset.modified_time_column` 扫描来源发生变化的数据，包括已同步后变化和旧窗口结束后才满足同步条件的数据。
 2. 计算最新 `source_row_hash`。
-3. 哈希未变化则跳过。
-4. 哈希变化则新增 `fee_detail` 版本。
-5. 根据原账单状态决定替换原关联或生成后续调整。
+3. 来源行尚未生成过 `fee_detail` 时，按首次同步规则处理。
+4. 已有费用版本且哈希未变化时跳过。
+5. 已有费用版本且哈希变化时新增 `fee_detail` 版本。
+6. 根据原账单状态决定替换原关联或生成后续调整。
 
 状态处理：
 
@@ -388,7 +822,7 @@ COALESCE(bms_billed_flag, 0) = 0
 
 1. `effective_flag = 1`，来源费用版本有效。
 2. 对当前 `bill_type + settlement_role` 尚未存在不允许重复的有效 `bill_fee_detail_relation`。
-3. `source_fee_time` 落在本次任务账期内。
+3. 当前 `BillTypeStrategy` 选择的账单归属时间落在本次任务账期内。
 4. 客户、店铺、业务类型、目的国、仓库等字段满足账单配置范围。
 5. 当前账单类型策略判断来源费用允许进入该类账单。
 
@@ -625,6 +1059,8 @@ public interface BillTypeStrategy {
     boolean accepts(FeeDetail feeDetail, BillGenerateContext context);
 
     String resolveSettlementRole(FeeDetail feeDetail, BillGenerateContext context);
+
+    LocalDateTime resolveBillingAttributionTime(FeeDetail feeDetail, BillGenerateContext context);
 
     BillPeriod resolvePeriod(FeeDetail feeDetail, BillGenerateContext context);
 

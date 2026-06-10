@@ -221,7 +221,7 @@ CREATE TABLE bill_fee_detail_relation (
   KEY idx_bill_fee_relation_bill (bill_type, bill_id, relation_status),
   KEY idx_bill_fee_relation_fee (fee_detail_id, bill_type, settlement_role, relation_status),
   KEY idx_bill_fee_relation_original (original_relation_id),
-  KEY idx_bill_fee_relation_currency (bill_id, bill_currency, relation_status)
+  KEY idx_bill_fee_relation_currency (bill_type, bill_id, bill_currency, relation_status)
 ) COMMENT='账单费用关联及账单侧金额快照';
 ```
 
@@ -261,6 +261,8 @@ CREATE TABLE bill_fee_detail_relation (
 7. 不得为了新增返款或成本账单复制一张新的费用关联表。
 8. `bill_generate_task` 的任务唯一键、活动任务锁和查询条件必须包含 `bill_type`，不同账单类型可以按各自账期独立运行。
 9. `bill_no` 应在 BMS 范围内全局唯一，并使用不同类型前缀，例如应收 `ARB`、成本/应付 `APB`、返款 `PCB`。
+10. `bill_config` 默认配置、分支配置和当前版本的唯一性及匹配维度必须包含 `bill_type`；同一客户可以分别拥有应收、成本和返款默认配置。
+11. 账单配置匹配顺序必须先按 `bill_type` 隔离配置组，再在该类型内执行分支优先、默认兜底。
 
 ### 3.4 `bill_exchange_rate` 和币种汇总
 
@@ -291,7 +293,8 @@ SELECT bill_id,
        COUNT(1) AS fee_count,
        COUNT(DISTINCT business_order_no) AS order_count
 FROM bill_fee_detail_relation
-WHERE bill_id = ?
+WHERE bill_type = 'MEMBER_AR'
+  AND bill_id = ?
   AND relation_status = 'NORMAL'
 GROUP BY bill_id, bill_no, bill_currency;
 ```
@@ -430,10 +433,12 @@ fee_currency        = fee_detail.fee_currency
 
 1. 优先读取 `fee_source_rule.source_currency_column` 配置的来源币种字段。
 2. 来源规则未配置或来源字段为空时，读取数据集已约定的来源币种字段。
-3. 仍为空时，回退到 `bill_config.billing_currency`。
+3. 来源数据固定币种时，读取 `fee_source_rule.default_source_currency` 或数据集默认来源币种配置。
 4. 最终仍无法取得币种时，来源费用同步失败，不允许以未知币种进入账单。
 
 来源原始金额和来源币种写入 `fee_detail` 后不允许被账单生成或账单调整修改。
+
+来源费用同步任务独立于具体账单类型，因此禁止使用 `bill_config.billing_currency` 作为来源币种兜底，否则同一笔费用进入应收、成本或返款账单时会丢失真实来源币种。
 
 #### 4.3.4 结算币种来源
 
@@ -496,6 +501,8 @@ fin_currency = bill_config.fin_currency
 | --- | --- | --- | --- |
 | `FEE_TO_BILL` | `fee_detail.fee_currency` | 关联记录的 `bill_currency` | 原始费用换算为客户结算金额 |
 | `BILL_TO_FIN` | 关联记录的 `bill_currency` | `ar_bill.fin_currency` | 结算金额换算为财务本位币金额 |
+
+以上是所有账单类型可复用的基础换算链路。返款账单等特殊类型需要返款业务汇率、银行汇率或其他计算汇率时，由 `BillTypeStrategy.calculate()` 增加专用汇率类型和计算快照，不修改 `fee_detail`。
 
 每一段汇率按以下顺序取得：
 
@@ -651,16 +658,13 @@ public interface BillTypeStrategy {
 
 ```text
 读取待入账 fee_detail
-  -> 按账期和账单配置分组
-  -> 匹配或创建可修改账单
-  -> 匹配费项结算币种规则
-  -> 确定每条费用的结算币种
-  -> 从 bill_config 确定账单财务本位币
-  -> 锁定 FEE_TO_BILL 和 BILL_TO_FIN 两段账单汇率
-  -> 计算结算金额和财务本位币金额
+  -> 根据 bill_config.bill_type 获取 BillTypeStrategy
+  -> 由策略判断费用准入、结算角色、账期和分组
+  -> 由策略匹配或创建对应类型账单
+  -> 执行公共币种规则和基础汇率处理
+  -> 由策略执行账单类型专用计算
   -> 写 bill_fee_detail_relation
-  -> 按结算币种刷新 ar_bill_currency_summary
-  -> 刷新 ar_bill 财务本位币金额和统计字段
+  -> 由策略刷新对应账单主表、币种汇总和统计字段
 ```
 
 失败处理：
@@ -684,11 +688,11 @@ public interface BillTypeStrategy {
 处理边界：
 
 ```text
-只处理 ar_bill
+只处理 当前账单类型主表
        bill_fee_detail_relation
        bill_exchange_rate
-       ar_bill_currency_summary
-       fee_adjustment_order
+       当前账单类型币种汇总表
+       当前账单类型调整记录
 ```
 
 禁止访问或修改：
@@ -1176,11 +1180,13 @@ sourceVersionNo         来源版本号
 
 1. 按新职责调整 `fee_detail` 表结构。
 2. 创建 `bill_fee_detail_relation`。
-3. 调整 `bill_source_collect_mark`，删除账单归属字段并增加来源版本字段。
-4. 来源费用同步任务只写 `fee_detail` 和来源抓取轨迹。
-5. 账单生成、详情、导出、汇总、核销直接读取 `bill_fee_detail_relation`。
-6. 补录、调账、红冲和汇率调整直接操作账单费用关联。
-7. 删除从 `fee_detail` 读取或更新账单侧字段的代码。
+3. `bill_fee_detail_relation`、`bill_exchange_rate` 和 `bill_generate_task` 增加 `bill_type` 维度。
+4. 为来源固定币种场景增加 `fee_source_rule.default_source_currency` 或等价数据集配置。
+5. 调整 `bill_source_collect_mark`，删除账单归属字段并增加来源版本字段。
+6. 来源费用同步任务只写 `fee_detail` 和来源抓取轨迹。
+7. 账单生成、详情、导出、汇总、核销直接读取 `bill_fee_detail_relation`。
+8. 补录、调账、红冲和汇率调整直接操作账单费用关联。
+9. 删除从 `fee_detail` 读取或更新账单侧字段的代码。
 
 ## 8. 验收用例
 

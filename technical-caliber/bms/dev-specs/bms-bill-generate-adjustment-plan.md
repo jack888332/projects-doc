@@ -35,8 +35,9 @@
 3. `bill_fee_detail_relation` 表示某笔费用如何计入某张账单。
 4. 结算币种、财务本位币、两段汇率和换算金额属于账单，全部放在关联表。
 5. 账单补录、红冲、调账、汇率调整只修改或新增关联记录，不修改 `fee_detail`。
-6. 同一笔 `fee_detail` 可以因为重算、转账单或冲正产生多条关联记录，但同一时刻只能有一条有效正向关联。
+6. 同一笔 `fee_detail` 可以关联不同账单类型；同一账单类型和结算角色下，同一时刻只能有一条有效正向关联。
 7. `ar_bill_currency_summary` 和 `ar_bill` 金额统一从有效关联记录汇总，不再从 `fee_detail` 汇总。
+8. 账单类型、费用准入、账期、分组、金额方向、汇率和汇总公式必须由账单类型策略决定，不能写死为应收账单规则。
 
 ## 2. 源表同步标识复用方案
 
@@ -164,6 +165,7 @@ CREATE TABLE bill_fee_detail_relation (
   relation_no varchar(64) NOT NULL COMMENT '账单费用关联编号',
   bill_id bigint unsigned NOT NULL COMMENT '账单ID',
   bill_no varchar(64) NOT NULL COMMENT '账单编号',
+  bill_type varchar(32) NOT NULL COMMENT '账单类型：MEMBER_AR/COD_REFUND/COST_AP等',
   bill_config_id bigint unsigned NOT NULL COMMENT '账单配置ID',
   generate_task_id bigint unsigned DEFAULT NULL COMMENT '生成任务ID',
   fee_detail_id bigint unsigned DEFAULT NULL COMMENT 'BMS费用源数据ID，手工补录时可为空',
@@ -172,12 +174,18 @@ CREATE TABLE bill_fee_detail_relation (
   shop_id bigint NOT NULL COMMENT '店铺ID',
   user_id bigint NOT NULL COMMENT '用户ID',
   member_code varchar(64) NOT NULL COMMENT '会员/客户编码',
+  settlement_subject_type varchar(32) NOT NULL COMMENT '结算主体类型：MEMBER/SUPPLIER等',
+  settlement_subject_id bigint DEFAULT NULL COMMENT '结算主体ID',
+  settlement_subject_code varchar(64) NOT NULL COMMENT '结算主体编码',
 
   relation_type varchar(32) NOT NULL COMMENT '关联类型：SOURCE/MANUAL/ADJUSTMENT/REVERSAL',
+  settlement_role varchar(32) NOT NULL COMMENT '结算角色：RECEIVABLE/PAYABLE/REFUND_PRINCIPAL/REFUND_DEDUCTION等',
   relation_status varchar(32) NOT NULL DEFAULT 'NORMAL'
     COMMENT '状态：NORMAL/REPLACED/REVERSED/VOID',
   original_relation_id bigint unsigned DEFAULT NULL COMMENT '原关联记录ID，红冲或替换时使用',
   adjustment_order_id bigint unsigned DEFAULT NULL COMMENT '调账单ID',
+  calculation_rule_code varchar(64) NOT NULL COMMENT '账单类型计算规则编码',
+  calculation_snapshot_json json COMMENT '本次关系使用的计算规则快照',
 
   business_type_code varchar(64) DEFAULT NULL COMMENT '账单命中的业务类型',
   business_type_fee_id bigint unsigned DEFAULT NULL COMMENT '账单命中的业务费项关系ID',
@@ -210,8 +218,8 @@ CREATE TABLE bill_fee_detail_relation (
   updated_by varchar(64) DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (id),
   UNIQUE KEY uk_bill_fee_relation_no (relation_no),
-  KEY idx_bill_fee_relation_bill (bill_id, relation_status),
-  KEY idx_bill_fee_relation_fee (fee_detail_id, relation_status),
+  KEY idx_bill_fee_relation_bill (bill_type, bill_id, relation_status),
+  KEY idx_bill_fee_relation_fee (fee_detail_id, bill_type, settlement_role, relation_status),
   KEY idx_bill_fee_relation_original (original_relation_id),
   KEY idx_bill_fee_relation_currency (bill_id, bill_currency, relation_status)
 ) COMMENT='账单费用关联及账单侧金额快照';
@@ -225,8 +233,36 @@ CREATE TABLE bill_fee_detail_relation (
 4. 红冲时新增负数 `REVERSAL` 记录，并通过 `original_relation_id` 指向原账单费用。
 5. 来源数据修改后重新解释费用时，将旧关联置为 `REPLACED`，再基于新版本 `fee_detail` 新增关联。
 6. 已复核账单不得直接将旧关联置为 `REPLACED/VOID`；必须通过后续账单或财务调账中心新增调整记录。
+7. `bill_id` 只在 `bill_type` 范围内有意义，所有关联查询必须同时携带 `bill_type + bill_id` 或直接使用全局唯一 `bill_no`。
+8. `settlement_role` 表示该费用在当前账单中的计算角色，同一笔费用在不同账单类型中可以使用不同角色。
+9. `calculation_rule_code + calculation_snapshot_json` 固化本次计算口径，避免后续策略变化影响已生成账单。
+10. `sc_id / shop_id / user_id` 继续承担数据隔离；`settlement_subject_type / settlement_subject_code` 表达真正结算对象，不能使用 `member_code` 兼代供应商。
 
-### 3.3 `bill_exchange_rate` 和币种汇总
+### 3.3 多账单类型扩展边界
+
+`fee_detail` 是所有账单类型共享的费用源数据池，不能增加只服务于某一种账单的字段。新增账单类型时，费用仍通过 `bill_fee_detail_relation` 与账单关联。
+
+推荐账单类型：
+
+| `bill_type` | 业务含义 | 典型费用类型或角色 | 典型计算结果 |
+| --- | --- | --- | --- |
+| `MEMBER_AR` | 客户应收账单 | `AR / ARD / ARAP`，角色为 `RECEIVABLE` | 应收金额 |
+| `COST_AP` | 成本或应付账单 | `AP / ARAP`，角色为 `PAYABLE` | 应付金额 |
+| `COD_REFUND` | COD 返款账单 | 代收货款为 `REFUND_PRINCIPAL`，手续费等为 `REFUND_DEDUCTION` | 应返金额 = 返款本金 - 扣减项 |
+
+关键规则：
+
+1. `bill_config.bill_type` 决定当前配置生成哪一种账单。
+2. `fee_detail.fee_type` 只表达费用性质，不直接决定最终账单；是否进入某类账单由账单类型策略判断。
+3. `ARAP` 等代收代付费用允许同时进入应收账单和成本账单，因此不能使用“存在任意有效关联就禁止再次入账”的全局规则。
+4. 同一费用是否允许进入多个账单类型、是否允许部分金额分摊，由账单类型策略和关系幂等规则共同控制。
+5. 应收、成本、返款账单可以使用不同账期、归集节点、结算主体、状态机、币种规则、汇率规则和汇总公式。
+6. 各类账单可以使用独立账单主表和状态机，但共享 `bill_fee_detail_relation`。关联表通过 `bill_type + bill_id + bill_no` 标识目标账单。
+7. 不得为了新增返款或成本账单复制一张新的费用关联表。
+8. `bill_generate_task` 的任务唯一键、活动任务锁和查询条件必须包含 `bill_type`，不同账单类型可以按各自账期独立运行。
+9. `bill_no` 应在 BMS 范围内全局唯一，并使用不同类型前缀，例如应收 `ARB`、成本/应付 `APB`、返款 `PCB`。
+
+### 3.4 `bill_exchange_rate` 和币种汇总
 
 保留现有 `bill_exchange_rate` 作为账单级汇率快照：
 
@@ -236,7 +272,15 @@ CREATE TABLE bill_fee_detail_relation (
 4. 调整账单汇率时，只重算该账单的有效关联记录。
 5. 不修改 `fee_detail.fee_currency / amount_fee_currency`。
 
-`ar_bill_currency_summary` 改为从有效关联记录汇总：
+为支持不同账单主表，`bill_exchange_rate` 增加 `bill_type`，汇率唯一键调整为：
+
+```text
+bill_type + bill_id + target_currency + source_currency + conversion_currency_type
+```
+
+不同账单类型可以定义额外汇率类型。例如返款账单可以增加返款业务汇率类型，但仍通过账单类型策略锁定并保存账单级快照。
+
+应收账单的 `ar_bill_currency_summary` 改为从有效关联记录汇总：
 
 ```sql
 SELECT bill_id,
@@ -252,9 +296,9 @@ WHERE bill_id = ?
 GROUP BY bill_id, bill_no, bill_currency;
 ```
 
-`ar_bill` 的应收和本位币金额同样从有效关联记录及币种汇总刷新，不再直接汇总 `fee_detail`。
+`ar_bill` 的应收和本位币金额同样从有效关联记录及币种汇总刷新，不再直接汇总 `fee_detail`。成本账单和返款账单使用各自的账单主表、币种汇总表及汇总策略。
 
-### 3.4 `bill_source_collect_mark` 调整
+### 3.5 `bill_source_collect_mark` 调整
 
 `bill_source_collect_mark` 继续用于跨库打标补偿，但其职责调整为“来源行抓取轨迹”，不再作为费用和账单的一对一关系。
 
@@ -340,19 +384,23 @@ COALESCE(bms_billed_flag, 0) = 0
 从 `fee_detail` 查询满足以下条件的来源费用：
 
 1. `effective_flag = 1`，来源费用版本有效。
-2. 尚未存在 `relation_status = NORMAL` 的有效 `bill_fee_detail_relation`。
+2. 对当前 `bill_type + settlement_role` 尚未存在不允许重复的有效 `bill_fee_detail_relation`。
 3. `source_fee_time` 落在本次任务账期内。
 4. 客户、店铺、业务类型、目的国、仓库等字段满足账单配置范围。
-5. 来源费用状态允许入账。
+5. 当前账单类型策略判断来源费用允许进入该类账单。
 
 任务只读取 `fee_detail`，不再查询和修改业务源表。
+
+不能使用“`fee_detail` 只要存在任意 `NORMAL` 关联就不再入账”的全局排除逻辑，否则 `ARAP` 等费用进入应收账单后，将无法继续进入成本账单。幂等判断必须包含 `bill_type + settlement_role`。
 
 #### 4.3.2 匹配或创建账单
 
 费用按以下账单归属维度匹配：
 
 ```text
-bill_config_id
+bill_type
++ settlement_subject
++ bill_config_id
 + billing_period_start_date
 + billing_period_end_date
 + config_type
@@ -364,8 +412,10 @@ bill_config_id
 1. 已存在 `DRAFT / GENERATED` 账单时，费用追加到现有账单。
 2. 不存在账单时，根据任务快照创建新账单。
 3. 已存在 `PENDING_SETTLEMENT / PAID` 账单时，不允许向原账单追加，进入后续账单或财务调账流程。
-4. `ar_bill.bill_currency` 保存账单配置默认结算币种，仅作为默认值和展示值；一张账单允许存在多种实际结算币种。
-5. `ar_bill.fin_currency` 保存该账单统一使用的财务本位币。
+4. `MEMBER_AR` 使用客户作为结算主体；`COST_AP` 通常使用供应商作为结算主体；`COD_REFUND` 使用返款客户作为结算主体。
+5. 各账单类型通过策略决定具体主表、账单编号、状态初始值和结算主体字段。
+6. 应收账单的 `ar_bill.bill_currency` 保存配置默认结算币种，仅作为默认值和展示值；一张账单允许存在多种实际结算币种。
+7. 应收账单的 `ar_bill.fin_currency` 保存该账单统一使用的财务本位币；其他账单类型由对应策略写入自己的账单主表。
 
 #### 4.3.3 来源原始金额和来源币种
 
@@ -423,7 +473,7 @@ fee_currency        = fee_detail.fee_currency
 
 #### 4.3.5 财务本位币来源
 
-财务本位币统一读取本次命中的账单配置：
+默认情况下，财务本位币读取本次命中的账单配置：
 
 ```text
 fin_currency = bill_config.fin_currency
@@ -436,6 +486,7 @@ fin_currency = bill_config.fin_currency
 3. 每条 `bill_fee_detail_relation.fin_currency` 保存账单财务本位币快照。
 4. `bill_config.fin_currency` 为空时，禁止生成账单；不在生成代码中静默回退为 `CNY`。
 5. 后续修改账单配置的财务本位币，不自动修改已生成账单；可修改账单需要通过账单侧重算任务显式重算。
+6. 特殊账单类型需要不同本位币来源时，由账单类型策略覆盖，但必须在任务快照和关联记录中固化来源及结果。
 
 #### 4.3.6 两段账单汇率来源
 
@@ -457,7 +508,8 @@ fin_currency = bill_config.fin_currency
 账单汇率唯一键：
 
 ```text
-bill_id
+bill_type
++ bill_id
 + target_currency
 + source_currency
 + conversion_currency_type
@@ -537,10 +589,63 @@ relation_status = NORMAL
 
 一个账单分组内的关系全部写入成功后，再统一刷新：
 
-1. `ar_bill_currency_summary`：按 `bill_id + bill_currency` 汇总结算币种金额。
-2. `ar_bill.receivable_amount_fin`：汇总有效关系的财务本位币金额。
-3. `ar_bill` 的默认结算币种金额只表示默认币种汇总，不得混加不同结算币种金额。
-4. 账单费用条数和订单数从有效关系统计。
+1. 先由账单类型汇总策略读取该账单的有效关系。
+2. 应收账单写入 `ar_bill_currency_summary`，并刷新 `ar_bill` 应收及本位币金额。
+3. 成本账单写入成本账单自己的币种汇总和应付金额。
+4. 返款账单分别汇总返款本金、返款扣减项、应返金额和差额。
+5. 各账单类型的费用条数、订单数和业务统计字段由对应汇总策略计算。
+
+#### 4.3.9 不同账单类型的生成差异
+
+账单生成公共骨架保持一致：
+
+```text
+读取 fee_detail
+  -> 判断费用是否允许进入当前账单类型
+  -> 计算账期和分组
+  -> 创建或匹配账单
+  -> 创建 bill_fee_detail_relation
+  -> 执行账单类型汇总
+```
+
+差异部分由 `BillTypeStrategy` 提供：
+
+```java
+public interface BillTypeStrategy {
+
+    String supportedBillType();
+
+    boolean accepts(FeeDetail feeDetail, BillGenerateContext context);
+
+    String resolveSettlementRole(FeeDetail feeDetail, BillGenerateContext context);
+
+    BillPeriod resolvePeriod(FeeDetail feeDetail, BillGenerateContext context);
+
+    BillGroupKey resolveGroupKey(FeeDetail feeDetail, BillGenerateContext context);
+
+    BillHeaderRef getOrCreateBill(BillGenerateContext context, BillGroupKey groupKey);
+
+    BillFeeCalculationResult calculate(BillFeeRelationContext context);
+
+    void aggregate(BillHeaderRef bill, String operator);
+}
+```
+
+各账单类型策略示例：
+
+| 策略 | 费用准入 | 主要计算规则 | 汇总结果 |
+| --- | --- | --- | --- |
+| `MemberArBillTypeStrategy` | 接收应收、应收扣减及允许进入应收的代收代付费用 | 正向应收减去应收扣减，使用客户结算币种规则 | 应收、已收、未收、本位币金额 |
+| `CostApBillTypeStrategy` | 接收成本及允许进入成本的代收代付费用 | 按供应商结算规则计算应付金额 | 应付、已付、未付、本位币金额 |
+| `CodRefundBillTypeStrategy` | 接收 COD 返款本金和返款阶段扣减费项 | 应返金额 = 返款本金 - 返款扣减项，可使用返款业务汇率 | 返款本金、扣减金额、应返金额、返款差额 |
+
+扩展新账单类型时：
+
+1. 增加账单类型常量或枚举。
+2. 增加该账单类型的配置、主表、状态规则和汇总表。
+3. 实现一个 `BillTypeStrategy` 并注册到 `BillTypeStrategyRegistry`。
+4. 复用来源费用同步任务、`fee_detail`、`bill_fee_detail_relation` 和公共任务执行骨架。
+5. 不修改其他账单类型策略，不复制来源费用同步逻辑。
 
 处理顺序：
 
@@ -638,10 +743,10 @@ fee_detail:
 source_system + source_table + source_id + fee_code + source_version_no
 
 bill_fee_detail_relation:
-bill_id + fee_detail_id + relation_type + original_relation_id + relation_status有效版本
+bill_type + bill_id + fee_detail_id + settlement_role + relation_type + original_relation_id + relation_status有效版本
 ```
 
-数据库无法直接约束“仅一条有效记录”时，由 Service 在事务内使用行锁校验，并在创建新关系前将旧关系置为 `REPLACED`。
+数据库无法直接约束“同一账单类型和结算角色仅一条有效记录”时，由 Service 在事务内使用行锁校验，并在创建新关系前将旧关系置为 `REPLACED`。不得跨账单类型排斥有效关系。
 
 ## 6. 代码调整范围
 
@@ -668,6 +773,50 @@ bill_id + fee_detail_id + relation_type + original_relation_id + relation_status
 5. 不为了使用设计模式创建空壳接口；只有存在变化点或多个实现时才使用模式。
 6. 不进行与本方案无关的全项目重构。
 
+#### Job 调整原则
+
+推荐直接保留并改造现有 Job，不需要停掉原 Job 再启动一套并行的新 Job：
+
+| 现有 Job | 调整后职责 |
+| --- | --- |
+| `BillGeneratePlanJob` | 按配置和账期创建来源费用同步任务、账单生成任务或账单侧重算任务 |
+| `BillGenerateTaskExecuteJob` | 继续领取待执行任务，通过 `BillTaskExecutorRegistry` 分发到对应任务执行器 |
+
+推荐调用关系：
+
+```text
+BillGeneratePlanJob
+  -> BillGenerateService.generate()
+  -> 创建不同 task_type / trigger_type 的 bill_generate_task
+
+BillGenerateTaskExecuteJob
+  -> BillGenerateService.executePendingTasks()
+  -> BillGenerateService.executeTask()
+  -> BillTaskExecutorRegistry
+  -> SourceFeeCollectTaskExecutor
+     / BillRelationGenerateTaskExecutor
+     / BillRecalculateTaskExecutor
+```
+
+这样调整完成后：
+
+1. 定时任务平台中的 Job 名称、分片配置和调度配置可以保持不变。
+2. 不存在新旧 Job 同时扫描同一批数据的问题。
+3. Job 只负责触发和分发，具体业务逻辑由新的任务执行器处理。
+4. 上线时只需要发布新代码，不需要人工停旧 Job、启新 Job。
+
+如果最终决定新增独立 Job，例如分别创建 `SourceFeeCollectJob` 和 `BillRelationGenerateJob`，则不能简单启动新 Job 后立即停止旧 Job，必须满足以下切换条件：
+
+1. 旧 Job 已停止创建新任务。
+2. 旧 Job 当前不存在 `RUNNING` 任务。
+3. `PENDING / NEED_RETRY` 任务已经处理完成或明确作废。
+4. 新旧 Job 不得同时消费相同 `task_type / trigger_type`。
+5. 来源费用同步和账单生成必须使用不同任务类型及幂等键。
+6. 新 Job 首次执行前，确认不存在已经写入 `fee_detail` 但仍会被旧 Job 重复抓取的数据。
+7. 切换后验证来源同步、账单关联、汇率锁定和金额汇总各完成一轮，再正式恢复周期调度。
+
+本方案默认采用“保留现有 Job、修改内部任务分发”的方式。
+
 ### 6.2 设计模式选型
 
 本次只使用能够直接降低现有复杂度的设计模式。
@@ -677,6 +826,7 @@ bill_id + fee_detail_id + relation_type + original_relation_id + relation_status
 | 门面模式 Facade | 保留 `BillGenerateServiceImpl`、`ArBillServiceImpl` 作为入口 | 对 Controller、Job 保持稳定接口，隐藏内部组件拆分 |
 | 模板方法 Template Method | 来源费用同步、账单生成、账单侧重算主流程 | 固定校验、执行、汇总、完成、失败处理顺序 |
 | 策略模式 Strategy | 来源数据读取、账单费用关系创建、来源变化后的处理 | 消除按来源类型、关系类型和账单状态不断扩大的 `if/else` |
+| 账单类型策略 Bill Type Strategy | 应收、成本、返款等不同账单计算 | 复用生成骨架，同时隔离费用准入、账期、分组、计算和汇总差异 |
 | 工厂/注册表模式 Factory/Registry | 根据数据集编码、关系类型选择策略 | 集中管理策略选择，不在编排 Service 中手工 `new` 或判断 |
 | 责任链模式 Chain of Responsibility | 单条 `fee_detail` 入账前校验和处理 | 将配置匹配、币种确定、汇率锁定、关系写入拆成清晰步骤 |
 | 状态规则对象 State Policy | 判断账单状态允许的操作 | 统一控制可入账、可替换、可调账、需转后续账单等规则 |
@@ -716,6 +866,11 @@ com.szt.supplychain.bms.biz.billgenerate
 │   │   ├── ManualRelationStrategy
 │   │   ├── AdjustmentRelationStrategy
 │   │   └── ReversalRelationStrategy
+│   ├── billtype
+│   │   ├── BillTypeStrategy
+│   │   ├── MemberArBillTypeStrategy
+│   │   ├── CostApBillTypeStrategy
+│   │   └── CodRefundBillTypeStrategy
 │   └── change
 │       ├── SourceChangeHandleStrategy
 │       ├── EditableBillChangeStrategy
@@ -723,6 +878,7 @@ com.szt.supplychain.bms.biz.billgenerate
 ├── registry
 │   ├── BillTaskExecutorRegistry
 │   ├── SourceDatasetReaderRegistry
+│   ├── BillTypeStrategyRegistry
 │   └── BillFeeRelationStrategyRegistry
 ├── processor
 │   ├── BillFeeRelationProcessor

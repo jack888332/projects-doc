@@ -3,18 +3,25 @@
 > 设计依据：`aidocs/technical-caliber/bms/dev-specs/bms-cod-refund-bill-development-design.md`
 >
 > 本清单按依赖顺序执行。带“门禁”的阶段未完成前，不进入后续正式账单生成和金额切换。
+>
+> 进度同步时间：`2026-06-11`
+>
+> 状态说明：
+> - `[x]`：代码或文档已落地。
+> - `[ ]`：尚未完成，或仅部分完成但还不能算正式交付。
+> - 文中带“进行中”的项表示已有实现，但仍有剩余工作或验收未闭环。
 
 ## 1. 里程碑
 
-| 阶段 | 目标 | 依赖 |
-| --- | --- | --- |
-| P0-0 | 数据、Schema 和业务口径摸底 | 无 |
-| P0-1 | 共享账单关系模型就绪 | `bms-bill-generate-adjustment-plan.md` P0 |
-| P1 | 返款账单查询与状态流转 | 返款主表、币种汇总 |
-| P2 | 签收返款生成 | P0-1、签收数据源 |
-| P3 | 实际回款管理与回款返款生成 | P0-1、回款数据源 |
-| P4 | 返款打款、核销与结清 | P1 |
-| P5 | 调账、对账、报表与上线 | P2/P3/P4 |
+| 阶段 | 目标 | 依赖 | 当前进度 |
+| --- | --- | --- | --- |
+| P0-0 | 数据、Schema 和业务口径摸底 | 无 | 进行中 |
+| P0-1 | 共享账单关系模型就绪 | `bms-bill-generate-adjustment-plan.md` P0 | 未开始 |
+| P1 | 返款账单查询与状态流转 | 返款主表、币种汇总 | 进行中 |
+| P2 | 签收返款生成 | P0-1、签收数据源 | 未开始 |
+| P3 | 实际回款管理与回款返款生成 | P0-1、回款数据源 | 未开始 |
+| P4 | 返款打款、核销与结清 | P1 | 部分实现 |
+| P5 | 调账、对账、报表与上线 | P2/P3/P4 | 未开始 |
 
 ## 2. P0-0：开发前门禁
 
@@ -24,11 +31,11 @@
 - [ ] 执行并归档 `bill_config / bill_generate_task / bill_exchange_rate / ar_bill / ar_bill_currency_summary` 真实 Schema。
 - [ ] 确认 `bill_fee_detail_relation` 是否已创建及实际字段。
 - [ ] 输出 `fee_detail-schema-baseline.md`。
-- [ ] 确认 `refund_bill_config` DDL 已执行，且 `billing_period_start_days` 已存在。
+- [x] 确认 `refund_bill_config` DDL 已执行，且 `billing_period_start_days` 已存在。
 - [ ] 确认返款配置历史版本和当前版本唯一约束可用。
 - [ ] 确认当前 `RefundBillConfigServiceImpl` 和前端配置页联调通过。
-- [ ] 盘点 `admin_shell/src/views/billing/refundBill/index.vue` 所有模拟字段和 TODO。
-- [ ] 盘点 `platform-admin` 是否存在返款账单代理 Controller；当前仅返款配置代理已存在。
+- [x] 盘点 `admin_shell/src/views/billing/refundBill/index.vue` 所有模拟字段和 TODO。
+- [x] 盘点 `platform-admin` 是否存在返款账单代理 Controller；当前已新增返款账单代理。
 - [ ] 确认应收收款核销表不能复用为返款打款表。
 
 ### 2.2 产品与数据口径
@@ -88,64 +95,64 @@
 
 ### 4.1 DDL
 
-- [ ] 编写 `refund_bill` DDL。
-- [ ] 编写 `refund_bill_currency_summary` DDL。
-- [ ] 编写 `refund_payment_record` DDL。
-- [ ] 编写 `refund_payment_allocation` DDL。
+- [x] 编写 `refund_bill` DDL。
+- [x] 编写 `refund_bill_currency_summary` DDL。
+- [x] 编写 `refund_payment_record` DDL。
+- [x] 编写 `refund_payment_allocation` DDL。
 - [ ] 根据最终归属方案编写 `fee_settlement_claim` DDL 或等价约束。
-- [ ] 所有表包含数据隔离、审计和逻辑删除字段。
-- [ ] 金额字段统一 `DECIMAL(18,4)`，汇率字段统一 `DECIMAL(18,8)`。
+- [x] 所有表包含数据隔离、审计和逻辑删除字段。
+- [x] 金额字段统一 `DECIMAL(18,4)`，汇率字段统一 `DECIMAL(18,8)`。
 - [ ] 完成索引、唯一键、回滚脚本和对账 SQL 评审。
 
 ### 4.2 Model 与枚举
 
-- [ ] 新增 `RefundBill` 实体。
+- [x] 新增 `RefundBill` 实体。
 - [ ] 新增 `RefundBillCurrencySummary` 实体。
-- [ ] 新增 `RefundPaymentRecord` 实体。
-- [ ] 新增 `RefundPaymentAllocation` 实体。
-- [ ] 新增返款账单状态枚举。
-- [ ] 新增返款币种汇总状态枚举。
-- [ ] 新增返款打款状态枚举。
-- [ ] 新增返款结算角色和专用汇率类型常量。
-- [ ] 所有类和字段补齐 JavaDoc。
+- [x] 新增 `RefundPaymentRecord` 实体。
+- [x] 新增 `RefundPaymentAllocation` 实体。
+- [ ] 新增返款账单状态枚举。进行中：当前已在 `BmsConstants` 中落地状态常量，尚未抽成独立 enum。
+- [ ] 新增返款币种汇总状态枚举。进行中：当前已在 `BmsConstants` 中落地状态常量，尚未抽成独立 enum。
+- [ ] 新增返款打款状态枚举。进行中：当前已在 `BmsConstants` 中落地状态常量，尚未抽成独立 enum。
+- [x] 新增返款结算角色和专用汇率类型常量。
+- [x] 所有类和字段补齐 JavaDoc。
 
 ### 4.3 Mapper 与 Service
 
-- [ ] 新增返款账单 Mapper 接口和 XML。
+- [x] 新增返款账单 Mapper 接口和 XML。
 - [ ] 新增币种汇总 Mapper 接口和 XML。
 - [ ] 新增返款打款 Mapper 接口和 XML。
-- [ ] 新增 `RefundBillService` 与实现。
+- [x] 新增 `RefundBillService` 与实现。
 - [ ] 新增 `RefundBillOperationStatePolicy`。
 - [ ] 新增 `CodRefundBillAggregateService`。
-- [ ] 列表查询实现数据隔离、分页和汇总。
+- [x] 列表查询实现数据隔离、分页和汇总。
 - [ ] 详情查询返回账单、币种汇总、费用关系、汇率和操作记录。
-- [ ] 写操作使用 `@Transactional(rollbackFor = Exception.class)`。
-- [ ] 金额和状态更新使用行锁。
-- [ ] SQL 不使用 Map 入参/返回值，不在 WHERE 列上使用函数。
+- [x] 写操作使用 `@Transactional(rollbackFor = Exception.class)`。
+- [x] 金额和状态更新使用行锁。
+- [x] SQL 不使用 Map 入参/返回值，不在 WHERE 列上使用函数。
 
 ### 4.4 API 与代理
 
-- [ ] 新增 `RefundBillRemoteService`。
-- [ ] 新增 `RefundBillController`。
-- [ ] 新增 `platform-admin` 返款账单代理 Controller。
-- [ ] 实现 `/page`。
-- [ ] 实现 `/detail`。
+- [x] 新增 `RefundBillRemoteService`。
+- [x] 新增 `RefundBillController`。
+- [x] 新增 `platform-admin` 返款账单代理 Controller。
+- [x] 实现 `/page`。
+- [x] 实现 `/detail`。
 - [ ] 实现 `/fee-detail/page`。
-- [ ] 实现 `/review`。
-- [ ] 实现 `/send`。
-- [ ] 实现 `/export` 基础版本。
-- [ ] Controller 方法补齐 JavaDoc 或 `@ApiOperation`。
+- [x] 实现 `/review`。
+- [x] 实现 `/send`。
+- [x] 实现 `/export` 基础版本。
+- [x] Controller 方法补齐 JavaDoc 或 `@ApiOperation`。
 
 ### 4.5 前端联调
 
-- [ ] 删除返款页面 `USE_MOCK` 和模拟数据。
-- [ ] 状态 Tab 对齐 `DRAFT/UNDER_REVIEW/PENDING_SETTLEMENT/SETTLED`。
-- [ ] 逾期未返改为快捷筛选标记。
-- [ ] 列表字段映射真实 DTO。
-- [ ] 详情账单信息和币种汇总接入真实接口。
+- [ ] 删除返款页面 `USE_MOCK` 和模拟数据。进行中：页面已切到真实接口，文件内仍残留 mock 数据和注释待清理。
+- [x] 状态 Tab 对齐 `DRAFT/UNDER_REVIEW/PENDING_SETTLEMENT/SETTLED`。
+- [x] 逾期未返改为快捷筛选标记。
+- [x] 列表字段映射真实 DTO。
+- [x] 详情账单信息和币种汇总接入真实接口。
 - [ ] 费用明细分页接入真实接口。
-- [ ] 复核、发送和导出接入真实接口。
-- [ ] 调整重新跑账单提示，不再描述为直接作废来源数据。
+- [x] 复核、发送和导出接入真实接口。
+- [x] 调整重新跑账单提示，不再描述为直接作废来源数据。
 
 ### 4.6 P1 验收
 
@@ -235,24 +242,24 @@
 
 ### 7.1 后端
 
-- [ ] 实现返款打款登记。
-- [ ] 实现打款到账单币种汇总分配。
-- [ ] 实现一笔打款分配多个账单。
-- [ ] 实现一张账单接收多笔部分打款。
+- [x] 实现返款打款登记。
+- [x] 实现打款到账单币种汇总分配。
+- [x] 实现一笔打款分配多个账单。
+- [x] 实现一张账单接收多笔部分打款。
 - [ ] 实现打款撤销/反向分配。
-- [ ] 实现币种汇总状态刷新。
-- [ ] 实现返款账单主状态刷新。
+- [x] 实现币种汇总状态刷新。
+- [x] 实现返款账单主状态刷新。
 - [ ] 实现打款凭证和备注保存。
 - [ ] 校验客户、币种和收款账户一致性。
 
 ### 7.2 前端
 
-- [ ] “登记打款”文案明确为向客户返款。
-- [ ] 打款币种只允许选择账单存在未返金额的币种。
+- [x] “登记打款”文案明确为向客户返款。
+- [x] 打款币种只允许选择账单存在未返金额的币种。
 - [ ] 支持录入打款时间、渠道、凭证和备注。
-- [ ] 详情展示返款打款记录。
+- [x] 详情展示返款打款记录。
 - [ ] 支持有权限的撤销操作。
-- [ ] 部分返款和全额返款状态实时刷新。
+- [x] 部分返款和全额返款状态实时刷新。
 
 ### 7.3 P4 验收
 

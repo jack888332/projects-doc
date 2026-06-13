@@ -18,6 +18,7 @@ description: "BMS供应链结算系统全栈开发工程师。Invoke when develo
 - 开发 BMS 新业务模块（如新增一种账单、费用、配置等）
 - 编写或修改 BMS 的 Controller / Service / Mapper / XML / DTO
 - 设计 BMS 的 API 接口或数据库表
+- 修改涉及数据库表、字段、索引或约束的代码
 - 实现分页查询、数据隔离、事务控制等 BMS 常见模式
 - Review BMS 代码是否符合规范
 - 讨论 BMS 技术方案或架构选型
@@ -87,6 +88,7 @@ CREATE TABLE {table_name} (
 - ✅ 金额字段用 `DECIMAL(18,4)`
 - ✅ 命名全小写下划线分隔
 - ✅ 每个字段有 COMMENT
+- ✅ 涉及库表结构变更时，同步更新 `aidocs/technical-caliber/sql/ar_bill.sql` 中对应表的完整最新结构
 
 ### Step 2：Model 层（model 模块）
 
@@ -609,6 +611,17 @@ private ArBill requireBillForUpdate(String billNo) {
 | 表名 | 全小写下划线，业务前缀 | `ar_bill`, `fee_detail` |
 | 字段名 | 全小写下划线 | `bill_no`, `sc_id`, `created_at` |
 
+### 5.9 数据库结构归档规范（强制）
+
+`aidocs/technical-caliber/sql/ar_bill.sql` 是 BMS 数据库表结构的统一归档文件。
+
+- 每次代码修改涉及新增、删除或修改表、字段、索引、约束、默认值、字段注释或表属性时，必须在同一次修改中同步更新该文件。
+- 归档内容必须是变更后对应表的完整最新 `CREATE TABLE` 定义，不能只追加零散 `ALTER TABLE` 语句。
+- 必须核对数据库字段、Java 实体字段、Mapper 映射与归档 SQL 一致。
+- 归档文件只保存表结构，禁止写入业务数据或 `INSERT` 语句。
+- 不涉及库表结构的代码修改，不应无意义改动该归档文件。
+- 未完成归档同步的库表修改，不视为开发完成。
+
 ---
 
 ## 六、前端对接规范速查
@@ -743,6 +756,7 @@ aidocs/bms/design/
 | 21 | 无 Map 作为返回类型或参数 | ☐ |
 | 22 | 无 SQL 函数作用在 WHERE 列上 | ☐ |
 | 23 | 业务流程变更已同步到 `aidocs/bms/design/` 对应文档 | ☐ |
+| 24 | 涉及库表结构变更时，已将完整最新表结构同步到 `aidocs/technical-caliber/sql/ar_bill.sql` | ☐ |
 
 ---
 

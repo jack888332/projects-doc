@@ -21,9 +21,14 @@ CREATE TABLE `ar_bill` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `bill_no` varchar(64) NOT NULL COMMENT '账单编号',
   `bill_title` varchar(128) NOT NULL COMMENT '账单标题',
-  `bill_status` varchar(32) NOT NULL COMMENT '账单状态：DRAFT/GENERATED/CONFIRMED/PART_PAID/PAID/VOID',
+  `bill_type` varchar(32) NOT NULL DEFAULT 'MEMBER_AR' COMMENT '账单类型：MEMBER_AR/COD_REFUND/COST_AP',
+  `bill_status` varchar(32) NOT NULL COMMENT '账单状态：DRAFT/GENERATED/UNDER_REVIEW/PENDING_SETTLEMENT/PART_PAID/PAID/SETTLED/VOID',
   `bill_config_id` bigint(20) unsigned NOT NULL COMMENT '账单配置ID',
+  `config_no` varchar(64) DEFAULT NULL COMMENT '配置编号快照',
+  `config_version` int(11) DEFAULT NULL COMMENT '配置版本快照',
+  `config_snapshot_json` json DEFAULT NULL COMMENT '配置快照JSON',
   `config_type` varchar(16) NOT NULL COMMENT '配置类型：DEFAULT默认配置，BRANCH分支配置',
+  `refund_mode` varchar(32) DEFAULT NULL COMMENT '返款模式：SIGNED/RECEIVED，仅COD_REFUND使用',
   `generate_task_id` bigint(20) unsigned DEFAULT NULL COMMENT '生成任务ID',
   `sc_id` bigint(20) NOT NULL COMMENT '供应链/组织ID',
   `shop_id` bigint(20) NOT NULL COMMENT '店铺ID',
@@ -44,6 +49,10 @@ CREATE TABLE `ar_bill` (
   `bill_currency` varchar(16) NOT NULL COMMENT '账单结算币种',
   `fin_currency` varchar(16) NOT NULL DEFAULT 'CNY' COMMENT '财务本位币',
   `initial_receivable_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '初始应收金额<账单币种>',
+  `principal_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '返款本金<账单币种>',
+  `deduction_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '直接扣减金额<账单币种>',
+  `pending_deduction_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '待补扣金额<账单币种>',
+  `uncollected_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '未回款金额<账单币种>',
   `this_adjustment_delta_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '本期调整增量<账单币种>',
   `previous_adjustment_delta_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '往期调整增量<账单币种>',
   `late_fee_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '滞纳金<账单币种>',
@@ -52,8 +61,13 @@ CREATE TABLE `ar_bill` (
   `unpaid_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '未核销金额<账单币种>',
   `receivable_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '应收金额<本位币>',
   `paid_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '已核销金额<本位币>',
+  `unpaid_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '未核销/未返金额<本位币>',
+  `principal_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '返款本金<本位币>',
+  `deduction_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '直接扣减金额<本位币>',
+  `uncollected_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '未回款金额<本位币>',
   `confirmed_at` datetime DEFAULT NULL COMMENT '确认时间',
   `confirmed_by` varchar(64) DEFAULT NULL COMMENT '确认人',
+  `settled_at` datetime DEFAULT NULL COMMENT '结清时间，仅COD_REFUND使用',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -61,15 +75,18 @@ CREATE TABLE `ar_bill` (
   `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '逻辑删除：0否，1是',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_ar_bill_no` (`bill_no`),
-  UNIQUE KEY `uk_ar_bill_period_sector_country` (`bill_config_id`,`billing_period_start_date`,`billing_period_end_date`,`business_sector`,`destination_country`),
+  UNIQUE KEY `uk_ar_bill_period_sector_country` (`bill_type`,`bill_config_id`,`billing_period_start_date`,`billing_period_end_date`,`business_sector`,`destination_country`),
   KEY `idx_ar_bill_customer_status` (`sc_id`,`shop_id`,`user_id`,`member_code`,`bill_status`,`is_deleted`),
+  KEY `idx_ar_bill_type_status` (`bill_type`,`bill_status`,`is_deleted`),
   KEY `idx_ar_bill_config_type` (`bill_config_id`,`config_type`),
   KEY `idx_ar_bill_country_wh` (`destination_country`,`consolidation_warehouse_code`),
   KEY `idx_ar_bill_period` (`billing_period_start_date`,`billing_period_end_date`),
+  KEY `idx_ar_bill_type_member_period` (`bill_type`,`member_code`,`billing_period_start_date`,`billing_period_end_date`),
   KEY `idx_ar_bill_customer_no` (`customer_no`),
   KEY `idx_ar_bill_task` (`generate_task_id`),
-  KEY `idx_ar_bill_sector_country` (`business_sector`,`destination_country`)
-) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='应收账单';
+  KEY `idx_ar_bill_sector_country` (`business_sector`,`destination_country`),
+  KEY `idx_ar_bill_refund_mode` (`bill_type`,`refund_mode`,`member_code`)
+) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='账单主表：客户应收/返款/COST_AP';
 
 -- ----------------------------
 -- Table structure for ar_bill_currency_summary
@@ -79,21 +96,36 @@ CREATE TABLE `ar_bill_currency_summary` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `bill_id` bigint(20) unsigned NOT NULL COMMENT '账单ID',
   `bill_no` varchar(64) NOT NULL COMMENT '账单编号',
+  `bill_type` varchar(32) NOT NULL DEFAULT 'MEMBER_AR' COMMENT '账单类型：MEMBER_AR/COD_REFUND/COST_AP',
   `currency` varchar(16) NOT NULL COMMENT '收费币种',
   `fin_currency` varchar(16) DEFAULT NULL COMMENT '财务本位币',
+  `principal_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '返款本金',
+  `deduction_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '直接扣减金额',
+  `pending_deduction_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '待补扣金额',
+  `uncollected_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '未回款金额',
   `receivable_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '应收金额',
   `paid_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '已核销金额',
   `unpaid_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '未核销金额',
+  `receivable_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '应收/应返本位币金额',
+  `paid_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '已核销/已返本位币金额',
+  `unpaid_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '未核销/未返本位币金额',
+  `principal_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '返款本金本位币',
+  `deduction_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '扣减金额本位币',
+  `uncollected_amount_fin` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '未回款金额本位币',
   `fee_count` int(11) NOT NULL DEFAULT '0' COMMENT '费用明细数',
   `order_count` int(11) NOT NULL DEFAULT '0' COMMENT '涉及订单数',
   `summary_status` varchar(32) NOT NULL DEFAULT 'WAITING_PAY' COMMENT '币种核销状态：WAITING_PAY待收款，PART_PAID部分核销，PAID已核销',
+  `receipt_account_id` bigint(20) unsigned DEFAULT NULL COMMENT '客户收款账户ID快照',
+  `receipt_account_name` varchar(128) DEFAULT NULL COMMENT '客户收款账户名称快照',
+  `receipt_account_no_masked` varchar(128) DEFAULT NULL COMMENT '客户收款账号脱敏快照',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_bill_currency_summary` (`bill_no`,`currency`),
   KEY `idx_currency_summary_bill` (`bill_id`),
-  KEY `idx_currency_summary_status` (`currency`,`summary_status`)
-) ENGINE=InnoDB AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COMMENT='应收账单按币种汇总';
+  KEY `idx_currency_summary_status` (`currency`,`summary_status`),
+  KEY `idx_currency_summary_type_status` (`bill_type`,`currency`,`summary_status`)
+) ENGINE=InnoDB AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COMMENT='账单按币种汇总';
 
 -- ----------------------------
 -- Table structure for bill_config
@@ -316,6 +348,7 @@ CREATE TABLE `bill_source_collect_mark` (
   `source_order_no` varchar(128) DEFAULT NULL COMMENT '来源订单号',
   `bill_id` bigint(20) unsigned NOT NULL COMMENT '账单ID',
   `bill_no` varchar(64) NOT NULL COMMENT '账单编号',
+  `bill_type` varchar(32) NOT NULL DEFAULT 'MEMBER_AR' COMMENT '账单类型：MEMBER_AR/COD_REFUND/COST_AP',
   `bill_config_id` bigint(20) unsigned NOT NULL COMMENT '账单配置ID',
   `generate_task_id` bigint(20) unsigned DEFAULT NULL COMMENT '生成任务ID',
   `sc_id` bigint(20) NOT NULL COMMENT '供应链/组织ID',
@@ -332,8 +365,9 @@ CREATE TABLE `bill_source_collect_mark` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_collect_no` (`collect_no`),
-  UNIQUE KEY `uk_source_collect` (`source_system`,`source_table`,`source_id`,`collect_type`),
+  UNIQUE KEY `uk_source_collect` (`source_system`,`source_table`,`source_id`,`collect_type`,`bill_type`),
   KEY `idx_collect_bill` (`bill_id`,`collect_type`,`mark_status`),
+  KEY `idx_collect_bill_type` (`bill_type`,`bill_id`,`collect_type`,`mark_status`),
   KEY `idx_collect_task` (`generate_task_id`,`mark_status`),
   KEY `idx_collect_subject` (`sc_id`,`shop_id`,`user_id`,`member_code`,`mark_status`),
   KEY `idx_collect_source_order` (`source_order_id`,`source_order_no`),
@@ -465,7 +499,12 @@ CREATE TABLE `fee_detail` (
   `fee_no` varchar(64) NOT NULL COMMENT '费用编号',
   `bill_id` bigint(20) unsigned DEFAULT NULL COMMENT '账单ID',
   `bill_no` varchar(64) NOT NULL COMMENT '账单编号',
+  `bill_type` varchar(32) NOT NULL DEFAULT 'MEMBER_AR' COMMENT '账单类型：MEMBER_AR/COD_REFUND/COST_AP',
   `bill_config_id` bigint(20) unsigned DEFAULT NULL COMMENT '账单配置ID',
+  `related_bill_id` bigint(20) unsigned DEFAULT NULL COMMENT '关联账单ID，可同时挂第二张账单',
+  `related_bill_no` varchar(64) DEFAULT NULL COMMENT '关联账单编号，可同时挂第二张账单',
+  `related_bill_type` varchar(32) DEFAULT NULL COMMENT '关联账单类型：MEMBER_AR/COD_REFUND/COST_AP',
+  `related_bill_config_id` bigint(20) unsigned DEFAULT NULL COMMENT '关联账单配置ID',
   `business_type_code` varchar(64) DEFAULT NULL COMMENT '命中的业务类型编码',
   `business_type_fee_id` bigint(20) unsigned DEFAULT NULL COMMENT '命中的业务类型费项关联ID',
   `generate_task_id` bigint(20) unsigned DEFAULT NULL COMMENT '生成任务ID',
@@ -478,8 +517,10 @@ CREATE TABLE `fee_detail` (
   `fee_code` varchar(64) NOT NULL COMMENT '费项编码',
   `fee_name` varchar(128) NOT NULL COMMENT '费项名称',
   `fee_type` varchar(16) NOT NULL COMMENT '费用类型：AR/ARD/AP/ARAP',
+  `settlement_role` varchar(32) NOT NULL DEFAULT 'RECEIVABLE' COMMENT '结算角色：RECEIVABLE/REFUND_PRINCIPAL/REFUND_DEDUCTION/REFUND_ADJUSTMENT/REFUND_UNCOLLECTED',
   `attached_object` varchar(16) NOT NULL COMMENT '挂靠对象：BILL/ORDER/LAST_PACKAGE/FIRST_PACKAGE',
   `business_order_no` varchar(64) DEFAULT NULL COMMENT '业务主单号',
+  `related_business_order_no` varchar(64) DEFAULT NULL COMMENT '关联单号/关联主单号',
   `destination_country` varchar(64) DEFAULT NULL COMMENT '集运目的国',
   `consolidation_warehouse_code` varchar(64) DEFAULT NULL COMMENT '集运仓编码',
   `last_mile_waybill_no` varchar(64) DEFAULT NULL COMMENT '尾程运单号',
@@ -508,10 +549,19 @@ CREATE TABLE `fee_detail` (
   `exchange_rate_c2` decimal(18,8) DEFAULT NULL COMMENT '兼容旧结构：锁定汇率<L2>',
   `exchange_rate_level_c2` varchar(16) DEFAULT NULL COMMENT '兼容旧结构：汇率级别<L2>',
   `amount_bill_currency` decimal(18,4) NOT NULL COMMENT '费用金额<账单币种>',
+  `related_bill_currency` varchar(16) DEFAULT NULL COMMENT '关联账单币种',
+  `related_amount_bill_currency` decimal(18,4) DEFAULT NULL COMMENT '费用金额<关联账单币种>',
+  `related_exchange_rate_to_bill` decimal(18,8) DEFAULT NULL COMMENT '原始币种到关联账单币种汇率',
+  `related_exchange_rate_level_to_bill` varchar(16) DEFAULT NULL COMMENT '关联账单汇率级别',
   `exchange_rate_to_fin` decimal(18,8) DEFAULT NULL COMMENT '账单币种到本位币汇率',
   `exchange_rate_level_to_fin` varchar(16) DEFAULT NULL COMMENT '汇率级别',
   `fin_currency` varchar(16) NOT NULL DEFAULT 'CNY' COMMENT '财务本位币',
   `amount_fin_currency` decimal(18,4) NOT NULL COMMENT '费用金额<本位币>',
+  `related_fin_currency` varchar(16) DEFAULT NULL COMMENT '关联账单财务本位币',
+  `related_amount_fin_currency` decimal(18,4) DEFAULT NULL COMMENT '费用金额<关联账单本位币>',
+  `related_exchange_rate_to_fin` decimal(18,8) DEFAULT NULL COMMENT '关联账单币种到本位币汇率',
+  `related_exchange_rate_level_to_fin` varchar(16) DEFAULT NULL COMMENT '关联账单本位币汇率级别',
+  `related_settlement_role` varchar(32) DEFAULT NULL COMMENT '关联账单结算角色：RECEIVABLE/REFUND_PRINCIPAL/REFUND_DEDUCTION/REFUND_ADJUSTMENT/REFUND_UNCOLLECTED',
   `fee_status` varchar(32) NOT NULL DEFAULT 'NORMAL' COMMENT '费用状态：NORMAL/ADJUSTED/REVERSED/VOID',
   `manual_flag` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否手工补录：0否，1是',
   `manual_reason` varchar(500) DEFAULT NULL COMMENT '手工补录原因',
@@ -528,17 +578,21 @@ CREATE TABLE `fee_detail` (
   UNIQUE KEY `uk_fee_no` (`fee_no`),
   UNIQUE KEY `uk_fee_dedupe` (`dedupe_key`),
   KEY `idx_fee_bill` (`bill_id`,`fee_type`,`fee_status`),
+  KEY `idx_fee_bill_type` (`bill_type`,`bill_id`,`settlement_role`,`fee_status`),
   KEY `idx_fee_config` (`bill_config_id`,`fee_code`),
   KEY `idx_fee_business_type` (`business_type_code`,`business_type_fee_id`),
   KEY `idx_fee_country_wh` (`destination_country`,`consolidation_warehouse_code`),
   KEY `idx_fee_subject_time` (`sc_id`,`shop_id`,`user_id`,`member_code`,`source_fee_time`),
   KEY `idx_fee_order` (`business_order_no`),
+  KEY `idx_fee_related_order` (`related_business_order_no`),
   KEY `idx_fee_last_waybill` (`last_mile_waybill_no`),
   KEY `idx_fee_first_waybill` (`first_mile_waybill_no`),
   KEY `idx_fee_source` (`source_system`,`source_table`,`source_id`),
   KEY `idx_fee_source_rule` (`fee_source_rule_id`),
-  KEY `idx_fee_original` (`original_fee_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=614 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='费用详情/费用快照';
+  KEY `idx_fee_original` (`original_fee_id`),
+  KEY `idx_fee_related_bill_type` (`related_bill_type`,`related_bill_id`,`related_settlement_role`,`fee_status`),
+  KEY `idx_fee_related_bill_no` (`related_bill_no`)
+) ENGINE=InnoDB AUTO_INCREMENT=614 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='费用详情/费用快照（支持双账单关联）';
 
 -- ----------------------------
 -- Table structure for fee_index
@@ -711,6 +765,7 @@ CREATE TABLE `main_order` (
   `total_profit` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '总利润',
   `bill_id` bigint(20) unsigned DEFAULT NULL COMMENT '归属账单ID',
   `bill_no` varchar(64) DEFAULT NULL COMMENT '归属账单编号',
+  `bill_type` varchar(32) DEFAULT NULL COMMENT '账单类型：MEMBER_AR/COD_REFUND/COST_AP',
   `bill_config_id` bigint(20) unsigned DEFAULT NULL COMMENT '账单配置ID',
   `config_type` varchar(16) DEFAULT NULL COMMENT '账单配置类型：DEFAULT默认配置，BRANCH分支配置',
   `generate_task_id` bigint(20) unsigned DEFAULT NULL COMMENT '账单生成任务ID',
@@ -725,8 +780,9 @@ CREATE TABLE `main_order` (
   `customer_no` varchar(64) DEFAULT NULL COMMENT '客户/会员编号',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_main_order_no` (`order_no`),
+  UNIQUE KEY `uk_main_order_bill_order` (`bill_type`,`bill_no`,`order_no`),
   KEY `idx_main_order_subject` (`sc_id`,`shop_id`,`user_id`,`member_code`,`order_created_at`),
+  KEY `idx_main_order_order_no` (`order_no`),
   KEY `idx_main_order_waybill` (`last_mile_waybill_no`),
   KEY `idx_main_order_first_waybill` (`first_mile_waybill_no`),
   KEY `idx_main_order_billing_node` (`billing_node_time`),
@@ -823,6 +879,69 @@ CREATE TABLE `payment_writeoff_detail` (
   KEY `idx_writeoff_subject_time` (`sc_id`,`shop_id`,`user_id`,`member_code`,`writeoff_time`),
   KEY `idx_writeoff_currency_summary` (`currency_summary_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='收款核销明细';
+
+-- ----------------------------
+-- Table structure for refund_payment_record
+-- ----------------------------
+DROP TABLE IF EXISTS `refund_payment_record`;
+CREATE TABLE `refund_payment_record` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `payment_no` varchar(64) NOT NULL COMMENT '返款打款流水号',
+  `sc_id` bigint(20) NOT NULL COMMENT '供应链/组织ID',
+  `shop_id` bigint(20) NOT NULL COMMENT '店铺ID',
+  `user_id` bigint(20) NOT NULL COMMENT '用户ID',
+  `member_code` varchar(64) NOT NULL COMMENT '客户会员编码',
+  `member_name` varchar(128) DEFAULT NULL COMMENT '客户名称快照',
+  `customer_no` varchar(64) DEFAULT NULL COMMENT '客户编号快照',
+  `payment_currency` varchar(16) NOT NULL COMMENT '打款币种',
+  `payment_amount` decimal(18,4) NOT NULL COMMENT '打款金额',
+  `allocated_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '已分配金额',
+  `unallocated_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '未分配金额',
+  `payment_channel` varchar(64) DEFAULT NULL COMMENT '打款渠道',
+  `paid_at` datetime NOT NULL COMMENT '实际打款时间',
+  `payment_status` varchar(32) NOT NULL COMMENT '状态：ALLOCATED/PART_ALLOCATED/VOID/REVERSED',
+  `voucher_url` varchar(500) DEFAULT NULL COMMENT '打款凭证URL',
+  `remark` varchar(500) DEFAULT NULL COMMENT '备注',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '逻辑删除：0否，1是',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_refund_payment_no` (`payment_no`),
+  KEY `idx_refund_payment_subject` (`sc_id`,`shop_id`,`user_id`,`member_code`,`paid_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='返款打款流水';
+
+-- ----------------------------
+-- Table structure for refund_payment_allocation
+-- ----------------------------
+DROP TABLE IF EXISTS `refund_payment_allocation`;
+CREATE TABLE `refund_payment_allocation` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `allocation_no` varchar(64) NOT NULL COMMENT '返款打款分配流水号',
+  `payment_id` bigint(20) unsigned NOT NULL COMMENT '返款打款流水ID',
+  `payment_no` varchar(64) NOT NULL COMMENT '返款打款流水号',
+  `bill_id` bigint(20) unsigned NOT NULL COMMENT '账单ID',
+  `bill_no` varchar(64) NOT NULL COMMENT '账单编号',
+  `bill_type` varchar(32) NOT NULL DEFAULT 'COD_REFUND' COMMENT '账单类型：固定COD_REFUND',
+  `currency_summary_id` bigint(20) unsigned NOT NULL COMMENT '账单币种汇总ID，关联 ar_bill_currency_summary.id',
+  `payment_currency` varchar(16) NOT NULL COMMENT '打款币种',
+  `allocation_amount_payment_currency` decimal(18,4) NOT NULL COMMENT '打款币种分配金额',
+  `bill_currency` varchar(16) NOT NULL COMMENT '账单结算币种',
+  `exchange_rate_to_bill` decimal(18,8) DEFAULT NULL COMMENT '打款币种到账单币种汇率',
+  `allocation_amount_bill_currency` decimal(18,4) NOT NULL COMMENT '账单币种分配金额',
+  `fin_currency` varchar(16) NOT NULL DEFAULT 'CNY' COMMENT '财务本位币',
+  `exchange_rate_to_fin` decimal(18,8) DEFAULT NULL COMMENT '账单币种到本位币汇率',
+  `allocation_amount_fin_currency` decimal(18,4) NOT NULL COMMENT '本位币分配金额',
+  `allocation_status` varchar(32) NOT NULL DEFAULT 'NORMAL' COMMENT '状态：NORMAL/REVERSED/VOID',
+  `allocated_at` datetime NOT NULL COMMENT '分配时间',
+  `allocated_by` varchar(64) DEFAULT NULL COMMENT '分配人',
+  `remark` varchar(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_refund_allocation_no` (`allocation_no`),
+  KEY `idx_refund_allocation_payment` (`payment_id`),
+  KEY `idx_refund_allocation_bill` (`bill_id`,`currency_summary_id`,`allocation_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='返款打款分配明细';
 
 -- ----------------------------
 -- Table structure for refund_bill_config

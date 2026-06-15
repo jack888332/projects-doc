@@ -205,7 +205,7 @@ RCB-{customerNo}-Scheme-{timestamp}-v{version}
 | `RefundBillingPeriodTypeEnum` | `WEEK` 周、`HALF_WEEK` 半周 |
 | `RefundDirectDeductFeeItemEnum` | `COD_SERVICE_FEE` 代收货款手续费、`OVERSIZE_FEE` 超材费、`REISSUE_FEE` 重出费、`OTHER_RECEIVABLE_FEE` 其他应收费项 |
 
-一期不新增扣减规则表、币种规则表、汇兑策略相关后端枚举；币种账户矩阵和直接扣减费项作为快照 JSON 保存。直接扣减费项枚举仅用于页面选项和快照合法性校验，不在一期参与账单扣减计算。
+一期不新增扣减规则表、币种规则表、汇兑策略相关后端枚举；币种账户矩阵和直接扣减费项作为快照 JSON 保存。直接扣减费项页面选项改为读取 `fee_index`，快照保存用户选择的 `fee_index.fee_code + fee_name`；历史原型枚举值仅作为兼容映射使用，不在一期参与账单扣减计算。
 
 ## 8. 一期 API 设计
 
@@ -343,7 +343,7 @@ BillConfig相关DTO和实体
 7. 同一客户只能存在一个未删除的当前返款配置。
 8. `configSnapshotJson.currencyRules` 一期必须至少包含一条记录。
 9. 新建配置或前端未选择货款原始币种时，默认保存为 `sourceCurrencyScope = ANY`、`sourceCurrency = null`。
-10. `configSnapshotJson.directDeductFeeItems` 只能包含原型定义的四类费项；新建配置或前端未传时，默认保存 `COD_SERVICE_FEE`、`OVERSIZE_FEE`、`REISSUE_FEE`。
+10. `configSnapshotJson.directDeductFeeItems` 必须命中 `fee_index` 启用费项；新建配置或前端未传时，默认按费项名称匹配并保存 `代收货款手续费`、`超材费`、`重出费` 对应的 `fee_index` 记录；若运行环境缺少对应费项，则回退到历史原型值做兼容。
 
 ## 10. 一期前端实现
 
@@ -390,7 +390,7 @@ getRefundBillConfigOptions
 4. 币种账户矩阵至少保留一行，不允许删除到 0 行。
 5. 新增矩阵行或未选择货款原始币种时，默认货款原始币种为 `不限`。
 6. 直接扣减费项多选默认勾选 `代收货款手续费 / 超材费 / 重出费`，提交到 `configSnapshotJson.directDeductFeeItems`。
-7. 直接扣减费项只能提交原型定义的四类选项，不允许前端自定义文本。
+7. 直接扣减费项选项来自后端返回的 `fee_index` 列表，组件需要支持搜索，不允许前端自定义文本。
 8. 保存返款配置后只刷新返款 Tab。
 9. 返款 Tab 不携带 `billType` 复用应收配置接口。
 

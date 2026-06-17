@@ -58,6 +58,7 @@ OFP 源表
 6. 在 `bill_generate_task` 中保存配置快照、范围快照、费项规则快照和实际源 SQL 快照。
 7. 在 `bill_source_collect_mark` 中记录 `PENDING -> MARKED / FAILED` 的跨库打标轨迹。
 8. 通过任务监控入口创建 `RETRY` 触发的重试任务。
+9. 支持 `非费项` 类型：扫描后照常落 `fee_detail`，但不进入 `ar_bill_currency_summary` 和账单核销汇总金额。
 
 ### 2.4 当前尚未支持
 
@@ -320,6 +321,7 @@ bill_config_id
 1. `main_order` 使用 `ON DUPLICATE KEY UPDATE`，因此同一业务订单再次归集时会刷新快照字段。
 2. `fee_detail` 使用 `INSERT IGNORE`，幂等依赖 `dedupe_key` 等唯一约束。
 3. 只有金额非空且不为 0 的费项才会生成费用明细。
+4. `fee_type = NON_FEE` 的明细会保留在账单详情中，但在重建 `ar_bill_currency_summary` 时会被排除，不参与账单应收/未收金额累计。
 
 ### 4.9 普通附加费与理赔的当前过滤条件
 

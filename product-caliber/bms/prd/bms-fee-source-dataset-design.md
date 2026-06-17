@@ -11,7 +11,7 @@
 
 1. `fee_source_dataset` 表达公共来源数据集：主表、关联关系、打标字段、支持的归集时间口径。
 2. `fee_source_rule` 只表达费用如何取值：金额字段、币种字段、过滤参数、去重规则。
-3. 订单类费用的归集时间跟随账单配置的履约节点：核重出库使用 `sale_order_header.measure_time`，签收使用 `sale_order_header.signed_time`。
+3. 订单类费用的归集时间跟随账单配置的履约节点：核重出库使用 `sale_order_header.measure_time`，签收使用 `sale_order_header.signed_time`；返款账单在回款模式下可额外配置 `received_time_column` 作为回款时间口径。
 4. 附加费类数据只按 `sale_order_additional_matter.create_time` 增量拉取，并固定过滤 `fee_pay_status = waiting_pay`。
 5. 同行订单、电商订单按 `sale_order_header.order_type` 区分：同行订单 `YBCK01`，电商订单 `SO`。
 6. 源数据查询拆分规则沉到 `fee_source_dataset`：`query_window_days` 控制每次查询窗口天数，`query_page_size` 控制分页条数，不再放到公共配置文件。
@@ -33,7 +33,7 @@
 
 - “来源表”调整为“来源数据集 + 取值表”。
 - “增量时间字段”调整为“归集时间口径”。
-- 订单类费用显示“跟随账单配置（核重出库、签收）”。
+- 订单类费用显示“跟随账单配置（核重出库、签收、回款）”。
 - 附加费类费用显示“增量：a.create_time”。
 
 ## 后续生成账单规则
@@ -42,6 +42,7 @@
 
 - 主订单 `WEIGHT_OUTBOUND`：使用 `h.measure_time`。
 - 主订单 `SIGN`：使用 `h.signed_time`。
+- 返款主订单 `RECEIVED`：优先使用数据集配置的 `received_time_column`。
 - 附加费：使用 `a.create_time`，且只取 `fee_pay_status = waiting_pay`。
 
 这样可以保证配置账单时只选择业务含义，不需要对每个费项重复选择时间字段。

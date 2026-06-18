@@ -464,7 +464,7 @@ WHERE (
 | POST | `/portal/bms/refundBill/confirm` | 对应复核通过 |
 | POST | `/portal/bms/refundBill/send` | 对应发送账单 |
 | POST | `/portal/bms/refundBill/payment` | 对应登记打款 |
-| POST | `/portal/bms/refundBill/regenerate` | 预留 |
+| POST | `/portal/bms/refundBill/regenerate` | 重新跑返款账单 |
 
 ## 8. 前端联调要求
 

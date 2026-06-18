@@ -7,6 +7,7 @@
 UPDATE `fee_source_dataset`
 SET `weight_outbound_time_column` = 'h.measure_time',
     `sign_time_column` = 'h.signed_time',
+    `received_time_column` = NULL,
     `incremental_time_column` = NULL,
     `supported_contract_nodes` = 'WEIGHT_OUTBOUND,SIGN',
     `remark` = 'sale_order_header + sale_order_header_extend；核重使用measure_time，签收使用signed_time'
@@ -16,6 +17,7 @@ UPDATE `fee_source_dataset`
 SET `base_where_expr` = 'a.fee_pay_status = ''waiting_pay''',
     `weight_outbound_time_column` = NULL,
     `sign_time_column` = NULL,
+    `received_time_column` = NULL,
     `incremental_time_column` = 'a.create_time',
     `supported_contract_nodes` = 'INCREMENTAL',
     `remark` = '附加费仅按create_time增量拉取，并过滤fee_pay_status=waiting_pay'

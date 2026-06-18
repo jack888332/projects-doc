@@ -3,6 +3,7 @@
 -- 1. 本脚本用于 tmall_bms 库。
 -- 2. fee_source_dataset 管理订单/附加费等公共来源数据集，fee_source_rule 只负责金额和币种字段。
 -- 3. 订单类费项的归集时间跟随账单配置的履约节点：核重出库使用 measure_time，签收使用 signed_time。
+-- 3.1 返款账单可额外配置 received_time 作为回款归集时间口径。
 -- 4. 附加费只按 create_time 做增量归集，并固定过滤 fee_pay_status=waiting_pay。
 
 CREATE TABLE IF NOT EXISTS `fee_source_dataset` (
@@ -20,8 +21,9 @@ CREATE TABLE IF NOT EXISTS `fee_source_dataset` (
   `bill_no_column` varchar(128) DEFAULT NULL COMMENT '账单编号打标字段',
   `weight_outbound_time_column` varchar(255) DEFAULT NULL COMMENT '核重出库时间表达式',
   `sign_time_column` varchar(255) DEFAULT NULL COMMENT '签收时间表达式',
+  `received_time_column` varchar(255) DEFAULT NULL COMMENT '回款时间表达式',
   `incremental_time_column` varchar(255) DEFAULT NULL COMMENT '追加/增量时间表达式',
-  `supported_contract_nodes` varchar(255) DEFAULT NULL COMMENT '支持履约节点，逗号分隔：WEIGHT_OUTBOUND,SIGN,INCREMENTAL',
+  `supported_contract_nodes` varchar(255) DEFAULT NULL COMMENT '支持履约节点，逗号分隔：WEIGHT_OUTBOUND,SIGN,RECEIVED,INCREMENTAL',
   `query_window_days` int(11) NOT NULL DEFAULT '1' COMMENT '源数据查询窗口天数，1表示按天拆分',
   `query_page_size` int(11) NOT NULL DEFAULT '500' COMMENT '源数据分页条数',
   `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用',
@@ -42,7 +44,7 @@ CREATE INDEX `idx_fee_source_dataset` ON `fee_source_rule` (`dataset_code`,`enab
 INSERT INTO `fee_source_dataset` (
   `dataset_code`, `dataset_name`, `source_system`, `datasource_code`, `source_database`,
   `main_table`, `main_alias`, `join_sql`, `base_where_expr`, `billed_flag_column`, `bill_no_column`,
-  `weight_outbound_time_column`, `sign_time_column`, `incremental_time_column`,
+  `weight_outbound_time_column`, `sign_time_column`, `received_time_column`, `incremental_time_column`,
   `supported_contract_nodes`, `query_window_days`, `query_page_size`, `enabled`, `priority`, `remark`
 ) VALUES
 (
@@ -50,15 +52,23 @@ INSERT INTO `fee_source_dataset` (
   'sale_order_header', 'h', 'LEFT JOIN `ofp_ofdb1`.`sale_order_header_extend` e ON e.sale_order_id = h.id',
   NULL,
   'e.bms_billed_flag', 'e.bms_bill_no',
-  'h.measure_time', 'h.signed_time', NULL,
+  'h.measure_time', 'h.signed_time', NULL, NULL,
   'WEIGHT_OUTBOUND,SIGN', 1, 500, 1, 10, 'sale_order_header + sale_order_header_extend；核重使用measure_time，签收使用signed_time'
+),
+(
+  'COD_REFUND_MAIN_ORDER', '返款账单主数据源', 'OFP', 'OFP_DB', 'ofp_ofdb1',
+  'sale_order_header', 'h', 'LEFT JOIN `ofp_ofdb1`.`sale_order_header_extend` e ON e.sale_order_id = h.id',
+  NULL,
+  'e.bms_billed_flag', 'e.bms_bill_no',
+  'h.measure_time', 'h.signed_time', NULL, NULL,
+  'WEIGHT_OUTBOUND,SIGN', 1, 500, 1, 10, 'COD返款账单专用主数据源；配置与集运订单主数据一致'
 ),
 (
   'CONSOLIDATION_ADDITIONAL_FEE', '集运订单附加费', 'OFP', 'OFP_DB', 'ofp_ofdb1',
   'sale_order_additional_matter', 'a', 'JOIN `ofp_ofdb1`.`sale_order_header` h ON h.id = a.sale_order_id',
   'a.fee_pay_status = ''waiting_pay''',
   'a.bms_billed_flag', 'a.bms_bill_no',
-  NULL, NULL, 'a.create_time',
+  NULL, NULL, NULL, 'a.create_time',
   'INCREMENTAL', 1, 500, 1, 20, '附加费仅按create_time增量拉取，并过滤fee_pay_status=waiting_pay'
 )
 ON DUPLICATE KEY UPDATE
@@ -74,6 +84,7 @@ ON DUPLICATE KEY UPDATE
   `bill_no_column` = VALUES(`bill_no_column`),
   `weight_outbound_time_column` = VALUES(`weight_outbound_time_column`),
   `sign_time_column` = VALUES(`sign_time_column`),
+  `received_time_column` = VALUES(`received_time_column`),
   `incremental_time_column` = VALUES(`incremental_time_column`),
   `supported_contract_nodes` = VALUES(`supported_contract_nodes`),
   `query_window_days` = VALUES(`query_window_days`),

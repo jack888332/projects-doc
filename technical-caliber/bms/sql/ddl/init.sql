@@ -27,7 +27,7 @@ CREATE TABLE `fee_index` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `fee_code` varchar(64) NOT NULL COMMENT '费项编码',
   `fee_name` varchar(128) NOT NULL COMMENT '费项名称',
-  `fee_type` varchar(16) NOT NULL COMMENT '费用类型：AR应收，ARD应收扣减，AP成本，ARAP代收代付',
+  `fee_type` varchar(16) NOT NULL COMMENT '费用类型：AR应收，ARD应收扣减，AP成本，ARAP代收代付，NON_FEE非费项',
   `attachment_object` varchar(16) NOT NULL COMMENT '挂靠对象：BILL账单，ORDER业务主单，LAST_PACKAGE尾程包裹，FIRST_PACKAGE首程包裹',
   `legacy_data_source` varchar(255) DEFAULT NULL COMMENT '旧数据源描述，兼容历史数据；新逻辑使用fee_source_rule',
   `scenario_tag` varchar(64) DEFAULT NULL COMMENT '场景标签',
@@ -89,8 +89,9 @@ CREATE TABLE `fee_source_dataset` (
   `bill_no_column` varchar(128) DEFAULT NULL COMMENT '账单编号打标字段',
   `weight_outbound_time_column` varchar(255) DEFAULT NULL COMMENT '核重出库时间表达式',
   `sign_time_column` varchar(255) DEFAULT NULL COMMENT '签收时间表达式',
+  `received_time_column` varchar(255) DEFAULT NULL COMMENT '回款时间表达式',
   `incremental_time_column` varchar(255) DEFAULT NULL COMMENT '追加/增量时间表达式',
-  `supported_contract_nodes` varchar(255) DEFAULT NULL COMMENT '支持履约节点，逗号分隔：WEIGHT_OUTBOUND,SIGN,INCREMENTAL',
+  `supported_contract_nodes` varchar(255) DEFAULT NULL COMMENT '支持履约节点，逗号分隔：WEIGHT_OUTBOUND,SIGN,RECEIVED,INCREMENTAL',
   `query_window_days` int(11) NOT NULL DEFAULT '1' COMMENT '源数据查询窗口天数，1表示按天拆分',
   `query_page_size` int(11) NOT NULL DEFAULT '500' COMMENT '源数据分页条数',
   `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用',
@@ -203,7 +204,7 @@ CREATE TABLE `business_type_fee_index` (
   `fee_source_rule_id` bigint(20) unsigned NOT NULL COMMENT '费项数据来源规则ID',
   `fee_code` varchar(64) NOT NULL COMMENT '费项编码快照',
   `fee_name` varchar(128) NOT NULL COMMENT '费项名称快照',
-  `fee_type` varchar(16) NOT NULL COMMENT '费用类型：AR/ARD/AP/ARAP',
+  `fee_type` varchar(16) NOT NULL COMMENT '费用类型：AR/ARD/AP/ARAP/NON_FEE',
   `priority` int(11) NOT NULL DEFAULT '0' COMMENT '业务类型内归集优先级',
   `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用',
   `extra_json` json COMMENT '扩展配置JSON',
@@ -414,7 +415,7 @@ CREATE TABLE `fee_detail` (
   `fee_source_rule_id` bigint(20) unsigned DEFAULT NULL COMMENT '费项数据来源规则ID',
   `fee_code` varchar(64) NOT NULL COMMENT '费项编码',
   `fee_name` varchar(128) NOT NULL COMMENT '费项名称',
-  `fee_type` varchar(16) NOT NULL COMMENT '费用类型：AR/ARD/AP/ARAP',
+  `fee_type` varchar(16) NOT NULL COMMENT '费用类型：AR/ARD/AP/ARAP/NON_FEE',
   `attached_object` varchar(16) NOT NULL COMMENT '挂靠对象：BILL/ORDER/LAST_PACKAGE/FIRST_PACKAGE',
   `business_order_no` varchar(64) DEFAULT NULL COMMENT '业务主单号',
   `destination_country` varchar(64) DEFAULT NULL COMMENT '集运目的国',
@@ -679,7 +680,7 @@ INSERT INTO `fee_source_datasource` (
 INSERT INTO `fee_source_dataset` (
   `dataset_code`, `dataset_name`, `source_system`, `datasource_code`, `source_database`,
   `main_table`, `main_alias`, `join_sql`, `base_where_expr`, `billed_flag_column`, `bill_no_column`,
-  `weight_outbound_time_column`, `sign_time_column`, `incremental_time_column`,
+  `weight_outbound_time_column`, `sign_time_column`, `received_time_column`, `incremental_time_column`,
   `supported_contract_nodes`, `query_window_days`, `query_page_size`, `enabled`, `priority`, `remark`
 ) VALUES
 (
@@ -687,15 +688,23 @@ INSERT INTO `fee_source_dataset` (
   'sale_order_header', 'h', 'LEFT JOIN `ofp_ofdb1`.`sale_order_header_extend` e ON e.sale_order_id = h.id',
   NULL,
   'e.bms_billed_flag', 'e.bms_bill_no',
-  'h.measure_time', 'h.signed_time', NULL,
+  'h.measure_time', 'h.signed_time', NULL, NULL,
   'WEIGHT_OUTBOUND,SIGN', 1, 500, 1, 10, 'sale_order_header + sale_order_header_extend；核重使用measure_time，签收使用signed_time'
+),
+(
+  'COD_REFUND_MAIN_ORDER', '返款账单主数据源', 'OFP', 'OFP_DB', 'ofp_ofdb1',
+  'sale_order_header', 'h', 'LEFT JOIN `ofp_ofdb1`.`sale_order_header_extend` e ON e.sale_order_id = h.id',
+  NULL,
+  'e.bms_billed_flag', 'e.bms_bill_no',
+  'h.measure_time', 'h.signed_time', NULL, NULL,
+  'WEIGHT_OUTBOUND,SIGN', 1, 500, 1, 10, 'COD返款账单专用主数据源；配置与集运订单主数据一致'
 ),
 (
   'CONSOLIDATION_ADDITIONAL_FEE', '集运订单附加费', 'OFP', 'OFP_DB', 'ofp_ofdb1',
   'sale_order_additional_matter', 'a', 'JOIN `ofp_ofdb1`.`sale_order_header` h ON h.id = a.sale_order_id',
   'a.fee_pay_status = ''waiting_pay''',
   'a.bms_billed_flag', 'a.bms_bill_no',
-  NULL, NULL, 'a.create_time',
+  NULL, NULL, NULL, 'a.create_time',
   'INCREMENTAL', 1, 500, 1, 20, '附加费仅按create_time增量拉取，并过滤fee_pay_status=waiting_pay'
 );
 

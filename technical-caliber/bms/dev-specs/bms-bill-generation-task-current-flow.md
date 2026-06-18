@@ -1,55 +1,102 @@
-# BMS 账单生成订单任务现状与源数据变更补账说明
+# BMS 账单生成任务当前实现说明
 
 ## 1. 文档目的
 
-本文结合以下产品设计、技术调整方案和当前代码实现，梳理 BMS 应收账单生成订单任务的实际运行链路，以及源数据新增、修改后如何补充到账单。
+本文基于当前仓库中的最新 BMS 代码，梳理账单生成任务的真实运行链路、任务快照机制、源表打标补偿方式，以及源数据新增或修改后当前系统如何补充到账单。
 
 参考文档：
 
 1. `aidocs/product-caliber/bms/prd/bms-bill-generation-design.md`
 2. `aidocs/product-caliber/bms/prd/账单生成机制.PRD.md`
-3. `aidocs/technical-caliber/bms/dev-specs/bms-bill-generate-adjustment-plan.md`
+3. `aidocs/technical-caliber/bms/dev-specs/fee_detail-schema-baseline.md`
+4. `aidocs/technical-caliber/sql/ar_bill.sql`
 
 本文重点区分：
 
-1. **当前代码已经实现的行为**。
-2. **设计文档规划但尚未落地的目标行为**。
+1. 当前代码已经实现的行为。
+2. 设计文档或目标模型中提出、但当前代码尚未完全落地的行为。
 
-## 2. 核心结论
+## 2. 范围与核心结论
 
-当前账单生成任务仍采用以下模式：
+### 2.1 当前代码范围
+
+最新代码中，`BillGenerateServiceImpl` 已经成为统一任务入口，会先根据 `billType` 分流：
 
 ```text
-OFP 业务源表
-  -> 账单生成任务直接拉取未归集订单、附加费和理赔
+MEMBER_AR
+  -> 会员应收账单生成链路
+
+COD_REFUND
+  -> COD 返款账单生成链路
+```
+
+本文主分析对象仍然是当前最成熟、也是“源数据变更补账”问题最核心的 `MEMBER_AR` 链路；但当前代码中 `COD_REFUND` 已经补上两条和应收链路直接相关的规则：
+
+1. `代收货款` 作为返款本金判断项，金额必须大于 `0`，否则本期不再拉取其他返款扣减费项。
+2. 其他返款扣减费项按本期返款账单 `startDate` 往前回看一个同长度周期进行关联。
+3. `MEMBER_AR` 在完成本期正常计费扫描后，还会反扫 `fee_detail`，把已被 `COD_REFUND` 占用的返款扣减费项做 `related_*` 弱关联，避免重复计费。
+
+### 2.2 MEMBER_AR 当前主模式
+
+当前会员应收账单生成仍采用“直接拉源表 + BMS 内部落账 + 回写源表标记”的模式：
+
+```text
+OFP 源表
+  -> 账单生成任务直接查询未归集订单/附加费/理赔
   -> 写入 ar_bill、main_order、fee_detail
   -> 写入 bill_source_collect_mark
   -> 回写源表 bms_billed_flag、bms_bill_no
 ```
 
-当前已经支持：
+### 2.3 当前已经支持
 
 1. 首次生成账单。
-2. 同账期新增订单增量追加到账单。
-3. 账单生成后新增的附加费增量归集。
-4. 对 `DRAFT`、`GENERATED` 状态账单追加费用并重新汇总。
-5. 源表打标失败时记录失败轨迹，避免静默丢失。
-6. 对可修改状态的整张账单执行“作废旧账单、回退源表标记、创建异步重跑任务”。
+2. 同账期漏跑订单的再次补采集。
+3. 出账后新增附加费的增量归集。
+4. 对 `DRAFT`、`GENERATED` 且未发生核销的账单做增量追加。
+5. 对整张可修改账单执行“作废旧账单 + 回退源表标记 + 异步重跑任务”。
+6. 在 `bill_generate_task` 中保存配置快照、范围快照、费项规则快照和实际源 SQL 快照。
+7. 在 `bill_source_collect_mark` 中记录 `PENDING -> MARKED / FAILED` 的跨库打标轨迹。
+8. 通过任务监控入口创建 `RETRY` 触发的重试任务。
+9. 支持 `非费项` 类型：扫描后照常落 `fee_detail`，但不进入 `ar_bill_currency_summary` 和账单核销汇总金额。
 
-当前尚未支持：
+### 2.4 当前尚未支持
 
-1. 自动识别已经归集、后来金额或其他关键字段发生修改的源数据。
-2. 根据 `source_row_hash` 自动创建新的费用版本。
-3. 使用 `bill_fee_detail_relation` 区分来源费用和账单侧费用关系。
-4. 已复核账单发生源数据变化时自动生成后续调整。
+1. 自动识别“已经归集过、后来又被上游修改”的来源数据。
+2. 基于 `source_row_hash` 自动生成新的来源费用版本。
+3. 使用 `bill_fee_detail_relation` 将“来源费用”和“账单挂账关系”彻底拆开。
+4. 已复核或已结清账单在来源变化后自动进入标准化后续调整链路。
+5. 只针对 `bill_source_collect_mark = FAILED` 做独立补打标而不重走整条生成链路。
 
-因此，当前代码中：
+因此，当前代码中的真实结论是：
 
-> 未归集的新数据可以通过再次运行生成任务补充到账单；已经归集的数据发生修改后，不会被普通生成任务自动补充。
+> 未归集的新数据可以通过再次运行生成任务补进账单；已经归集的数据发生修改后，普通生成任务不会自动补差。
 
 ## 3. 当前任务入口
 
-### 3.1 计划任务
+### 3.1 Job 与本地配置现状
+
+任务入口分为两个 ElasticJob：
+
+1. `BillGeneratePlanJob`
+2. `BillGenerateTaskExecuteJob`
+
+当前仓库本地 Disconf 缓存文件 `bms/disconf/download/elastic_job_main_config.properties` 中记录的配置为：
+
+```text
+enabled=false
+job.names=billGeneratePlanJob,billGenerateTaskExecuteJob
+job.crons=0 0 2 * * ?,0 0/1 * * * ?
+```
+
+这表示本地缓存中的计划配置是：
+
+1. `billGeneratePlanJob` 每天 `02:00` 运行一次。
+2. `billGenerateTaskExecuteJob` 每分钟运行一次。
+
+但是否真正启用，最终仍以部署环境下生效的 Disconf 配置为准，不能只看仓库缓存文件。
+
+### 3.2 计划任务
 
 计划任务类：
 
@@ -59,18 +106,12 @@ bms/biz/src/main/java/com/szt/supplychain/bms/biz/task/BillGeneratePlanJob.java
 
 职责：
 
-1. 扫描启用的账单配置。
-2. 按当前账期创建 `bill_generate_task`。
-3. 任务初始状态为 `PENDING`。
-4. 只创建待执行任务，不直接生成账单。
+1. 调用 `BillGenerateService.enqueueCurrentPeriodForEnabledConfigs()`。
+2. 为启用中的 `MEMBER_AR` 默认配置创建本期 `PENDING` 任务。
+3. 为启用中的 `COD_REFUND` 配置创建本期 `PENDING` 任务。
+4. 只创建任务，不直接执行账单生成。
 
-主要调用：
-
-```text
-BillGenerateService.enqueueCurrentPeriodForEnabledConfigs()
-```
-
-### 3.2 执行任务
+### 3.3 执行任务
 
 执行任务类：
 
@@ -81,19 +122,17 @@ bms/biz/src/main/java/com/szt/supplychain/bms/biz/task/BillGenerateTaskExecuteJo
 职责：
 
 1. 按分片扫描 `PENDING`、`NEED_RETRY` 状态任务。
-2. 调用 `executeTask()` 领取并执行任务。
-3. 同一个客户、同一个账期只允许一个任务处于 `RUNNING`。
+2. 调用 `BillGenerateService.executePendingTasks(shardingItem, shardingTotal)`。
+3. 由 `executeTask()` 按 `billType` 分流到 `MEMBER_AR` 或 `COD_REFUND` 执行逻辑。
 
-主要调用：
+补充说明：
 
-```text
-BillGenerateService.executePendingTasks(shardingItem, shardingTotal)
-  -> BillGenerateService.executeTask(taskId, operator)
-```
+1. 当前仓库中的 `bill_generate_conf.properties` 配置 `task.scan.limit=10`。
+2. 因此单次执行 Job 默认最多扫描 10 条待执行任务。
 
-## 4. 账单生成任务运行流程
+## 4. MEMBER_AR 任务运行流程
 
-当前主要实现位于：
+当前主实现位于：
 
 ```text
 bms/biz/src/main/java/com/szt/supplychain/bms/biz/service/impl/BillGenerateServiceImpl.java
@@ -101,22 +140,24 @@ bms/biz/src/main/java/com/szt/supplychain/bms/biz/service/impl/BillGenerateServi
 
 ### 4.1 创建任务
 
-手动生成、定时生成都会先调用：
+会员应收生成入口：
 
 ```text
 generate(BillGenerateReqDTO)
+  -> resolveRequestedBillType()
   -> createTask(BillGenerateReqDTO)
 ```
 
-创建任务时执行：
+`createTask()` 的核心行为：
 
 1. 查询账单配置。
-2. 校验供应链归属。
-3. 计算账期开始、结束日期。
-4. 校验同客户、同账期是否已有活动任务。
-5. 查询费项规则和币种规则。
-6. 保存配置、范围、费项规则等任务快照。
-7. 新增或复用 `bill_generate_task`，状态设为 `PENDING`。
+2. 如果传入的是分支配置，内部会通过 `requireDefaultConfig()` 折算为其挂靠的默认配置。
+3. 校验请求 `scId` 与配置归属一致。
+4. 计算账期开始、结束日期。
+5. 校验同客户、同账期、同 `billType` 是否已有活动任务。
+6. 查询费项规则、币种规则、模板币种规则。
+7. 构建任务快照。
+8. 新增任务，或复用同配置同账期同触发方式的历史任务行并重置为 `PENDING`。
 
 同一客户、同一账期的活动任务判断维度为：
 
@@ -125,84 +166,123 @@ sc_id
 + shop_id
 + user_id
 + member_code
++ bill_type
 + billing_period_start_date
 + billing_period_end_date
 ```
 
-### 4.2 领取任务
+任务复用补充说明：
 
-`executeTask()` 只允许执行：
+1. `bill_generate_task` 的周期唯一键是 `bill_config_id + bill_type + billing_period_start_date + billing_period_end_date + trigger_type`。
+2. 当前任务行只有在旧状态不属于 `PENDING / RUNNING / NEED_RETRY` 时才允许被重置复用。
+3. 重置时会刷新任务编号、幂等键、快照、统计字段和错误信息。
+
+### 4.2 任务快照与 SQL 快照
+
+当前代码不再只记录“配置 ID”，还会把本次生成使用的关键口径直接写进 `bill_generate_task`：
+
+1. `bill_config_snapshot_json`
+2. `bill_scope_snapshot_json`
+3. `fee_rule_snapshot_json`
+4. `order_source_sql`
+5. `additional_source_sql`
+
+其中：
+
+1. `order_source_sql` 保存主订单宽表查询快照。
+2. `additional_source_sql` 初始会保存理赔来源 SQL 快照。
+3. 增量附加费来源 SQL 会在执行时继续追加到 `additional_source_sql`。
+
+### 4.3 领取任务
+
+`executeTask()` 只允许执行以下状态：
 
 ```text
 PENDING
 NEED_RETRY
 ```
 
-任务领取成功后状态改为：
+领取成功后，当前任务会被原子更新为：
 
 ```text
 RUNNING
 ```
 
-领取时会检查同客户、同账期是否已有其他 `RUNNING` 任务，避免默认配置和分支配置并发抢同一订单。
+需要特别注意：
 
-### 4.3 查询订单候选集合
+1. `claimTask()` 的 SQL 只负责把“当前这条任务”从 `PENDING/NEED_RETRY` 改成 `RUNNING`。
+2. 代码并没有在领取 SQL 层再次按“同客户同账期”做排他判断。
+3. 同客户同账期的并发限制，主要是在创建任务阶段通过 `queryActiveCustomerPeriodTaskId()` 控住。
 
-任务按账单配置从 OFP 查询订单主表和扩展表宽数据：
+### 4.4 查询订单候选集合
+
+主订单来源仍是 OFP 宽表：
 
 ```text
-sale_order_header
-LEFT JOIN sale_order_header_extend
+sale_order_header h
+LEFT JOIN sale_order_header_extend e
 ```
 
-主要过滤条件：
+主过滤条件：
 
-1. 客户、店铺、供应链匹配。
-2. 订单业务类型匹配。
+1. `member_code`、`shop_id`、`sc_id` 匹配。
+2. 根据配置或业务类型限制 `order_type`。
 3. 履约节点时间在当前账期内。
 4. 订单尚未被 BMS 归集。
 
-当前未归集判断条件等价于：
+未归集判断条件：
 
 ```sql
 COALESCE(e.bms_billed_flag, 0) = 0
 AND (e.bms_bill_no IS NULL OR e.bms_bill_no = '')
 ```
 
-账期时间根据账单配置的履约节点确定，不直接使用订单创建时间。
+时间字段口径补充：
 
-### 4.4 默认配置和分支配置归属
+1. 主订单时间字段通过 `bill_generate_conf.properties` 和费项规则共同决定。
+2. 当前支持的订单时间字段为 `measure_time`、`check_time`、`signed_time`。
+3. 仓库默认配置中，普通节点默认走 `measure_time`，签收节点默认走 `signed_time`。
 
-订单分配遵循：
+分页扫描补充：
+
+1. 源数据按“时间窗口 + 分页”方式拉取。
+2. 默认窗口天数为 `1` 天，默认页大小为 `500`。
+3. 如果费项规则配置了 `queryWindowDays` / `queryPageSize`，则使用规则值。
+4. 同类来源规则如果配置出不同窗口或分页参数，代码会直接抛异常，不允许混用。
+
+### 4.5 默认配置和分支配置归属
+
+订单归属规则仍然是：
 
 ```text
 分支配置优先
   -> 默认配置兜底
 ```
 
-处理规则：
+当前实现细节：
 
-1. 分支配置按目的国、仓库等范围匹配订单。
-2. 已命中分支配置的订单不会再次进入默认配置。
-3. 未命中任何分支配置的订单才进入默认配置。
-4. 同一订单在同一账期只能归属一个配置。
+1. 分支配置仅处理启用状态的分支方案。
+2. 分支范围当前按目的国、仓库编码匹配。
+3. 已被分支命中的订单不会再进入默认配置。
+4. 默认配置接收剩余未命中的订单。
+5. 同一订单在一次任务中只会进入一个配置组。
 
-### 4.5 按业务板块和目的国拆账单
+### 4.6 按业务板块和目的国拆账单
 
-订单分配到账单配置后，继续按以下维度拆分账单：
+订单进入具体配置后，会继续按以下维度拆成账单分组：
 
 ```text
 business_sector
 + destination_country
 ```
 
-业务板块或目的国缺失时，任务直接失败，避免将数据归入错误账单。
+如果任一分组维度缺失，代码会直接抛异常，防止把数据落到错误账单。
 
-### 4.6 创建或匹配已有账单
+### 4.7 创建或匹配账单
 
-每个分组执行 `executeBillGroup()`。
+每个分组进入 `executeBillGroup()`。
 
-查找账单的主要维度：
+匹配已有账单的核心维度：
 
 ```text
 bill_config_id
@@ -214,128 +294,127 @@ bill_config_id
 
 处理规则：
 
-1. 没有已有账单时，创建新账单。
-2. 已有账单为 `DRAFT` 或 `GENERATED` 时，允许增量追加。
-3. 已有账单已核销、待结清或已结清时，不允许继续追加。
+1. 没有已有账单时，新建 `ar_bill`。
+2. 有已有账单且状态为 `DRAFT / GENERATED`，并且 `paid_amount = 0` 时，允许继续追加。
+3. 如果已有账单已发生部分核销，或者状态已进入 `PENDING_SETTLEMENT / PAID / VOID` 等不可追加状态，则拒绝追加。
 
-### 4.7 写入订单和费用
+### 4.8 单个账单分组的写入顺序
 
-单个账单分组的写入顺序为：
+`executeBillGroup()` 的当前真实顺序更接近：
 
 ```text
 创建或匹配 ar_bill
-  -> 写入 main_order 订单快照
-  -> 按订单宽表拆分主费用 fee_detail
-  -> 查询并写入普通附加费 fee_detail
-  -> 查询并写入理赔费用 fee_detail
-  -> 写来源归集轨迹
-  -> 回写源表归集标记
-  -> 重建币种汇总
-  -> 刷新账单应收金额
-  -> 更新账单状态为 GENERATED
+  -> 写 main_order 订单快照
+  -> 按订单宽表拆主费用 fee_detail
+  -> 查询并写普通附加费 fee_detail
+  -> 为附加费写来源轨迹并回写源表
+  -> 为产生费用的主订单写来源轨迹并回写源表
+  -> 查询并写理赔 fee_detail
+  -> 为理赔写来源轨迹并回写源表
+  -> 重建 ar_bill_currency_summary
+  -> 刷新 ar_bill 金额
+  -> 更新 ar_bill.bill_status = GENERATED
 ```
 
-一条订单宽数据可以根据费项规则拆成多条费用明细。例如：
+补充说明：
+
+1. `main_order` 使用 `ON DUPLICATE KEY UPDATE`，因此同一业务订单再次归集时会刷新快照字段。
+2. `fee_detail` 使用 `INSERT IGNORE`，幂等依赖 `dedupe_key` 等唯一约束。
+3. 只有金额非空且不为 0 的费项才会生成费用明细。
+4. `fee_type = NON_FEE` 的明细会保留在账单详情中，但在重建 `ar_bill_currency_summary` 时会被排除，不参与账单应收/未收金额累计。
+
+### 4.9 普通附加费与理赔的当前过滤条件
+
+普通附加费当前核心条件：
 
 ```text
-订单 SO10001
-  运费：100
-  超重费：20
-  仓租费：0
+fee_amount 非空且不为 0
+fee_pay_status = waiting_pay
+bms_billed_flag = 0
+bms_after_bill_added_flag = 0
 ```
 
-生成：
+理赔当前核心条件：
 
 ```text
-SO10001 + 运费 + 100
-SO10001 + 超重费 + 20
+customer_service_audit_status = 2
+finance_audit_status = 2
+payment_status = 1
+update_time 在账期内
+bms_billed_flag = 0
+bms_bill_no 为空
 ```
 
-金额为空或为零的费项不生成费用明细。
+### 4.10 来源打标与跨库补偿
 
-### 4.8 来源表打标
-
-费用成功写入后，任务会写入 `bill_source_collect_mark`，并回写源表：
-
-```text
-bms_billed_flag = 1
-bms_bill_no = 当前账单号
-```
-
-涉及的主要源表：
+当前来源打标涉及的主要表：
 
 1. `sale_order_header_extend`
 2. `sale_order_additional_matter`
 3. `claim_order`
 
-来源打标过程使用：
+当前做法不是“只改源表”，而是两段式：
 
 ```text
-PENDING
-  -> MARKED
-  -> FAILED
+先写 bill_source_collect_mark = PENDING
+  -> 再更新源表 bms_billed_flag / bms_bill_no
+  -> 成功后把轨迹改成 MARKED
+  -> 失败则把轨迹改成 FAILED 并记录错误
 ```
 
-如果源表更新失败，会记录失败轨迹并使当前任务失败，便于后续补偿。
+实现特点：
 
-### 4.9 完成任务
+1. 轨迹写入和状态更新使用 `REQUIRES_NEW` 事务。
+2. 源表更新使用独立 JDBC 连接直接访问 OFP。
+3. `bill_source_collect_mark` 当前唯一维度已包含 `bill_type`。
+4. 正常打标状态流转是 `PENDING -> MARKED / FAILED`。
+5. 账单重跑时，旧轨迹还会被额外更新为 `REGENERATED`。
 
-任务成功后：
+### 4.11 任务完成
 
-1. 更新拉取订单数。
-2. 更新命中订单数。
-3. 更新费用明细数、附加费数。
-4. 更新本次任务生成金额。
-5. 将任务状态更新为 `SUCCESS`。
+任务执行成功后会更新：
 
-发生异常时，任务状态更新为：
+1. `pulled_order_count`
+2. `matched_order_count`
+3. `skipped_order_count`
+4. `fee_detail_count`
+5. `additional_fee_count`
+6. `receivable_amount`
+7. `task_status = SUCCESS`
+
+如果主订单和增量附加费都没有命中数据，任务也会直接记为 `SUCCESS`，只是不会生成账单。
+
+发生运行时异常时，任务状态更新为：
 
 ```text
 FAILED
 ```
 
-并记录错误信息。
-
 ## 5. 新增订单如何补充到账单
 
-### 5.1 适用场景
-
-例如某账期账单已经生成，之后发现还有一条属于该账期的新订单尚未归集。
-
-只要源订单满足：
+适用前提：
 
 ```text
 bms_billed_flag = 0
 bms_bill_no 为空
-履约节点时间属于原账期
+履约节点时间仍落在原账期
 ```
 
-再次手动触发同配置、同账期生成任务时，该订单会被重新扫描到。
+当前补充方式：
 
-### 5.2 补充规则
-
-任务找到相同：
-
-```text
-账单配置
-+ 账期
-+ 业务板块
-+ 目的国
-```
-
-对应的已有账单后：
-
-1. 如果账单是 `DRAFT` 或 `GENERATED`，将订单和费用追加到已有账单。
-2. 追加完成后重新构建币种汇总和账单金额。
-3. 如果账单已进入不可修改状态，任务拒绝追加并报错。
+1. 再次触发同配置、同账期生成任务。
+2. 任务会重新扫描这批“仍未归集”的订单。
+3. 若命中同一 `bill_config_id + 账期 + business_sector + destination_country` 的已有账单，则尝试追加。
+4. 账单必须同时满足 `bill_status in (DRAFT, GENERATED)` 且 `paid_amount = 0`。
+5. 追加后重建币种汇总并刷新账单金额。
 
 ## 6. 新增附加费如何补充到账单
 
 ### 6.1 普通附加费
 
-主订单生成时，会同时查询当前订单集合对应的普通附加费。
+普通附加费是在主订单分组生成时顺带查询的，不是单独任务。
 
-当前主要过滤条件：
+主要条件：
 
 ```text
 bms_billed_flag = 0
@@ -344,13 +423,9 @@ fee_amount 非空且不为 0
 fee_pay_status = waiting_pay
 ```
 
-命中的费用直接写入当前账单。
-
 ### 6.2 出账后新增附加费
 
-账单生成后新增的附加费，通过增量附加费链路处理。
-
-主要过滤条件：
+出账后新增附加费走独立的“增量附加费”链路，核心条件为：
 
 ```text
 bms_after_bill_added_flag = 1
@@ -360,54 +435,36 @@ fee_amount 非空且不为 0
 fee_pay_status = waiting_pay
 ```
 
-归集类型记录为：
+来源轨迹中的 `collect_type` 记录为：
 
 ```text
 ADDITIONAL_INCREMENT
 ```
 
-当前处理策略：
+处理策略：
 
-1. 原账期账单为 `DRAFT` 或 `GENERATED` 时，追加到原账单。
-2. 原账期账单不可追加时，寻找最近一张可追加账单。
-3. 找不到可追加账单时，任务失败并提示业务处理。
-4. 追加完成后重新计算目标账单金额。
+1. 先查原账期对应账单。
+2. 原账期账单可追加时，直接追加到原账单。
+3. 原账期账单不可追加时，查询同配置、同业务板块、同目的国的最近一张可追加账单。
+4. 仍找不到可追加账单时，任务失败。
+5. 成功后重建汇总并刷新目标账单金额。
 
 ## 7. 已归集源数据发生修改时的当前行为
 
-### 7.1 当前任务不能自动识别修改
+### 7.1 普通任务不会自动识别“已归集后又修改”
 
-普通账单任务查询源数据时，只扫描未归集数据：
+当前主查询只扫描未归集数据：
 
 ```text
 bms_billed_flag = 0
 bms_bill_no 为空
 ```
 
-假设某条订单费用首次归集时为：
+所以只要一条订单、附加费或理赔曾经被成功归集并打标为已出账，哪怕上游后来把金额改了，普通生成任务也不会再次命中它。
 
-```text
-运费 = 100
-bms_billed_flag = 1
-```
+### 7.2 当前整张账单重跑入口
 
-之后上游将运费修改为：
-
-```text
-运费 = 120
-```
-
-如果上游没有修改 BMS 标记，该数据仍然是：
-
-```text
-bms_billed_flag = 1
-```
-
-再次执行普通账单生成任务时，该订单不会被查询到，新增的 20 元差额不会自动补充到账单。
-
-### 7.2 当前重跑账单的处理方式
-
-当前整张账单重跑入口为：
+整张账单重跑入口：
 
 ```text
 POST /api/bms/billGenerate/regenerate
@@ -415,7 +472,7 @@ POST /api/bms/billGenerate/regenerate
   -> BillGenerateServiceImpl.regenerate()
 ```
 
-请求参数：
+请求参数核心字段：
 
 ```text
 scId
@@ -424,64 +481,47 @@ reason
 operator
 ```
 
-前端应收账单页面支持单条或批量选择账单重跑，但批量处理实际是前端按账单号逐个调用重跑接口，不是后端单事务批量重跑。
+### 7.3 重跑前置校验
 
-#### 7.2.1 重跑前置校验
+当前代码会校验：
 
-重跑前依次校验：
+1. `billNo` 不能为空。
+2. 原账单必须存在。
+3. 请求 `scId` 必须与账单归属一致。
+4. 账单不能已发生部分核销。
+5. 账单状态不能是已结清态，代码里按 `PAID / SETTLED` 保护。
+6. 账单必须有 `bill_config_id`。
+7. 账单状态必须属于 `DRAFT / GENERATED`。
 
-1. 账单编号不能为空。
-2. 账单必须存在。
-3. 请求供应链 `scId` 必须与账单一致。
-4. 账单不能已经核销或部分核销。
-5. 账单状态不能是 `PAID` 或 `SETTLED`。
-6. 账单必须存在 `bill_config_id`。
-7. 账单状态只允许：
-
-```text
-DRAFT
-GENERATED
-```
-
-对应业务含义为“起草中”和“待复核”。进入待结清、已结清等后续状态后，不允许通过账单生成任务重跑。
-
-#### 7.2.2 重跑不是原账单就地重算
-
-当前 `regenerate()` 不是在原账单上重新计算金额，而是：
+实际业务含义仍是：
 
 ```text
-查询并保存原账单来源归集轨迹
-  -> 回退原账单关联源数据的 BMS 打标
-  -> 作废原账单费用明细
-  -> 删除原账单币种汇总
-  -> 清空订单快照上的账单关联字段
-  -> 将来源归集轨迹标记为 REGENERATED
-  -> 将原账单标记为 VOID 并逻辑删除
-  -> 创建 trigger_type = REGENERATE 的生成任务
-  -> 等待任务执行 Job 异步重新生成
+只允许对“起草中 / 待复核，且未核销”的账单重跑
 ```
 
-接口返回成功只表示：
+### 7.4 重跑不是原账单就地重算
 
-> 原账单已完成作废处理，并成功创建重跑任务。
+当前 `regenerate()` 不是“在原账单上重算”，而是：
 
-此时新账单不一定已经生成完成。新任务仍需由 `BillGenerateTaskExecuteJob` 扫描并执行。
+```text
+查询原账单已 MARKED 的来源轨迹
+  -> 回退原账单关联源表打标
+  -> 作废原 fee_detail
+  -> 删除原 ar_bill_currency_summary
+  -> 清空 main_order 的账单关联字段
+  -> 将 bill_source_collect_mark 标为 REGENERATED
+  -> 将原 ar_bill 置为 VOID + is_deleted = 1
+  -> 创建 trigger_type = REGENERATE 的新任务
+  -> 等待执行 Job 异步重建新账单
+```
 
-#### 7.2.3 重跑时具体修改的数据
+所以接口返回成功只表示：
 
-当前 `regenerate()` 会执行：
+> 旧账单已经完成作废准备，并成功创建了重跑任务；不代表新账单已经生成完成。
 
-1. 校验原账单必须为 `DRAFT` 或 `GENERATED`。
-2. 查询原账单所有 `mark_status = MARKED` 的来源归集轨迹，用于失败时恢复源表标记。
-3. 回退源表 BMS 标记。
-4. 作废原 `fee_detail`。
-5. 删除原币种汇总。
-6. 清理 `main_order` 上的账单关联字段。
-7. 将原来源归集轨迹标记为 `REGENERATED`。
-8. 将原账单状态改为 `VOID`，并设置 `is_deleted = 1`。
-9. 使用原账单的配置和账期创建 `REGENERATE` 类型任务。
+### 7.5 重跑时回退的源表
 
-源表回退范围：
+当前代码会回退：
 
 | 源表 | 回退内容 |
 | --- | --- |
@@ -489,207 +529,131 @@ GENERATED
 | `sale_order_additional_matter` | `bms_billed_flag = 0`，`bms_bill_no = NULL` |
 | `claim_order` | `bms_billed_flag = 0`，`bms_bill_no = NULL`，`bms_billed_at = NULL` |
 
-BMS 数据处理：
+### 7.6 重跑时修改的 BMS 数据
 
-| 数据对象 | 重跑处理 |
+| 数据对象 | 当前处理 |
 | --- | --- |
-| `fee_detail` | 原账单费用状态改为 `VOID`，不物理删除 |
-| `ar_bill_currency_summary` | 按原账单号物理删除汇总记录 |
-| `main_order` | 保留订单快照行，但清空账单、配置、任务、账期和币种关联字段 |
-| `bill_source_collect_mark` | 原账单轨迹状态改为 `REGENERATED`，重跑原因写入错误信息字段 |
-| `ar_bill` | 状态改为 `VOID`，并逻辑删除 |
-| `bill_generate_task` | 新增或复用同配置、同账期、`REGENERATE` 类型任务，重置为 `PENDING` |
+| `fee_detail` | 旧账单费用改为 `VOID`，不物理删除 |
+| `ar_bill_currency_summary` | 按旧账单号删除 |
+| `main_order` | 保留快照行，但清空账单、任务、账期、币种等关联字段 |
+| `bill_source_collect_mark` | 轨迹状态改为 `REGENERATED`，原因写入 `last_error_message` |
+| `ar_bill` | 账单状态改为 `VOID`，并逻辑删除 |
+| `bill_generate_task` | 创建或复用同账期、同配置、`trigger_type = REGENERATE` 的任务并重置为 `PENDING` |
 
-#### 7.2.4 新任务如何重新生成
+### 7.7 新任务如何重新生成
 
-新创建的 `REGENERATE` 任务继续走普通账单生成主链路：
+重跑创建出的 `REGENERATE` 任务，后续仍然走普通会员应收生成主链路：
 
 ```text
 PENDING
-  -> Job 扫描并领取任务
   -> RUNNING
-  -> 重新查询当前源表中未打标的数据
-  -> 按当前任务创建时保存的配置和规则快照生成账单
-  -> 重新写 main_order、fee_detail、来源轨迹
+  -> 重新查询当前源表中的“未打标数据”
+  -> 按最新读取到的配置快照和规则快照生成新账单
+  -> 重新写 main_order / fee_detail / source mark
   -> 重新回写源表标记
   -> SUCCESS / FAILED
 ```
 
-由于重跑前已把原账单关联的源表标记回退为未归集，新任务能够重新读取这些源数据。源表金额已发生修改时，新任务读取的是重跑执行时的最新源数据值。
+因为旧账单对应的源表标记已经被回退，所以最新任务能重新读取这些来源数据；如果上游金额已经变更，它读到的就是变更后的最新值。
 
-需要注意：
+### 7.8 重跑失败时的恢复边界
 
-1. 重跑使用原账单的 `bill_config_id` 和原账期。
-2. 创建重跑任务时会重新读取当前账单配置和费项规则，并生成新的任务快照。
-3. 如果原配置已删除、失效或规则已经变化，重跑结果可能与原账单不同，甚至可能无法创建或执行。
-4. 重跑会重新执行默认配置、分支配置归属以及业务板块、目的国拆单逻辑。
-5. 如果源数据在重跑前已被删除，任务无法恢复原费用。
+当前重跑存在明确的跨库一致性边界：
 
-#### 7.2.5 重跑失败时的恢复边界
+1. BMS 数据库侧清理和新任务创建在本地事务中。
+2. OFP 源表回退通过独立 JDBC 连接执行，不在同一个本地事务内。
+3. 如果准备阶段失败，代码会根据重跑前查出的 `bill_source_collect_mark` 尝试恢复源表打标。
+4. 某条来源恢复失败时只打日志，不会继续向上抛恢复异常。
 
-`regenerate()` 使用 BMS 本地事务执行账单侧清理和任务创建，但源表回退通过独立 JDBC 连接执行，无法与 BMS 数据库处于同一个本地事务。
+因此当前仍有以下风险：
 
-如果重跑准备阶段发生异常：
+1. 源表回退成功，但后续 BMS 侧事务失败，且恢复源表标记又失败。
+2. 轨迹表不完整时，失败恢复覆盖不全。
+3. 接口成功创建重跑任务后，异步任务本身仍可能失败，而旧账单已经作废。
 
-1. BMS 本地事务会回滚账单侧修改。
-2. 代码会根据重跑前查询到的 `bill_source_collect_mark`，尝试恢复源表打标。
-3. 恢复时会重新将来源行标记到原账单号。
-4. 某条来源行恢复失败时只记录错误日志，不会继续向上抛出恢复异常。
+### 7.9 当前“重新生成订单”入口并不会回源重算
 
-因此仍存在跨库一致性风险：
-
-1. 源表回退成功，但后续准备失败且恢复源表标记也失败。
-2. 来源归集轨迹缺失时，失败恢复无法覆盖对应源数据。
-3. 接口成功创建任务后，异步任务仍可能执行失败，此时原账单已经作废，需要通过任务监控处理。
-
-#### 7.2.6 重跑与同账期增量生成的区别
-
-| 对比项 | 同账期增量生成 | 整张账单重跑 |
-| --- | --- | --- |
-| 主要目的 | 补充尚未归集的新订单、新附加费 | 使用当前源数据重新生成整张账单 |
-| 原账单处理 | 保留并追加 | 作废并逻辑删除 |
-| 原费用明细 | 保留 | 标记为 `VOID` |
-| 源表标记 | 不回退，只扫描未归集数据 | 先回退原账单关联源表标记 |
-| 任务类型 | `MANUAL`、`SCHEDULE` 等 | `REGENERATE` |
-| 允许状态 | 目标账单必须可追加 | 原账单必须为 `DRAFT / GENERATED` |
-| 接口完成含义 | 创建增量任务 | 作废原账单并创建异步重跑任务 |
-
-#### 7.2.7 当前“重新生成订单”入口并不重新读取源数据
-
-账单费用明细页面还存在单订单入口：
+单订单入口：
 
 ```text
 POST /api/bms/ar-bill/regenerate-order
   -> ArBillServiceImpl.regenerateOrder()
 ```
 
-当前实现只执行：
+当前实现只做三件事：
 
-1. 校验账单和订单号。
-2. 给该订单已有费用明细追加“手动重新生成订单费用”备注。
+1. 校验账单号和订单号。
+2. 给该订单已有费用加一条“手动重新生成订单费用”备注。
 3. 基于现有 `fee_detail` 重新汇总账单金额。
 
-该入口目前不会：
+它不会：
 
-1. 查询 OFP 最新订单数据。
-2. 回退订单源表标记。
-3. 重新拆分订单费用。
+1. 重新读取 OFP 最新订单数据。
+2. 回退源表 BMS 标记。
+3. 重新拆分费用。
 4. 新增或替换 `fee_detail`。
 
-因此当前“重新生成订单”更接近“标记并刷新现有账单汇总”，不能用于把源订单修改后的最新金额补到账单。
+所以这个入口本质上更接近“人工标记并刷新汇总”，不能用于把上游修改后的最新订单金额重新拉到账单中。
 
-因此，当前源数据修改后如需重新拉取，只能通过：
+## 8. 当前实现与目标模型差异
 
-1. 重跑整个账单。
-2. 或在账单侧走人工补录、冲正、调账。
-
-当前重跑方式可以重新读取修改后的源数据，但会回退源表归集标识并作废旧账单，不是最终目标方案。
-
-## 8. 目标方案中的源数据修改补账机制
-
-最新技术调整方案要求将当前模型拆分为：
+当前目标模型仍然是：
 
 ```text
 业务源表
   -> fee_detail
-     BMS 费用源数据池，保存不可修改的来源费用版本
+     作为来源费用池保存版本
   -> bill_fee_detail_relation
-     保存费用如何计入账单及账单侧金额、币种、汇率
+     保存账单挂账关系
   -> ar_bill / ar_bill_currency_summary
-     保存账单及汇总金额
+     保存账单和汇总
 ```
 
-### 8.1 来源变化识别
+但当前代码距离该模型仍有差距：
 
-目标方案通过以下方式识别已归集源数据修改：
-
-1. 数据集配置来源修改时间字段 `modified_time_column`。
-2. 来源变化任务扫描近期已修改数据。
-3. 计算最新 `source_row_hash`。
-4. 与 BMS 已保存的最近版本哈希比较。
-5. 哈希未变化时跳过。
-6. 哈希发生变化时，新增一条 `fee_detail` 版本，不覆盖旧版本。
-
-### 8.2 根据账单状态处理修改
-
-| 原账单状态 | 目标处理方式 |
-| --- | --- |
-| `DRAFT / GENERATED` | 旧费用关系置为 `REPLACED`，新费用版本重新关联原账单并刷新金额 |
-| `PENDING_SETTLEMENT / PAID` | 原账单保持不变，进入后续账单调整或财务调账中心 |
-| `VOID` | 不恢复原账单，根据当前有效配置决定是否进入新账单 |
-
-### 8.3 目标方案的关键原则
-
-1. 源数据修改后新增版本，不覆盖历史版本。
-2. 不再通过清空 `bms_billed_flag` 模拟未归集。
-3. 账单重跑不再回退源表标记。
-4. 财务补录、冲正、调整汇率只修改账单侧关系。
-5. 已复核账单不因源数据变化被直接修改。
-
-## 9. 当前实现与目标方案差异
-
-| 能力 | 当前代码 | 目标方案 |
+| 能力 | 当前代码 | 目标模型 |
 | --- | --- | --- |
 | 首次同步未归集订单 | 已实现 | 保留 |
-| 同账期新增订单追加 | 已实现 | 保留 |
-| 出账后新增附加费归集 | 已实现 | 保留并独立任务化 |
-| 来源归集轨迹 | 已实现基础补偿轨迹 | 扩展为来源版本轨迹 |
-| 已归集源数据修改识别 | 未实现 | 使用修改时间和行哈希识别 |
-| 来源费用版本 | 未实现 | `fee_detail` 新增版本，不覆盖旧版本 |
+| 同账期漏跑订单补入 | 已实现 | 保留 |
+| 出账后新增附加费补入 | 已实现 | 保留并继续独立化 |
+| 来源轨迹补偿 | 已实现基础版 | 继续扩展到来源版本轨迹 |
+| 已归集来源修改识别 | 未实现 | 通过修改时间 + `source_row_hash` 识别 |
+| 来源费用版本化 | 未实现 | 新增版本，不覆盖旧版本 |
 | 账单费用关系表 | 未实现 | 使用 `bill_fee_detail_relation` |
-| 可修改账单接收新版本 | 未实现 | 替换旧关系并刷新账单 |
-| 已复核账单接收变化 | 未实现 | 进入后续调整或财务调账 |
-| 重跑时源表标记处理 | 清空标记后重新生成 | 禁止清空源表标记 |
+| 已复核账单接收来源变化 | 未实现 | 进入后续调整中心 |
+| 重跑时是否回退源表标记 | 仍会回退 | 目标是不再回退 |
 
-## 10. 业务场景处理汇总
+## 9. 业务场景汇总
 
 | 场景 | 当前实际处理 |
 | --- | --- |
-| 新订单首次进入账期 | 生成任务扫描未打标订单并生成账单 |
-| 同账期存在漏跑订单 | 再次生成，只追加未打标订单 |
-| 账单生成后新增附加费 | 扫描出账后新增附加费，追加到可修改账单 |
-| 已归集订单金额被修改 | 普通生成任务无法自动识别 |
-| 修改后的费用需要立即修正 | 当前通过重跑整个账单或人工调账处理 |
-| 整张账单重跑 | 作废原账单、回退源表标记、创建 `REGENERATE` 异步任务重新生成 |
-| 单订单“重新生成” | 当前只追加备注并按现有费用刷新汇总，不会重新读取源数据 |
-| 账单已经待结清或已结清 | 不允许普通增量追加或重跑 |
-| 目标方案中的来源修改 | 新增费用版本，可修改账单替换关系，不可修改账单进入后续调整 |
+| 新订单首次进入账期 | 扫描未打标订单并生成账单 |
+| 同账期漏跑订单 | 再次生成，只补未打标订单 |
+| 账单生成后新增附加费 | 走 `ADDITIONAL_INCREMENT` 链路追加到可修改账单 |
+| 已归集订单/附加费/理赔金额被上游修改 | 普通生成任务无法自动识别 |
+| 修改后的费用需要尽快修正 | 当前主要依赖整张账单重跑或人工调账 |
+| 整张账单重跑 | 作废旧账单、回退源表标记、创建 `REGENERATE` 异步任务 |
+| 单订单“重新生成” | 只追加备注并刷新汇总，不会回源重算 |
+| 账单已待结清或已结清 | 不允许普通增量追加，也不允许重跑 |
 
-## 11. 当前风险和后续落地重点
-
-### 11.1 当前风险
-
-1. 已归集源数据修改后无法自动识别，可能导致账单金额与最新源数据不一致。
-2. 当前重跑会回退源表归集标记，存在重复归集和跨库补偿复杂度。
-3. `fee_detail` 同时承担来源费用和账单费用职责，来源数据与账单侧调整边界不清晰。
-4. 已复核账单发生来源变化时，缺少标准化的后续调整链路。
-
-### 11.2 后续优先落地内容
-
-按照 `bms-bill-generate-adjustment-plan.md`，建议优先完成：
-
-1. 创建 `bill_fee_detail_relation`。
-2. 将来源费用同步和账单生成拆为独立任务。
-3. 账单生成只消费已同步的 `fee_detail`。
-4. 增加来源修改时间字段配置和 `source_row_hash` 比对。
-5. 来源发生变化时新增 `fee_detail` 版本。
-6. 移除重跑时清空源表归集标记的逻辑。
-7. 将补录、冲正、调账和汇率调整统一切到账单费用关系。
-
-## 12. 相关代码索引
+## 10. 相关代码索引
 
 | 职责 | 文件或方法 |
 | --- | --- |
-| 创建计划任务 | `BillGeneratePlanJob` |
-| 执行待处理任务 | `BillGenerateTaskExecuteJob` |
-| 创建生成任务 | `BillGenerateServiceImpl.generate()`、`createTask()` |
-| 领取并执行任务 | `BillGenerateServiceImpl.executeTask()` |
-| 任务主编排 | `BillGenerateServiceImpl.executeTaskInternal()` |
-| 默认和分支配置分配 | `BillGenerateServiceImpl.assignOrdersToConfigGroup()` |
+| 计划任务入口 | `BillGeneratePlanJob` |
+| 执行任务入口 | `BillGenerateTaskExecuteJob` |
+| 统一生成入口 | `BillGenerateServiceImpl.generate()` |
+| 会员应收任务创建 | `BillGenerateServiceImpl.createTask()` |
+| 返款任务创建 | `BillGenerateServiceImpl.createRefundTask()` |
+| 任务领取与分流 | `BillGenerateServiceImpl.executeTask()` |
+| 会员应收主编排 | `BillGenerateServiceImpl.executeTaskInternal()` |
+| 订单归属到默认/分支配置 | `BillGenerateServiceImpl.assignOrdersToConfigGroup()` |
+| 增量附加费归属到默认/分支配置 | `BillGenerateServiceImpl.assignIncrementalAdditionalToConfigGroup()` |
 | 单账单分组生成 | `BillGenerateServiceImpl.executeBillGroup()` |
-| 附加费增量归集 | `BillGenerateServiceImpl.executeIncrementalAdditionalGroup()` |
-| 来源打标及补偿 | `BillGenerateServiceImpl.markSourceWithCompensation()` |
-| 当前账单重跑 | `BillGenerateServiceImpl.regenerate()` |
-| 源表标记回退 | `BillGenerateServiceImpl.unmarkSourceByBillNo()` |
+| 增量附加费归集 | `BillGenerateServiceImpl.executeIncrementalAdditionalGroup()` |
+| 来源打标补偿 | `BillGenerateServiceImpl.markSourceWithCompensation()` |
+| 源表打标回退 | `BillGenerateServiceImpl.unmarkSourceByBillNo()` |
 | 重跑失败恢复源表标记 | `BillGenerateServiceImpl.restoreSourceMarks()` |
-| 当前单订单“重新生成” | `ArBillServiceImpl.regenerateOrder()` |
+| 当前整张账单重跑 | `BillGenerateServiceImpl.regenerate()` |
+| 单订单“重新生成” | `ArBillServiceImpl.regenerateOrder()` |
+| 任务监控重试入口 | `BillGenerateTaskMonitorServiceImpl.retry()` |

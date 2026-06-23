@@ -40,3 +40,6 @@
 
 ---
 财务在系统【订单费用报表】界面执行导入后，导入文件的数据先落在 sale_order_package_fee（包裹级金额），紧接着系统自动汇集到 sale_order_fee_detail（订单级金额）。返款账单的返款明细行金额对应订单级，因此数据源选用sale_order_fee_detail；而回款管理的回款明细行对应包裹级，因此因此数据源选用sale_order_package_fee
+
+---
+代码层面，sale_order_header.calc_fee_status 的是在哪些业务时机落库的？

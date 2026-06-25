@@ -155,3 +155,104 @@ erDiagram
 1. 先看“核心账单主链路”，理解 `bill_generate_task -> ar_bill -> summary/detail` 的主过程。
 2. 再看“配置与费项来源规则链路”，理解费用是如何从来源系统被拉取和映射出来的。
 3. 最后看“资金处理与回写链路”，区分应收收款和返款打款两条资金闭环。
+
+## 8. 调账关联关系图
+
+### 8.1 普通调账链路
+
+```mermaid
+erDiagram
+    ar_bill ||--o{ fee_adjustment_order : "trigger_bill_id"
+
+    ar_bill {
+        bigint id PK
+        varchar bill_no UK
+        decimal this_adjustment_delta_amount
+        decimal receivable_amount
+        decimal receivable_amount_fin
+        decimal unpaid_amount
+        varchar bill_status
+    }
+
+    fee_adjustment_order {
+        bigint id PK
+        varchar adjustment_no UK
+        varchar adjustment_type
+        bigint trigger_bill_id
+        varchar trigger_bill_no
+        varchar adjustment_currency
+        decimal adjustment_amount
+        varchar adjustment_status
+    }
+```
+
+说明：
+
+1. 普通调账对应 `ArBillServiceImpl.adjustment()`。
+2. 该流程核心只落两张表：
+   - `fee_adjustment_order`：插入一条调账/红冲单头记录
+   - `ar_bill`：直接累计 `this_adjustment_delta_amount`，并同步刷新应收、未收和账单状态
+3. 当前实现里，普通调账不会直接重算 `ar_bill_currency_summary`，也不会直接改 `fee_detail`、`main_order`。
+
+### 8.2 重整调账链路
+
+```mermaid
+erDiagram
+    ar_bill ||--o{ fee_adjustment_order : "trigger_bill_id"
+    main_order ||--o{ fee_adjustment_order : "source_main_order_id (业务语义)"
+    main_order ||--o{ fee_detail : "order_no -> business_order_no"
+    ar_bill ||--o{ fee_detail : "bill_no"
+    ar_bill ||--o{ ar_bill_currency_summary : "bill_id / bill_no"
+
+    fee_detail {
+        bigint id PK
+        varchar fee_no UK
+        bigint bill_id
+        varchar bill_no
+        varchar business_order_no
+        decimal amount_bill_currency
+        varchar fee_status
+    }
+
+    main_order {
+        bigint id PK
+        varchar order_no
+        bigint bill_id
+        varchar bill_no
+    }
+
+    ar_bill_currency_summary {
+        bigint id PK
+        bigint bill_id
+        varchar bill_no
+        varchar currency
+        decimal receivable_amount
+        decimal paid_amount
+        decimal unpaid_amount
+    }
+```
+
+说明：
+
+1. 重整调账对应 `ArBillServiceImpl.rebuildAdjustment()`。
+2. 这条链路会涉及：
+   - `fee_adjustment_order`：登记一条 `REBUILD` 类型的调账单
+   - `main_order`：校验订单是否属于当前/往期账单
+   - `fee_detail`：按订单汇总金额，并给被重整订单的费用记录补充重整备注
+   - `ar_bill_currency_summary`：按账单重新汇总，执行“先删后重建”
+   - `ar_bill`：基于重算后的汇总结果刷新账单金额和状态
+3. 这里的 `source_main_order_id` 在表结构中是预留的来源主单快照字段，但当前重整实现主要还是按 `order_no`、`bill_no` 做校验和汇总。
+
+### 8.3 费用级冲正记录补充
+
+```mermaid
+erDiagram
+    fee_detail ||--o{ fee_adjustment_record : "fee_id"
+    ar_bill ||--o{ fee_adjustment_record : "trigger_bill_id"
+```
+
+说明：
+
+1. `fee_adjustment_record` 是费用级冲正记录表，更偏“费用明细级留痕”。
+2. 它和账单调账有关，但不属于当前 `ArBillServiceImpl.adjustment()` 的主写入链路。
+3. 如果后面要做“按费用逐条冲正”的增强能力，这张表会成为关键支撑表。

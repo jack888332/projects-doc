@@ -467,12 +467,20 @@ CREATE TABLE `fee_adjustment_order` (
 DROP TABLE IF EXISTS `fee_adjustment_record`;
 CREATE TABLE `fee_adjustment_record` (
   `id` varchar(64) NOT NULL COMMENT 'ID',
+  `adjustment_no` varchar(64) NOT NULL COMMENT '调账单号',
+  `adjustment_object` varchar(16) DEFAULT NULL COMMENT '调账对象：BILL/ORDER/FEE',
+  `object_no` varchar(64) DEFAULT NULL COMMENT '调账对象编号',
+  `adjustment_type` varchar(16) DEFAULT NULL COMMENT '调账类型：ADJUST/REVERSAL',
   `fee_id` bigint(20) unsigned NOT NULL COMMENT '费项ID',
   `fee_adjustment_reason` varchar(500) DEFAULT NULL COMMENT '冲正理由',
   `fee_adjustment_currency` varchar(16) NOT NULL COMMENT '冲正所用币种',
   `adjustment_delta_in_fee_adjustment_currency` decimal(18,4) NOT NULL COMMENT '冲正幅度<冲正所用币种>',
   `adjusted_amount_in_fee_adjustment_currency` decimal(18,4) NOT NULL COMMENT '冲正后金额<冲正所用币种>',
   `trigger_bill_id` bigint(20) unsigned NOT NULL COMMENT '触发账单ID',
+  `assigned_bill_id` bigint(20) unsigned DEFAULT NULL COMMENT '归属账单ID',
+  `assigned_bill_no` varchar(64) DEFAULT NULL COMMENT '归属账单号',
+  `assigned_bill_type` varchar(32) DEFAULT NULL COMMENT '归属账单类型',
+  `assignment_mode` varchar(16) DEFAULT NULL COMMENT '归属方式：AUTO/MANUAL',
   `trigger_bill_currency` varchar(16) NOT NULL COMMENT '触发结算币种',
   `exchange_rate_c1` decimal(18,8) DEFAULT NULL COMMENT '锁定汇率<L1>',
   `exchange_rate_level_c1` varchar(16) DEFAULT NULL COMMENT '汇率级别<L1>',
@@ -486,9 +494,16 @@ CREATE TABLE `fee_adjustment_record` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '登记时间',
   `created_by` varchar(64) DEFAULT NULL COMMENT '登记人',
   `approval_status` varchar(32) DEFAULT NULL COMMENT '审核状态',
+  `rejected_reason` varchar(500) DEFAULT NULL COMMENT '驳回原因',
+  `approved_by` varchar(64) DEFAULT NULL COMMENT '审核人',
+  `approved_at` datetime DEFAULT NULL COMMENT '审核时间',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`),
-  KEY `idx_fee_adjustment_fee_id` (`fee_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='费用冲正记录（旧接口兼容表）';
+  KEY `idx_fee_adjustment_no` (`adjustment_no`),
+  KEY `idx_fee_adjustment_fee_id` (`fee_id`),
+  KEY `idx_fee_adjustment_assigned_bill_no` (`assigned_bill_no`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='调账中心主记录';
 
 -- ----------------------------
 -- Table structure for fee_detail

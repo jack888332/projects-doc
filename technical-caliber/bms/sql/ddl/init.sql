@@ -87,7 +87,7 @@ CREATE TABLE `fee_source_dataset` (
   `base_where_expr` varchar(1000) DEFAULT NULL COMMENT '公共过滤条件',
   `billed_flag_column` varchar(128) DEFAULT NULL COMMENT '计费标记字段',
   `bill_no_column` varchar(128) DEFAULT NULL COMMENT '账单编号打标字段',
-  `weight_outbound_time_column` varchar(255) DEFAULT NULL COMMENT '核重出库时间表达式',
+  `weight_outbound_time_column` varchar(255) DEFAULT NULL COMMENT '出库时间表达式',
   `sign_time_column` varchar(255) DEFAULT NULL COMMENT '签收时间表达式',
   `received_time_column` varchar(255) DEFAULT NULL COMMENT '回款时间表达式',
   `incremental_time_column` varchar(255) DEFAULT NULL COMMENT '追加/增量时间表达式',
@@ -688,16 +688,16 @@ INSERT INTO `fee_source_dataset` (
   'sale_order_header', 'h', 'LEFT JOIN `ofp_ofdb1`.`sale_order_header_extend` e ON e.sale_order_id = h.id',
   NULL,
   'e.bms_billed_flag', 'e.bms_bill_no',
-  'h.measure_time', 'h.signed_time', NULL, NULL,
-  'WEIGHT_OUTBOUND,SIGN', 1, 500, 1, 10, 'sale_order_header + sale_order_header_extend；核重使用measure_time，签收使用signed_time'
+  'h.delivery_time', 'h.signed_time', NULL, NULL,
+  'WEIGHT_OUTBOUND,SIGN', 1, 500, 1, 10, 'sale_order_header + sale_order_header_extend；出库使用delivery_time，签收使用signed_time'
 ),
 (
   'COD_REFUND_MAIN_ORDER', '返款账单主数据源', 'OFP', 'OFP_DB', 'ofp_ofdb1',
   'sale_order_header', 'h', 'LEFT JOIN `ofp_ofdb1`.`sale_order_header_extend` e ON e.sale_order_id = h.id',
   NULL,
   'e.bms_billed_flag', 'e.bms_bill_no',
-  'h.measure_time', 'h.signed_time', NULL, NULL,
-  'WEIGHT_OUTBOUND,SIGN', 1, 500, 1, 10, 'COD返款账单专用主数据源；配置与集运订单主数据一致'
+  'h.delivery_time', 'h.signed_time', NULL, NULL,
+  'WEIGHT_OUTBOUND,SIGN', 1, 500, 1, 10, 'COD返款账单专用主数据源；出库使用delivery_time，签收使用signed_time'
 ),
 (
   'CONSOLIDATION_ADDITIONAL_FEE', '集运订单附加费', 'OFP', 'OFP_DB', 'ofp_ofdb1',

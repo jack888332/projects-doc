@@ -240,8 +240,8 @@ AND (e.bms_bill_no IS NULL OR e.bms_bill_no = '')
 时间字段口径补充：
 
 1. 主订单时间字段通过 `bill_generate_conf.properties` 和费项规则共同决定。
-2. 当前支持的订单时间字段为 `measure_time`、`check_time`、`signed_time`。
-3. 仓库默认配置中，普通节点默认走 `measure_time`，签收节点默认走 `signed_time`。
+2. 当前支持的订单时间字段为 `delivery_time`、`measure_time`、`check_time`、`signed_time`。
+3. 仓库默认配置中，出库节点默认走 `delivery_time`，签收节点默认走 `signed_time`。
 
 分页扫描补充：
 

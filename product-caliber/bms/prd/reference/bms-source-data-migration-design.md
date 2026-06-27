@@ -4,7 +4,7 @@
 
 BMS 账单生成、附加费归集、理赔抵扣等功能需要贴近真实业务的数据进行验证。测试环境如果只手工造订单，容易出现以下问题：
 
-1. 订单主表、订单扩展表、附加费表、理赔单之间的数据关系不完整。
+1. 订单主表、订单扩展表、附加费表、包裹费用表、费用明细表、理赔单之间的数据关系不完整。
 2. 客户、店铺、会员编码与账单配置不匹配，导致生成账单时查不到费用。
 3. 来源表已经带有 BMS 计费、付款、核销标记，复制后会影响重新生成账单。
 4. 直接暴露数据库账号密码给页面存在安全风险。
@@ -23,7 +23,7 @@ BMS 账单生成、附加费归集、理赔抵扣等功能需要贴近真实业�
 1. 支持按源客户条件筛选订单。
 2. 支持按订单号或时间范围圈定迁移范围。
 3. 支持将源订单复制到目标客户名下。
-4. 支持可选复制订单扩展表、附加费表、理赔单。
+4. 支持可选复制订单扩展表、附加费表、包裹费用表、费用明细表、理赔单。
 5. 支持预览模式，只统计命中数据，不写目标库。
 6. 支持执行迁移模式，在目标库重新生成订单主键并维护子表外键。
 7. 默认重置 BMS 计费、付款、核销相关标记，使迁移后的数据可以重新参与账单验证。
@@ -38,16 +38,18 @@ BMS 账单生成、附加费归集、理赔抵扣等功能需要贴近真实业�
 1. 读取源库 `sale_order_header`。
 2. 按订单 ID 读取源库 `sale_order_header_extend`。
 3. 按订单 ID 读取源库 `sale_order_additional_matter`。
-4. 按订单号读取或按客户与时间读取源库 `claim_order`。
-5. 将上述数据写入目标库，并替换目标客户字段。
-6. 返回预览或执行结果。
+4. 按订单 ID 读取源库 `sale_order_package_fee`。
+5. 按订单 ID 读取源库 `sale_order_fee_detail`。
+6. 按订单号读取或按客户与时间读取源库 `claim_order`。
+7. 将上述数据写入目标库，并替换目标客户字段。
+8. 返回预览或执行结果。
 
 不负责范围：
 
 1. 不自动创建账单配置。
 2. 不自动触发账单生成任务。
 3. 不校验目标客户是否真实存在。
-4. 不处理除上述四张来源表以外的业务表。
+4. 不处理除上述六张来源表以外的其他业务表。
 5. 不提供源库或目标库账号密码维护页面。
 
 ## 4. 前端设计
@@ -99,6 +101,7 @@ BMS 账单生成、附加费归集、理赔抵扣等功能需要贴近真实业�
 
 | 页面选项 | 字段值 | 说明 |
 | --- | --- | --- |
+| 出库时间 | `delivery_time` | sale_order_header 出库时间 |
 | 核重时间 | `measure_time` | 集运核重出库时间 |
 | 签收时间 | `signed_time` | 订单签收时间 |
 | 创建时间 | `create_time` | 订单创建时间 |
@@ -120,6 +123,8 @@ time_field < endDate + 1 day
 | --- | --- | --- | --- |
 | 复制订单扩展 | `includeHeaderExtend` | `true` | 复制 `sale_order_header_extend` |
 | 复制附加费 | `includeAdditionalMatter` | `true` | 复制 `sale_order_additional_matter` |
+| 复制包裹费用 | `includePackageFee` | `true` | 复制 `sale_order_package_fee` |
+| 复制费用明细 | `includeFeeDetail` | `true` | 复制 `sale_order_fee_detail` |
 | 复制理赔单 | `includeClaimOrder` | `true` | 复制 `claim_order` |
 | 重置 BMS 标记 | `resetBmsFlags` | `true` | 清空计费、付款、核销相关字段 |
 
@@ -195,11 +200,13 @@ Controller 只做入口转发，业务逻辑在 `SourceDataMigrationService`。
 | `targetShopName` | String | 否 | 目标店铺名称 |
 | `startDate` | LocalDate | 条件必填 | 时间范围开始日期 |
 | `endDate` | LocalDate | 条件必填 | 时间范围结束日期 |
-| `timeField` | String | 否 | 时间字段，默认 `measure_time` |
+| `timeField` | String | 否 | 时间字段，默认 `delivery_time` |
 | `orderNos` | String | 条件必填 | 指定订单号列表 |
 | `targetOrderNoSuffix` | String | 否 | 目标订单号后缀 |
 | `includeHeaderExtend` | Boolean | 否 | 是否复制扩展表 |
 | `includeAdditionalMatter` | Boolean | 否 | 是否复制附加费 |
+| `includePackageFee` | Boolean | 否 | 是否复制包裹费用 |
+| `includeFeeDetail` | Boolean | 否 | 是否复制费用明细 |
 | `includeClaimOrder` | Boolean | 否 | 是否复制理赔单 |
 | `resetBmsFlags` | Boolean | 否 | 是否重置 BMS 标记 |
 | `dryRun` | Boolean | 网关注入 | 是否预览 |
@@ -216,10 +223,14 @@ Controller 只做入口转发，业务逻辑在 `SourceDataMigrationService`。
 | `sourceOrderCount` | Integer | 源订单命中数量 |
 | `sourceExtendCount` | Integer | 源订单扩展命中数量 |
 | `sourceAdditionalCount` | Integer | 源附加费命中数量 |
+| `sourcePackageFeeCount` | Integer | 源包裹费用命中数量 |
+| `sourceFeeDetailCount` | Integer | 源费用明细命中数量 |
 | `sourceClaimCount` | Integer | 源理赔单命中数量 |
 | `insertedOrderCount` | Integer | 目标库写入订单数 |
 | `insertedExtendCount` | Integer | 目标库写入扩展数 |
 | `insertedAdditionalCount` | Integer | 目标库写入附加费数 |
+| `insertedPackageFeeCount` | Integer | 目标库写入包裹费用数 |
+| `insertedFeeDetailCount` | Integer | 目标库写入费用明细数 |
 | `insertedClaimCount` | Integer | 目标库写入理赔单数 |
 | `conditionSummary` | String | 查询条件摘要 |
 | `migratedOrderNos` | List<String> | 迁移后的订单号 |
@@ -240,7 +251,7 @@ flowchart TD
     G --> H["打开源库连接"]
     G --> I["打开目标库连接"]
     H --> J["查询源订单"]
-    J --> K["查询扩展/附加费/理赔单"]
+    J --> K["查询扩展/附加费/包裹费用/费用明细/理赔单"]
     K --> L{"dryRun?"}
     L -- "是" --> M["回滚目标连接并返回统计"]
     L -- "否" --> N["转换客户字段与 BMS 标记"]
@@ -256,7 +267,7 @@ flowchart TD
 1. `targetUserId` 不能为空。
 2. `targetMemberCode` 不能为空。
 3. `targetShopId` 不能为空。
-4. `timeField` 必须在白名单内，空值默认 `measure_time`。
+4. `timeField` 必须在白名单内，空值默认 `delivery_time`。
 5. 未指定订单号时，`startDate` 和 `endDate` 必填。
 6. `startDate` 不能晚于 `endDate`。
 7. `limit` 为空或小于 1 时默认 500。
@@ -300,11 +311,13 @@ LIMIT 1
 
 ### 7.5 子表查询
 
-订单扩展和附加费按源订单 ID 查询，每批最多 500 个订单 ID：
+订单扩展、附加费、包裹费用、费用明细按源订单 ID 查询，每批最多 500 个订单 ID：
 
 ```text
 sale_order_header_extend.sale_order_id IN (...)
 sale_order_additional_matter.sale_order_id IN (...)
+sale_order_package_fee.sale_order_id IN (...)
+sale_order_fee_detail.sale_order_id IN (...)
 ```
 
 理赔单查询逻辑：
@@ -354,7 +367,25 @@ sale_order_additional_matter.sale_order_id IN (...)
 4. 如果填写订单号后缀，则对订单号相关字段追加后缀。
 5. 如果开启重置 BMS 标记，则清理计费、抵扣、付款相关字段。
 
-### 8.5 BMS 标记重置
+### 8.5 包裹费用表
+
+写入 `sale_order_package_fee` 时：
+
+1. 移除源记录 `id`。
+2. 将源 `sale_order_id` 替换为目标库新订单 ID。
+3. 写入目标 `shop_id`。
+4. 其余金额、尾程运单号、类型等字段保持源值。
+
+### 8.6 费用明细表
+
+写入 `sale_order_fee_detail` 时：
+
+1. 移除源记录 `id`。
+2. 将源 `sale_order_id` 替换为目标库新订单 ID。
+3. 写入目标 `shop_id`。
+4. 其余费用明细字段保持源值。
+
+### 8.7 BMS 标记重置
 
 通用重置字段：
 
@@ -394,7 +425,7 @@ targetConn.setAutoCommit(false)
 1. 预览模式永远回滚目标库连接，不写入数据。
 2. 未命中源订单时回滚并返回消息。
 3. 执行模式中，订单先写入目标库并获取新主键。
-4. 使用 `sourceOrderId -> targetOrderId` 映射写入扩展表和附加费表。
+4. 使用 `sourceOrderId -> targetOrderId` 映射写入扩展表、附加费表、包裹费用表和费用明细表。
 5. 任意异常都会回滚目标库事务。
 6. 全部成功后提交目标库事务。
 
@@ -405,7 +436,7 @@ targetConn.setAutoCommit(false)
 迁移后的数据主要服务于以下验证场景：
 
 1. 账单生成按 `sc_id/shop_id/user_id/member_code` 命中测试客户账单配置。
-2. 主订单费用可按 `measure_time` 或 `signed_time` 等字段进入账期。
+2. 主订单费用可按 `delivery_time`、`measure_time` 或 `signed_time` 等字段进入账期。
 3. 附加费在 `fee_pay_status = waiting_pay` 时可重新参与附加费归集。
 4. 已清空 BMS 账单号、付款状态、核销号，避免被认为已计费或已支付。
 5. 理赔单清空抵扣状态后，可验证理赔抵扣/冲抵链路。

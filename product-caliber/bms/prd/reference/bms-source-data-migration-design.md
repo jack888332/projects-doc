@@ -394,23 +394,15 @@ sale_order_fee_detail.sale_order_id IN (...)
 | `bms_billed_flag` | `0` |
 | `bms_bill_no` | `null` |
 | `bms_after_bill_added_flag` | `0` |
-| `bms_paid_flag` | `0` |
-| `bms_paid_bill_no` | `null` |
-| `bms_paid_at` | `null` |
-| `bms_paid_writeoff_no` | `null` |
-| `bms_payment_status` | `UNPAID` |
-
 理赔单额外重置字段：
 
 | 字段 | 重置值 |
 | --- | --- |
 | `bms_billed_at` | `null` |
-| `bms_offset_status` | `NONE` |
-| `bms_offset_bill_no` | `null` |
-| `bms_offset_at` | `null` |
-| `bms_offset_writeoff_no` | `null` |
 | `payment_status` | `1`，仅字段存在时 |
 | `pay_time` | `null` |
+
+核销完成后直接更新来源费项已有的支付状态字段，不在来源表增加或维护 `bms_paid_*`、`bms_payment_status`、`bms_offset_*` 等 BMS 专属回显字段。
 
 ## 9. 写入与事务
 

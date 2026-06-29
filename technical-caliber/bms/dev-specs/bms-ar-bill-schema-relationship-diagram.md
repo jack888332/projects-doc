@@ -126,7 +126,7 @@ erDiagram
 
 1. `payment_receipt` 是应收收款主表。
 2. `payment_writeoff_detail` 是应收核销明细，核销对象既可以落到 `ar_bill`，也可以细化到 `ar_bill_currency_summary`。
-3. `source_payment_writeback` 表示核销完成后，对来源系统付款状态的回写补偿记录。
+3. `source_payment_writeback` 表示核销完成后，对来源费项已有支付状态的回写补偿记录；来源表不新增 BMS 专属核销回显字段。
 4. `refund_payment_record` 是返款打款流水主表。
 5. `refund_payment_allocation` 把返款打款分配到具体返款账单和账单币种汇总。
 6. `fee_adjustment_order`、`fee_adjustment_record` 分别承载调账单头和费用冲正记录。

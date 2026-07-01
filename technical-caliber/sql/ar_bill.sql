@@ -216,6 +216,86 @@ CREATE TABLE `bill_config_scope` (
 ) ENGINE=InnoDB AUTO_INCREMENT=90 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='账单配置限定范围';
 
 -- ----------------------------
+-- Table structure for base_exchange_rate
+-- ----------------------------
+DROP TABLE IF EXISTS `tmall_bms`.`base_exchange_rate`;
+CREATE TABLE `tmall_bms`.`base_exchange_rate` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `sc_id` bigint(20) NOT NULL DEFAULT '0' COMMENT '供应链ID，0表示全局',
+  `shop_id` bigint(20) NOT NULL DEFAULT '0' COMMENT '店铺ID，0表示不限定店铺',
+  `user_id` bigint(20) NOT NULL DEFAULT '0' COMMENT '用户ID，0表示不限定用户',
+  `source_currency` varchar(16) NOT NULL COMMENT '源币种，必须为外币',
+  `target_currency` varchar(16) NOT NULL COMMENT '目标币种，必须为财务本位币',
+  `conversion_direction` varchar(8) NOT NULL DEFAULT 'MUL' COMMENT '换算方向：MUL乘汇率，DIV除汇率',
+  `exchange_rate` decimal(18,8) NOT NULL COMMENT '基准汇率',
+  `status` tinyint(1) NOT NULL DEFAULT '1' COMMENT '状态：1启用，0停用',
+  `confirmed_by` varchar(64) DEFAULT NULL COMMENT '确认人',
+  `confirmed_at` datetime DEFAULT NULL COMMENT '确认时间',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '逻辑删除：0正常，1删除',
+  `active_unique_guard` tinyint(1) GENERATED ALWAYS AS ((case when (`is_deleted` = 0) then 1 else NULL end)) STORED COMMENT '未删除唯一约束辅助列：未删除时为1，已删除时为NULL',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_base_rate_pair_active` (`sc_id`,`shop_id`,`user_id`,`source_currency`,`target_currency`,`active_unique_guard`),
+  KEY `idx_sc_shop_user` (`sc_id`,`shop_id`,`user_id`),
+  KEY `idx_rate_pair` (`source_currency`,`target_currency`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='基准汇率';
+
+-- ----------------------------
+-- Table structure for customer_exchange_rate_rule
+-- ----------------------------
+DROP TABLE IF EXISTS `tmall_bms`.`customer_exchange_rate_rule`;
+CREATE TABLE `tmall_bms`.`customer_exchange_rate_rule` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `sc_id` bigint(20) DEFAULT NULL COMMENT '供应链ID',
+  `shop_id` bigint(20) DEFAULT NULL COMMENT '店铺ID',
+  `user_id` bigint(20) DEFAULT NULL COMMENT '用户ID',
+  `customer_no` varchar(64) DEFAULT NULL COMMENT '客户编码',
+  `member_code` varchar(64) DEFAULT NULL COMMENT '会员编码',
+  `customer_name` varchar(128) DEFAULT NULL COMMENT '客户名称',
+  `source_currency` varchar(16) NOT NULL COMMENT '源币种，ALL代表全部外币',
+  `target_currency` varchar(16) NOT NULL COMMENT '目标币种，必须为财务本位币',
+  `adjust_type` varchar(16) NOT NULL COMMENT '调整方式：FIXED固定汇率，PERCENT按百分比调整，DELTA固定汇率差',
+  `adjust_value` decimal(18,8) NOT NULL COMMENT '调整值；PERCENT时2代表2%',
+  `default_exchange_rate` decimal(18,8) DEFAULT NULL COMMENT '默认基准汇率',
+  `customer_exchange_rate` decimal(18,8) DEFAULT NULL COMMENT '计算后的客户汇率',
+  `status` tinyint(1) NOT NULL DEFAULT '1' COMMENT '状态：1启用，0停用',
+  `remark` varchar(500) DEFAULT NULL COMMENT '备注',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '逻辑删除：0正常，1删除',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
+  PRIMARY KEY (`id`),
+  KEY `idx_sc_shop_user` (`sc_id`,`shop_id`,`user_id`),
+  KEY `idx_customer_pair` (`customer_no`,`member_code`,`source_currency`,`target_currency`,`status`),
+  KEY `idx_rule_pair` (`source_currency`,`target_currency`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='客户特调汇率规则';
+
+-- ----------------------------
+-- Table structure for customer_exchange_rate_rule_log
+-- ----------------------------
+DROP TABLE IF EXISTS `tmall_bms`.`customer_exchange_rate_rule_log`;
+CREATE TABLE `tmall_bms`.`customer_exchange_rate_rule_log` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `rule_id` bigint(20) unsigned NOT NULL COMMENT '客户特调汇率规则ID',
+  `action_type` varchar(32) NOT NULL COMMENT '操作类型：CREATE新增，UPDATE修改，STATUS状态变更',
+  `before_status` tinyint(1) DEFAULT NULL COMMENT '调整前状态',
+  `after_status` tinyint(1) DEFAULT NULL COMMENT '调整后状态',
+  `before_adjust_type` varchar(16) DEFAULT NULL COMMENT '调整前方式',
+  `after_adjust_type` varchar(16) DEFAULT NULL COMMENT '调整后方式',
+  `before_adjust_value` decimal(18,8) DEFAULT NULL COMMENT '调整前值',
+  `after_adjust_value` decimal(18,8) DEFAULT NULL COMMENT '调整后值',
+  `operator` varchar(64) DEFAULT NULL COMMENT '操作人',
+  `operated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+  `remark` varchar(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`id`),
+  KEY `idx_rule_log` (`rule_id`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='客户特调汇率规则变更日志';
+
+-- ----------------------------
 -- Table structure for bill_exchange_rate
 -- ----------------------------
 DROP TABLE IF EXISTS `bill_exchange_rate`;
@@ -648,11 +728,12 @@ CREATE TABLE `fee_source_dataset` (
   `base_where_expr` varchar(1000) DEFAULT NULL COMMENT '公共过滤条件',
   `billed_flag_column` varchar(128) DEFAULT NULL COMMENT '计费标记字段',
   `bill_no_column` varchar(128) DEFAULT NULL COMMENT '账单编号打标字段',
-  `weight_outbound_time_column` varchar(255) DEFAULT NULL COMMENT '核重出库时间表达式',
+  `weight_outbound_time_column` varchar(255) DEFAULT NULL COMMENT '出库时间表达式',
   `sign_time_column` varchar(255) DEFAULT NULL COMMENT '签收时间表达式',
+  `order_completed_time_column` varchar(255) DEFAULT NULL COMMENT '订单完结时间表达式',
   `received_time_column` varchar(255) DEFAULT NULL COMMENT '回款时间表达式',
   `incremental_time_column` varchar(255) DEFAULT NULL COMMENT '追加/增量时间表达式',
-  `supported_contract_nodes` varchar(255) DEFAULT NULL COMMENT '支持履约节点，逗号分隔：WEIGHT_OUTBOUND,SIGN,RECEIVED,INCREMENTAL',
+  `supported_contract_nodes` varchar(255) DEFAULT NULL COMMENT '支持履约节点，逗号分隔：WEIGHT_OUTBOUND,ORDER_COMPLETED,SIGN,RECEIVED,INCREMENTAL',
   `query_window_days` int(11) NOT NULL DEFAULT '1' COMMENT '源数据查询窗口天数，1表示按天拆分',
   `query_page_size` int(11) NOT NULL DEFAULT '500' COMMENT '源数据分页条数',
   `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用',

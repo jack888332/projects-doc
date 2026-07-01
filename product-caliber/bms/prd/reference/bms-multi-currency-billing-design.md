@@ -400,7 +400,7 @@ amount_fin_currency = amount_bill_currency * exchange_rate_to_fin
 3. 账单任务生成费用明细时，必须同时保存当时使用的 L1、L2 汇率快照。
 4. 已生成费用明细的汇率不随来源数据或后续汇率配置变化而自动更新。
 5. 缺少必要汇率时，不允许把不同币种按汇率 `1` 直接换算，应中止该费用或账单任务并记录错误。
-6. 账单生成时优先读取 `bill_exchange_rate` 中已锁定的账单汇率；不存在时使用店铺启用汇率兜底，并立即写入 `bill_exchange_rate`。
+6. 账单生成时按“账单级 > 客户特调级 > 基准汇率级 > 店铺级”解析汇率：优先读取 `bill_exchange_rate` 中已锁定的账单汇率；不存在时依次匹配客户特调汇率、基准汇率和店铺启用汇率，并将最终命中结果立即写入 `bill_exchange_rate`。
 7. `bill_exchange_rate.conversion_currency_type` 使用 `FEE_TO_BILL`、`BILL_TO_FIN` 区分两段转换。
 8. `bill_exchange_rate` 同一 `bill_id + 目标币种 + 来源币种 + conversion_currency_type` 只能存在一条汇率快照。
 9. 每条 `bill_exchange_rate` 独立维护 `enabled` 和 `conversion_direction`；关闭时按倍率 `1` 重算，`DIV` 方向按 `1 / exchange_rate` 换算。
@@ -419,8 +419,8 @@ L2：0.22000000，财务本位币金额：99 CNY
 
 1. 账单生成时，所有费项的结算币种统一取账单配置的 `billing_currency`。
 2. 财务本位币统一取账单配置的 `fin_currency`。
-3. 账单汇率缺失时只使用店铺启用汇率兜底，不使用来源单据转换金额反推汇率。
-4. 店铺缺少对应币种对汇率时，账单生成任务失败。
+3. 账单汇率缺失时依次匹配客户特调汇率、基准汇率和店铺启用汇率，不使用来源单据转换金额反推汇率。
+4. 四级汇率均未命中对应币种对时，账单生成任务失败。
 
 ## 7. 账单生成逻辑调整
 

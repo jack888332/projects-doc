@@ -399,11 +399,11 @@ amount_fin_currency = amount_bill_currency * exchange_rate_to_fin
 2. 两段换算币种相同时，对应汇率固定保存为 `1`。
 3. 账单任务生成费用明细时，必须同时保存当时使用的 L1、L2 汇率快照。
 4. 已生成费用明细的汇率不随来源数据或后续汇率配置变化而自动更新。
-5. 缺少必要汇率时，不允许把不同币种按汇率 `1` 直接换算，应中止该费用或账单任务并记录错误。
-6. 账单生成时优先读取 `bill_exchange_rate` 中已锁定的账单汇率；不存在时使用店铺启用汇率兜底，并立即写入 `bill_exchange_rate`。
+5. 异币种汇率按“账单级 > 客户特调级 > 基准汇率级 > 店铺级 > 1”解析；所有配置均不可用时固定按 `1` 并记录兜底原因。
+6. 账单生成时优先读取 `bill_exchange_rate` 中已锁定的账单汇率；不存在时依次匹配客户特调汇率、基准汇率和店铺启用汇率，并将最终命中结果立即写入 `bill_exchange_rate`。
 7. `bill_exchange_rate.conversion_currency_type` 使用 `FEE_TO_BILL`、`BILL_TO_FIN` 区分两段转换。
 8. `bill_exchange_rate` 同一 `bill_id + 目标币种 + 来源币种 + conversion_currency_type` 只能存在一条汇率快照。
-9. 每条 `bill_exchange_rate` 独立维护 `enabled` 和 `conversion_direction`；关闭时按倍率 `1` 重算，`DIV` 方向按 `1 / exchange_rate` 换算。
+9. `bill_exchange_rate` 为账单级锁定配置，不允许关闭；`DIV` 方向按 `1 / exchange_rate` 换算。
 10. 来源币种与目标币种相同时直接按汇率 `1` 计算，不查询、不新增 `bill_exchange_rate` 关联汇率记录。
 9. `ar_bill_currency_summary` 只保存按结算币种汇总的应收、已收、未收金额，不保存汇率转换类型。
 
@@ -419,8 +419,8 @@ L2：0.22000000，财务本位币金额：99 CNY
 
 1. 账单生成时，所有费项的结算币种统一取账单配置的 `billing_currency`。
 2. 财务本位币统一取账单配置的 `fin_currency`。
-3. 账单汇率缺失时只使用店铺启用汇率兜底，不使用来源单据转换金额反推汇率。
-4. 店铺缺少对应币种对汇率时，账单生成任务失败。
+3. 账单汇率缺失时依次匹配客户特调汇率、基准汇率和店铺启用汇率，不使用来源单据转换金额反推汇率。
+4. 账单级、客户特调级、基准级和店铺级均未命中时固定按 `1`，账单仍进入财务人工审核。
 
 ## 7. 账单生成逻辑调整
 
@@ -476,7 +476,7 @@ String finCurrency = billConfig.getFinCurrency();
    - 优先读取账单已锁定的 `BILL_TO_FIN` 汇率。
    - 账单无对应汇率时，读取店铺启用汇率并写入账单汇率快照。
    - `amountFinCurrency = amountChargeCurrency * exchangeRateToFin`。
-4. 店铺没有对应启用汇率时生成任务失败，不允许使用来源单据转换金额反推汇率。
+4. 店铺没有对应启用汇率时固定按 `1` 并记录兜底原因，不允许使用来源单据转换金额反推汇率。
 
 ### 7.4 ar_bill_currency_summary 汇总规则
 

@@ -221,9 +221,6 @@ CREATE TABLE `bill_config_scope` (
 DROP TABLE IF EXISTS `tmall_bms`.`base_exchange_rate`;
 CREATE TABLE `tmall_bms`.`base_exchange_rate` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
-  `sc_id` bigint(20) NOT NULL DEFAULT '0' COMMENT '供应链ID，0表示全局',
-  `shop_id` bigint(20) NOT NULL DEFAULT '0' COMMENT '店铺ID，0表示不限定店铺',
-  `user_id` bigint(20) NOT NULL DEFAULT '0' COMMENT '用户ID，0表示不限定用户',
   `source_currency` varchar(16) NOT NULL COMMENT '源币种，必须为外币',
   `target_currency` varchar(16) NOT NULL COMMENT '目标币种，必须为财务本位币',
   `conversion_direction` varchar(8) NOT NULL DEFAULT 'MUL' COMMENT '换算方向：MUL乘汇率，DIV除汇率',
@@ -233,13 +230,13 @@ CREATE TABLE `tmall_bms`.`base_exchange_rate` (
   `confirmed_at` datetime DEFAULT NULL COMMENT '确认时间',
   `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '逻辑删除：0正常，1删除',
   `active_unique_guard` tinyint(1) GENERATED ALWAYS AS ((case when (`is_deleted` = 0) then 1 else NULL end)) STORED COMMENT '未删除唯一约束辅助列：未删除时为1，已删除时为NULL',
+  `currency_pair_key` varchar(40) GENERATED ALWAYS AS (concat(least(`source_currency`,`target_currency`),'|',greatest(`source_currency`,`target_currency`))) STORED COMMENT '无方向货币对唯一键',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_base_rate_pair_active` (`sc_id`,`shop_id`,`user_id`,`source_currency`,`target_currency`,`active_unique_guard`),
-  KEY `idx_sc_shop_user` (`sc_id`,`shop_id`,`user_id`),
+  UNIQUE KEY `uk_base_rate_pair_active` (`currency_pair_key`,`active_unique_guard`),
   KEY `idx_rate_pair` (`source_currency`,`target_currency`,`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='基准汇率';
 
@@ -258,6 +255,7 @@ CREATE TABLE `tmall_bms`.`customer_exchange_rate_rule` (
   `source_currency` varchar(16) NOT NULL COMMENT '源币种，ALL代表全部外币',
   `target_currency` varchar(16) NOT NULL COMMENT '目标币种，必须为财务本位币',
   `adjust_type` varchar(16) NOT NULL COMMENT '调整方式：FIXED固定汇率，PERCENT按百分比调整，DELTA固定汇率差',
+  `adjust_direction` varchar(8) NOT NULL DEFAULT 'NONE' COMMENT '调整方向：UP上浮，DOWN下浮，NONE不适用',
   `adjust_value` decimal(18,8) NOT NULL COMMENT '调整值；PERCENT时2代表2%',
   `default_exchange_rate` decimal(18,8) DEFAULT NULL COMMENT '默认基准汇率',
   `customer_exchange_rate` decimal(18,8) DEFAULT NULL COMMENT '计算后的客户汇率',
@@ -286,6 +284,8 @@ CREATE TABLE `tmall_bms`.`customer_exchange_rate_rule_log` (
   `after_status` tinyint(1) DEFAULT NULL COMMENT '调整后状态',
   `before_adjust_type` varchar(16) DEFAULT NULL COMMENT '调整前方式',
   `after_adjust_type` varchar(16) DEFAULT NULL COMMENT '调整后方式',
+  `before_adjust_direction` varchar(8) DEFAULT NULL COMMENT '调整前方向',
+  `after_adjust_direction` varchar(8) DEFAULT NULL COMMENT '调整后方向',
   `before_adjust_value` decimal(18,8) DEFAULT NULL COMMENT '调整前值',
   `after_adjust_value` decimal(18,8) DEFAULT NULL COMMENT '调整后值',
   `operator` varchar(64) DEFAULT NULL COMMENT '操作人',
@@ -309,10 +309,21 @@ CREATE TABLE `bill_exchange_rate` (
   `conversion_currency_type` varchar(32) NOT NULL COMMENT '转换类型：FEE_TO_BILL费项原始币种转账单结算币种，BILL_TO_FIN账单结算币种转财务本位币',
   `conversion_direction` varchar(8) NOT NULL COMMENT '换算方向：MUL/DIV',
   `exchange_rate` decimal(18,8) NOT NULL COMMENT '锁定汇率',
-  `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用：1启用，0关闭',
+  `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '账单汇率配置固定启用；历史0值仅兼容读取',
   `rate_date` date DEFAULT NULL COMMENT '汇率日期',
   `rate_source` varchar(64) DEFAULT NULL COMMENT '汇率来源',
   `source_type` varchar(16) NOT NULL DEFAULT 'SYSTEM' COMMENT '来源：SYSTEM系统，MANUAL人工',
+  `hit_level` varchar(32) DEFAULT NULL COMMENT '命中级别：BILL/CUSTOMER/BASE/SHOP/FALLBACK_ONE/DIRECT',
+  `customer_rule_id` bigint(20) unsigned DEFAULT NULL COMMENT '客户特调汇率规则ID',
+  `base_rate_id` bigint(20) unsigned DEFAULT NULL COMMENT '基准汇率ID',
+  `secondary_base_rate_id` bigint(20) unsigned DEFAULT NULL COMMENT 'CNY交叉推导的第二条基准汇率ID',
+  `source_rate_value` decimal(18,8) DEFAULT NULL COMMENT '调整或推导前基础汇率',
+  `adjust_type` varchar(16) DEFAULT NULL COMMENT '客户调整方式',
+  `adjust_direction` varchar(8) DEFAULT NULL COMMENT '客户调整方向：UP/DOWN/NONE',
+  `adjust_value` decimal(18,8) DEFAULT NULL COMMENT '客户调整值',
+  `derivation_type` varchar(16) DEFAULT NULL COMMENT '推导类型：DIRECT/REVERSE/CNY_CROSS/NONE',
+  `derivation_expression` varchar(500) DEFAULT NULL COMMENT '汇率推导表达式',
+  `fallback_reason` varchar(500) DEFAULT NULL COMMENT '按1兜底原因',
   `edit_reason` varchar(500) DEFAULT NULL COMMENT '人工编辑原因',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
@@ -320,7 +331,10 @@ CREATE TABLE `bill_exchange_rate` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_bill_rate` (`bill_type`,`bill_id`,`bill_currency`,`conversion_currency`,`conversion_currency_type`),
   KEY `idx_bill_rate_no` (`bill_no`),
-  KEY `idx_bill_rate_no_type` (`bill_no`,`bill_type`)
+  KEY `idx_bill_rate_no_type` (`bill_no`,`bill_type`),
+  KEY `idx_bill_rate_customer_rule` (`customer_rule_id`),
+  KEY `idx_bill_rate_base_rate` (`base_rate_id`),
+  KEY `idx_bill_rate_secondary_base` (`secondary_base_rate_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=64 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='账单汇率';
 
 -- ----------------------------

@@ -252,6 +252,7 @@ CREATE TABLE `bill_generate_task` (
   `billing_period_end_date` date NOT NULL COMMENT '账期结束日期',
   `task_status` varchar(32) NOT NULL COMMENT '任务状态：INIT/RUNNING/SUCCESS/FAILED/CANCELED',
   `trigger_type` varchar(32) NOT NULL DEFAULT 'SCHEDULE' COMMENT '触发方式：SCHEDULE/MANUAL/RETRY',
+  `data_pull_type` varchar(32) NOT NULL DEFAULT 'FULL' COMMENT '数据拉取类型：FULL全量/INCREMENTAL增量',
   `idempotent_key` varchar(128) NOT NULL COMMENT '任务幂等键',
   `retry_count` int(11) NOT NULL DEFAULT '0' COMMENT '重试次数',
   `started_at` datetime DEFAULT NULL COMMENT '开始时间',

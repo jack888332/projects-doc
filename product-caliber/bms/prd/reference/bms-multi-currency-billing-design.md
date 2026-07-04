@@ -405,6 +405,7 @@ amount_fin_currency = amount_bill_currency * exchange_rate_to_fin
 8. `bill_exchange_rate` 同一 `bill_id + 目标币种 + 来源币种 + conversion_currency_type` 只能存在一条汇率快照。
 9. `bill_exchange_rate` 为账单级锁定配置，不允许关闭；`DIV` 方向按 `1 / exchange_rate` 换算。
 10. 来源币种与目标币种相同时直接按汇率 `1` 计算，不查询、不新增 `bill_exchange_rate` 关联汇率记录。
+11. 客户特调汇率规则采用逻辑删除；删除基准汇率时，同一正反币种对下依赖基准值计算的百分比调整、固定汇率差规则必须在同一事务内级联逻辑删除，固定汇率规则和 `ALL` 规则不级联删除。
 9. `ar_bill_currency_summary` 只保存按结算币种汇总的应收、已收、未收金额，不保存汇率转换类型。
 
 示例：

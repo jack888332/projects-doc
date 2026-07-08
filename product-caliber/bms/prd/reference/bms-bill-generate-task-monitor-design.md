@@ -1,12 +1,14 @@
-# BMS 账单生成任务监控设计
+# BMS 任务流水监控设计
 
 ## 1. 目标
 
-账单生成任务需要有可视化页面，能直接查看 `bill_generate_task` 的执行记录，也能从账单配置维度监控每日任务是否按计划执行。
+任务流水需要有可视化页面，能直接查看 `bill_generate_task` 的执行记录，也能从账单配置维度监控每日任务是否按计划执行。
+
+本期任务流水统一使用 `bill_generate_task`：产生账单的记录展示为 `账单生成任务`，未产生账单的记录展示为 `源数据同步任务`。两类任务都基于账单配置执行。
 
 本设计解决三个问题：
 
-1. 查看每次账单生成任务的开始时间、结束时间、执行状态、处理数量、生成金额和错误原因。
+1. 查看每次任务的开始时间、结束时间、执行状态、处理数量和错误原因。
 2. 按 `bill_config` 维度判断某一天是否应该执行、是否已执行、是否漏执行、是否执行失败。
 3. 能从任务追溯到账单、订单快照、费用明细、配置快照和失败原因。
 
@@ -14,12 +16,12 @@
 
 建议放在 `admin_front` 的费用中心下：
 
-- `费用中心 / 账单生成任务`
+- `费用中心 / 任务流水`
 - 路由：`/billing/billGenerateTask`
 
 页面分两个 Tab：
 
-1. `任务流水`：直接查询 `bill_generate_task`。
+1. `任务流水`：直接查询 `bill_generate_task`，并分为 `账单生成任务` / `源数据同步任务` 两个页签。
 2. `配置监控`：按账单配置检查指定日期的执行情况。
 
 ## 3. 任务流水页
@@ -36,7 +38,7 @@
 - 店铺
 - 账单配置 ID `bill_config_id`
 - 账期开始日期、账期结束日期
-- 任务状态：`INIT/RUNNING/SUCCESS/FAILED/NEED_RETRY/CANCELED`
+- 任务状态：`PENDING/RUNNING/SUCCESS/FAILED/NEED_RETRY/CANCELED`
 - 触发方式：`SCHEDULE/MANUAL/RETRY`
 - 创建时间范围
 - 开始时间范围
@@ -52,7 +54,6 @@
 - 失败任务数
 - 待重试任务数
 - 运行中任务数
-- 生成账单金额合计
 - 拉取订单数合计
 - 生成费用明细数合计
 
@@ -79,7 +80,6 @@
 - 费用明细数
 - 附加费明细数
 - 失败数
-- 应收金额
 - 错误摘要
 - 操作
 
@@ -128,7 +128,6 @@
 - 费用明细数
 - 附加费明细数
 - 失败数
-- 生成账单金额
 - 关联账单编号
 
 ### 4.4 快照和错误
@@ -185,7 +184,6 @@ JSON 默认折叠，支持复制。
 - 最新任务状态
 - 最新开始时间
 - 最新结束时间
-- 生成账单金额
 - 错误摘要
 - 操作
 
@@ -237,7 +235,6 @@ JSON 默认折叠，支持复制。
 - `SUCCESS`：存在成功任务。
 - `FAILED`：存在失败任务。
 - `NEED_RETRY`：存在需要补偿或重试的任务。
-- `MISSED`：应该执行，但没有任何定时任务记录。
 - `CANCELED`：任务被取消。
 
 同一配置同一账期出现多条任务时，优先级：
@@ -247,7 +244,7 @@ JSON 默认折叠，支持复制。
 3. `FAILED`
 4. `SUCCESS`
 5. `CANCELED`
-6. `MISSED`
+6. `PENDING`
 
 ## 7. 后端接口设计
 
@@ -293,7 +290,6 @@ JSON 默认折叠，支持复制。
     "failedCount": 0,
     "needRetryCount": 0,
     "runningCount": 0,
-    "receivableAmount": 0,
     "pulledOrderCount": 0,
     "feeDetailCount": 0
   }
@@ -405,11 +401,11 @@ WHERE t.bill_config_id = :billConfigId
 ORDER BY t.created_at DESC
 ```
 
-如果没有任务记录且该配置当天应执行，则监控状态为 `MISSED`。
+如果没有任务记录且该配置当天应执行，则配置监控展示为“未执行/待执行”，不落 `MISSED` 任务状态。
 
 ## 9. 表结构建议
 
-现有 `bill_generate_task` 已能支撑基础监控。为了让查询更快，建议补充索引：
+现有 `bill_generate_task` 已能支撑基础监控。本期不调整表结构，不新增任务表，不新增金额字段。后续如果需要优化查询性能，再评估索引：
 
 ```sql
 CREATE INDEX `idx_task_config_period_status`
@@ -419,7 +415,7 @@ CREATE INDEX `idx_task_shop_created`
   ON `bill_generate_task` (`shop_id`, `created_at`);
 ```
 
-如果后续要严格监控“每天调度是否触发”，建议再增加调度日期字段：
+如果后续要严格监控“每天调度是否触发”，再评估是否增加调度日期字段；本期不落 DDL：
 
 ```sql
 ALTER TABLE `bill_generate_task`
@@ -437,7 +433,7 @@ CREATE INDEX `idx_task_schedule_date`
 2. 店铺 ID 必须翻译成店铺名称。
 3. 业务场景、账期类型、任务状态、触发方式都要翻译中文。
 4. 错误信息过长时列表只展示摘要，详情弹窗展示完整内容。
-5. `MISSED/FAILED/NEED_RETRY` 使用明显颜色标识。
+5. `FAILED/NEED_RETRY` 使用明显颜色标识。
 6. 任务详情支持跳转到账单详情。
 7. 配置监控页支持一键筛选“漏执行”和“执行失败”。
 
@@ -445,7 +441,7 @@ CREATE INDEX `idx_task_schedule_date`
 
 1. BMS 增加 `bill_generate_task` 查询、详情、配置监控接口。
 2. platform-admin 增加转发 Controller。
-3. admin_front 增加 `账单生成任务` 页面和路由。
+3. admin_shell 增加 `任务流水` 页面和路由。
 4. 接入店铺名称、客户信息翻译。
 5. 增加任务重试入口。
 6. 使用真实 `bill_generate_task` 数据验证任务流水和配置监控状态。

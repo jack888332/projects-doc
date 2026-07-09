@@ -38,7 +38,7 @@ files/返款账单配置页/data.js
 | 返款模式 | `签收返款`、`回款返款`，默认 `签收返款` |
 | 账期类型 | `周`、`半周`，默认 `周` |
 | 账单发出时间 | 默认 `2` 天 |
-| 代收货款手续费比例 | 默认 `3%` |
+| 代收货款手续费比例 | 页面文案为“应返货款金额 {...%} 用作代收货款手续费”，默认 `3%` |
 | 条款生效周期 | 示例值 `2023/01/01 ~ 2026/12/31` |
 | 汇兑策略 | `随原始币种`、`指定币种` |
 | 货款原始币种 | `不限`、`美元`、`日元`、`台币`、`其他` |
@@ -82,7 +82,7 @@ BillConfigRemoteService
 | 返款模式 | `refund_bill_config.refund_mode` | `SIGNED` / `RECEIVED` |
 | 账期类型 | `refund_bill_config.billing_period_type` | 返款配置独立字典，仅支持 `WEEK/HALF_WEEK` |
 | 账单发出时间 | `refund_bill_config.bill_send_offset_days` | 默认 2 天 |
-| 代收货款手续费比例 | `refund_bill_config.cod_service_fee_rate` | 默认 0.030000 |
+| 代收货款手续费比例 | `refund_bill_config.cod_service_fee_rate` | 页面文案为“应返货款金额 {...%} 用作代收货款手续费”，默认 0.030000；代收货款手续费金额按 `ofp_ofdb1.sale_order_header.collection_premium_amount` 取数 |
 | 条款生效周期 | `effective_start_date/effective_end_date` | 独立于应收配置 |
 | 币种账户矩阵 | `config_snapshot_json` | 一期仅保存页面配置快照，不参与计算；必须至少一条 |
 | 在应返货款中直接扣减的费项 | `config_snapshot_json` | 一期仅保存页面配置快照，不拆返款扣减规则表、不参与扣减计算；默认保存 `代收货款手续费`、`超材费`、`重出费` |

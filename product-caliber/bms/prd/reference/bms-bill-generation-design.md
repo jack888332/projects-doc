@@ -395,7 +395,7 @@ SO10001 + 超重费 + 20
 
 1. 创建 `bill_generate_task`，状态 `RUNNING`。
 2. 根据 `bill_config_id + period_start + period_end + trigger_type` 做幂等校验。
-3. 创建 `ar_bill` 草稿，并按当前命中的默认方案或分支方案读取 `bill_send_offset_days`，计算 `bill_send_date = billing_period_end_date + bill_send_offset_days`。
+3. 创建 `ar_bill` 草稿，并按当前命中的默认方案或分支方案读取 `bill_send_offset_days`，计算 `bill_send_date = billing_period_end_date + bill_send_offset_days`；再按信用期天数计算 `credit_period_end_date = bill_send_date + credit_period_days`。
 4. 写订单快照 `main_order`。
 5. 写费用快照 `fee_detail`。
 6. 写来源归集标记。

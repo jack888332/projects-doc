@@ -90,6 +90,8 @@
 | 账单发送日 | `bill_send_date` |
 | 信用期结束日 | `credit_period_end_date` |
 
+审核通过时，系统将 `bill_send_date` 更新为审核当天，并按 `credit_period_end_date = bill_send_date + credit_period_days` 重算信用期结束日。对账单状态为“待审核”且当前日期已超过计划账单发送日的记录，列表状态标签右上角展示“逾期未审”提示。
+
 第二行：账单金额
 
 | 字段 | 来源 |

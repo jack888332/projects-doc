@@ -1153,3 +1153,99 @@ CREATE TABLE `source_payment_writeback` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='核销后来源付款状态回写记录';
 
 SET FOREIGN_KEY_CHECKS = 1;
+-- 对账报表异步导出配置
+CREATE TABLE `bill_export_config` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `sc_id` bigint NOT NULL COMMENT '供应链ID',
+  `shop_id` bigint NOT NULL DEFAULT '0' COMMENT '店铺ID；供应链共享配置固定为0',
+  `user_id` bigint NOT NULL DEFAULT '0' COMMENT '用户ID；供应链共享配置固定为0',
+  `bill_type` varchar(32) NOT NULL COMMENT '账单类型：MEMBER_AR/COD_REFUND',
+  `customer_notice_text` text COMMENT '客户告示',
+  `customer_service_qr_file_key` varchar(500) DEFAULT NULL COMMENT '客服二维码文件键',
+  `receipt_account_name` varchar(128) DEFAULT NULL COMMENT '收款账户名称',
+  `receipt_account_no` varchar(128) DEFAULT NULL COMMENT '收款账户编号',
+  `bank_name` varchar(256) DEFAULT NULL COMMENT '开户银行名称',
+  `receipt_qr_file_key` varchar(500) DEFAULT NULL COMMENT '收款二维码文件键',
+  `is_deleted` tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除：0正常1删除',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_bill_export_config` (`sc_id`,`bill_type`,`is_deleted`),
+  KEY `idx_bill_export_config_scope` (`sc_id`,`shop_id`,`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='对账报表异步导出配置';
+
+-- 对账报表异步导出任务
+CREATE TABLE `bill_export_task` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `task_no` varchar(64) NOT NULL COMMENT '任务编号',
+  `async_task_id` bigint DEFAULT NULL COMMENT '异步框架任务ID',
+  `sc_id` bigint NOT NULL COMMENT '供应链ID',
+  `shop_id` bigint NOT NULL COMMENT '店铺ID',
+  `user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `bill_type` varchar(32) NOT NULL COMMENT '账单类型',
+  `task_status` varchar(32) NOT NULL COMMENT '任务状态',
+  `total_count` int NOT NULL DEFAULT '0' COMMENT '账单总数',
+  `processed_count` int NOT NULL DEFAULT '0' COMMENT '已处理数',
+  `success_count` int NOT NULL DEFAULT '0' COMMENT '成功数',
+  `failed_count` int NOT NULL DEFAULT '0' COMMENT '失败数',
+  `config_snapshot_json` longtext NOT NULL COMMENT '导出配置快照JSON',
+  `file_key` varchar(500) DEFAULT NULL COMMENT 'ZIP文件键',
+  `file_expire_at` datetime DEFAULT NULL COMMENT '文件失效时间',
+  `finished_at` datetime DEFAULT NULL COMMENT '完成时间',
+  `cancel_requested` tinyint NOT NULL DEFAULT '0' COMMENT '是否申请取消',
+  `is_deleted` tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除：0正常1删除',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_bill_export_task_no` (`task_no`),
+  KEY `idx_bill_export_task_scope` (`sc_id`,`shop_id`,`user_id`),
+  KEY `idx_bill_export_task_page` (`sc_id`,`user_id`,`task_status`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='对账报表异步导出任务';
+
+-- 对账报表异步导出任务项
+CREATE TABLE `bill_export_task_item` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `task_id` bigint unsigned NOT NULL COMMENT '导出任务ID',
+  `sc_id` bigint NOT NULL COMMENT '供应链ID',
+  `shop_id` bigint NOT NULL COMMENT '店铺ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `bill_id` bigint unsigned NOT NULL COMMENT '账单主键ID',
+  `bill_no` varchar(64) NOT NULL COMMENT '账单编号',
+  `item_status` varchar(32) NOT NULL COMMENT '任务项状态',
+  `data_snapshot_json` longtext NOT NULL COMMENT '导出数据快照JSON',
+  `file_key` varchar(500) DEFAULT NULL COMMENT '单账单文件键',
+  `failure_reason` varchar(1000) DEFAULT NULL COMMENT '失败原因',
+  `processed_at` datetime DEFAULT NULL COMMENT '处理时间',
+  `is_deleted` tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除：0正常1删除',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_bill_export_task_item` (`task_id`,`bill_no`),
+  KEY `idx_bill_export_task_item_scope` (`sc_id`,`shop_id`,`user_id`),
+  KEY `idx_bill_export_task_item_status` (`task_id`,`item_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='对账报表异步导出任务项';
+
+-- 对账报表异步导出站内通知
+CREATE TABLE `bill_export_notification` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `sc_id` bigint NOT NULL COMMENT '供应链ID',
+  `shop_id` bigint NOT NULL COMMENT '店铺ID',
+  `user_id` bigint NOT NULL COMMENT '接收用户ID',
+  `task_id` bigint unsigned NOT NULL COMMENT '导出任务ID',
+  `notice_type` varchar(32) NOT NULL COMMENT '通知类型',
+  `title` varchar(128) NOT NULL COMMENT '通知标题',
+  `content` varchar(1000) NOT NULL COMMENT '通知内容',
+  `redirect_path` varchar(500) NOT NULL COMMENT '受控跳转地址',
+  `read_status` tinyint NOT NULL DEFAULT '0' COMMENT '已读标识：0未读1已读',
+  `read_at` datetime DEFAULT NULL COMMENT '已读时间',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_bill_export_notice` (`task_id`,`notice_type`),
+  KEY `idx_bill_export_notice_query` (`sc_id`,`user_id`,`read_status`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='对账报表异步导出站内通知';

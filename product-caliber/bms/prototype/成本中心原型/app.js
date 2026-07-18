@@ -1,4 +1,8 @@
 import Dexie from "dexie";
+import { createApp, h, ref } from "vue";
+import { ElConfigProvider, ElDatePicker } from "element-plus";
+import zhCn from "element-plus/es/locale/lang/zh-cn.mjs";
+import "element-plus/dist/index.css";
 
 const sampleFiles = [
   { id: "df-delivery", name: "台湾端派送 （东风.xlsx", supplier: "东风", board: "派送成本", sheets: 24, size: "19.8 MB", defaultSheet: "黑貓" },
@@ -53,17 +57,40 @@ const pools = [
 ];
 
 const fees = [
-  { code: "COST-DEL-001", name: "派送费", board: "派送成本", aliases: ["運費", "本款", "宅配運費"], rules: 3, status: "启用" },
-  { code: "COST-DEL-006", name: "超才费", board: "派送成本", aliases: ["超才費", "超大", "材积附加"], rules: 1, status: "启用" },
-  { code: "COST-CLR-002", name: "进口税费", board: "清关成本", aliases: ["稅金", "税费", "關稅"], rules: 2, status: "启用" },
-  { code: "COST-CLR-008", name: "清关仓租", board: "清关成本", aliases: ["倉租", "萬海倉租", "遠雄倉租"], rules: 4, status: "启用" },
-  { code: "COST-SEA-001", name: "海运费", board: "海运成本", aliases: ["海運費", "普貨海運費"], rules: 2, status: "启用" },
-  { code: "COST-AIR-003", name: "中港运输费", board: "空运成本", aliases: ["中港段費", "中港車費"], rules: 1, status: "启用" },
-  { code: "COST-TRK-001", name: "租车费", board: "租车成本", aliases: ["9.6米車", "17.5米車", "70方車"], rules: 2, status: "启用" }
+  { code: "COST-DEL-001", name: "派送费", board: "派送成本", definition: "供应商完成尾程包裹配送所收取的基础运费，不含超材、偏远等附加收费。", remark: "按尾程运单归属。", rules: 3, references: 1532, status: "启用", updatedAt: "2026-07-10 16:20" },
+  { code: "COST-DEL-006", name: "超才费", board: "派送成本", definition: "尾程包裹超过供应商尺寸或材积限制后加收的费用。", remark: "供应商也可能写作超大或材积附加。", rules: 1, references: 186, status: "启用", updatedAt: "2026-07-08 11:35" },
+  { code: "COST-CLR-002", name: "进口税费", board: "清关成本", definition: "货物进口申报产生并由供应商代垫或代收的关税、进口税等税款。", remark: "不得与报关服务费合并。", rules: 2, references: 398, status: "启用", updatedAt: "2026-07-12 09:18" },
+  { code: "COST-CLR-008", name: "清关仓租", board: "清关成本", definition: "货物在清关或查验期间占用监管仓、机场仓产生的仓储费用。", remark: "通常作为间接成本按业务订单分摊。", rules: 4, references: 65, status: "启用", updatedAt: "2026-07-11 14:06" },
+  { code: "COST-SEA-001", name: "海运费", board: "海运成本", definition: "供应商承运海运主程产生的基础运输费用。", remark: "与空运板块的同名费项分别维护。", rules: 2, references: 66, status: "启用", updatedAt: "2026-07-06 17:42" },
+  { code: "COST-AIR-003", name: "中港运输费", board: "空运成本", definition: "空运货物由内地集货点运往香港机场或操作仓产生的运输费用。", remark: "按主运单或账期进入分摊池。", rules: 1, references: 88, status: "启用", updatedAt: "2026-07-05 10:27" },
+  { code: "COST-TRK-001", name: "租车费", board: "租车成本", definition: "因仓库提送、码头交接或履约调拨而租用车辆产生的费用。", remark: "车型差异通过供应商别名保留。", rules: 2, references: 26, status: "启用", updatedAt: "2026-07-03 10:25" }
 ];
 
-const state = { view: "overview", wizardStep: 1, selectedFile: "df-delivery", selectedSheet: "黑貓", billFilter: "全部", poolFilter: "全部", sidebarOpen: false, pendingAction: null };
-const routeNames = { overview: "成本总览", suppliers: "供应商管理", bills: "成本账单", import: "账单导入", pool: "成本池", allocation: "间接成本分摊", profit: "利润分析", fees: "成本费项" };
+const feeAliases = [
+  { id: "ALIAS-DEL-001", supplier: "东风", board: "派送成本", rawName: "運費", feeCode: "COST-DEL-001", structure: "台湾端派送月账单", sheet: "黑貓", status: "启用", version: 3, confirmer: "谭清辉", confirmedAt: "2026-07-10 16:20", note: "基础派送费用" },
+  { id: "ALIAS-DEL-002", supplier: "宅配通", board: "派送成本", rawName: "本款", feeCode: "COST-DEL-001", structure: "宅配通派送明细", sheet: "5月明細", status: "启用", version: 2, confirmer: "谭清辉", confirmedAt: "2026-07-09 10:12", note: "账单中的基础运费列" },
+  { id: "ALIAS-DEL-003", supplier: "顺盛", board: "派送成本", rawName: "宅配運費", feeCode: "COST-DEL-001", structure: "顺盛派送账单", sheet: "Sheet1", status: "启用", version: 1, confirmer: "谭清辉", confirmedAt: "2026-07-08 15:40", note: "" },
+  { id: "ALIAS-DEL-004", supplier: "东风", board: "派送成本", rawName: "超才費", feeCode: "COST-DEL-006", structure: "台湾端派送月账单", sheet: "黑貓", status: "启用", version: 2, confirmer: "谭清辉", confirmedAt: "2026-07-08 11:35", note: "超过材积限制" },
+  { id: "ALIAS-DEL-005", supplier: "宅配通", board: "派送成本", rawName: "超大", feeCode: "COST-DEL-006", structure: "宅配通派送明细", sheet: "5月明細", status: "启用", version: 1, confirmer: "谭清辉", confirmedAt: "2026-07-07 09:22", note: "" },
+  { id: "ALIAS-DEL-006", supplier: "顺盛", board: "派送成本", rawName: "材积附加", feeCode: "COST-DEL-006", structure: "顺盛派送账单", sheet: "Sheet1", status: "启用", version: 1, confirmer: "谭清辉", confirmedAt: "2026-07-07 09:28", note: "" },
+  { id: "ALIAS-CLR-001", supplier: "东风", board: "清关成本", rawName: "稅金", feeCode: "COST-CLR-002", structure: "东风清关账单", sheet: "清關費", status: "启用", version: 2, confirmer: "谭清辉", confirmedAt: "2026-07-12 09:18", note: "进口税款" },
+  { id: "ALIAS-CLR-002", supplier: "福广", board: "清关成本", rawName: "税费", feeCode: "COST-CLR-002", structure: "福广请款单", sheet: "稅金明細", status: "启用", version: 3, confirmer: "谭清辉", confirmedAt: "2026-07-12 09:16", note: "" },
+  { id: "ALIAS-CLR-003", supplier: "福广", board: "清关成本", rawName: "關稅", feeCode: "COST-CLR-002", structure: "福广请款单", sheet: "規費請款單", status: "停用", version: 2, confirmer: "谭清辉", confirmedAt: "2026-06-30 17:05", note: "供应商已拆分到税费字段" },
+  { id: "ALIAS-CLR-004", supplier: "东风", board: "清关成本", rawName: "倉租", feeCode: "COST-CLR-008", structure: "东风清关账单", sheet: "清關費", status: "启用", version: 1, confirmer: "谭清辉", confirmedAt: "2026-07-11 14:06", note: "" },
+  { id: "ALIAS-CLR-005", supplier: "福广", board: "清关成本", rawName: "萬海倉租", feeCode: "COST-CLR-008", structure: "福广请款单", sheet: "請款單(總)", status: "启用", version: 2, confirmer: "谭清辉", confirmedAt: "2026-07-11 13:58", note: "万海码头仓租" },
+  { id: "ALIAS-CLR-006", supplier: "福广", board: "清关成本", rawName: "遠雄倉租", feeCode: "COST-CLR-008", structure: "福广请款单", sheet: "請款單(總)", status: "启用", version: 2, confirmer: "谭清辉", confirmedAt: "2026-07-11 13:59", note: "远雄机场仓租" },
+  { id: "ALIAS-SEA-001", supplier: "联多", board: "海运成本", rawName: "海運費", feeCode: "COST-SEA-001", structure: "联多海运对账单", sheet: "sheet1", status: "启用", version: 2, confirmer: "谭清辉", confirmedAt: "2026-07-06 17:42", note: "" },
+  { id: "ALIAS-SEA-002", supplier: "联多", board: "海运成本", rawName: "普貨海運費", feeCode: "COST-SEA-001", structure: "联多海运对账单", sheet: "sheet1", status: "启用", version: 1, confirmer: "谭清辉", confirmedAt: "2026-07-06 17:43", note: "普货主程运费" },
+  { id: "ALIAS-AIR-001", supplier: "力宝", board: "空运成本", rawName: "中港段費", feeCode: "COST-AIR-003", structure: "力宝空运账单", sheet: "对帐单", status: "启用", version: 2, confirmer: "谭清辉", confirmedAt: "2026-07-05 10:27", note: "" },
+  { id: "ALIAS-AIR-002", supplier: "力宝", board: "空运成本", rawName: "中港車費", feeCode: "COST-AIR-003", structure: "力宝空运账单", sheet: "费用明细", status: "启用", version: 1, confirmer: "谭清辉", confirmedAt: "2026-07-05 10:28", note: "" },
+  { id: "ALIAS-TRK-001", supplier: "仓库送船公司", board: "租车成本", rawName: "9.6米車", feeCode: "COST-TRK-001", structure: "租车月结单", sheet: "租车", status: "启用", version: 2, confirmer: "谭清辉", confirmedAt: "2026-07-03 10:25", note: "" },
+  { id: "ALIAS-TRK-002", supplier: "仓库送船公司", board: "租车成本", rawName: "17.5米車", feeCode: "COST-TRK-001", structure: "租车月结单", sheet: "租车", status: "启用", version: 2, confirmer: "谭清辉", confirmedAt: "2026-07-03 10:25", note: "" },
+  { id: "ALIAS-TRK-003", supplier: "仓库送船公司", board: "租车成本", rawName: "70方車", feeCode: "COST-TRK-001", structure: "租车月结单", sheet: "租车", status: "启用", version: 2, confirmer: "谭清辉", confirmedAt: "2026-07-03 10:25", note: "" }
+];
+
+const state = { view: "overview", wizardStep: 1, selectedFile: "df-delivery", selectedSheet: "黑貓", costPeriodStart: "2026-06-01", costPeriodEnd: "2026-06-30", supplierPeriodStart: "2026-06-01", supplierPeriodEnd: "2026-07-16", billPeriodStart: "2026-06-01", billPeriodEnd: "2026-07-16", profitPeriodStart: "2026-06-01", profitPeriodEnd: "2026-06-30", billFilter: "全部", poolFilter: "全部", feeTab: "index", feeKeyword: "", feeBoard: "", feeStatus: "", aliasKeyword: "", aliasSupplier: "", aliasBoard: "", aliasStatus: "", sidebarOpen: false, pendingAction: null };
+const routeNames = { overview: "成本总览", suppliers: "供应商管理", bills: "成本账单", pool: "成本池", allocation: "间接成本分摊", profit: "利润分析", fees: "成本费项索引" };
+const dateRangePickerApps = new Map();
 
 const prototypeDb = new Dexie("BmsCostCenterPrototype");
 prototypeDb.version(1).stores({
@@ -76,6 +103,9 @@ prototypeDb.version(1).stores({
   operationLogs: "++id,entityType,entityId,action,createdAt",
   settings: "&key"
 });
+prototypeDb.version(2).stores({
+  feeAliases: "&id,supplier,board,rawName,feeCode,status,[supplier+board+rawName]"
+});
 
 const cloneData = value => JSON.parse(JSON.stringify(value));
 const initialData = {
@@ -84,7 +114,8 @@ const initialData = {
   bills: cloneData(bills),
   costs: cloneData(costs),
   pools: cloneData(pools),
-  fees: cloneData(fees)
+  fees: cloneData(fees),
+  feeAliases: cloneData(feeAliases)
 };
 const dataTableNames = Object.keys(initialData);
 
@@ -96,19 +127,27 @@ async function seedPrototypeDatabase(force = false) {
   await prototypeDb.transaction("rw", prototypeDb.tables, async () => {
     if (force) await Promise.all(prototypeDb.tables.map(table => table.clear()));
     for (const tableName of dataTableNames) await prototypeDb.table(tableName).bulkPut(cloneData(initialData[tableName]));
-    await prototypeDb.settings.put({ key: "seedVersion", value: 1 });
+    await prototypeDb.settings.put({ key: "seedVersion", value: 2 });
     await prototypeDb.operationLogs.add({ entityType: "系统", entityId: "成本中心原型", action: force ? "恢复初始模拟数据" : "初始化模拟数据", createdAt: new Date().toISOString() });
   });
 }
 
 async function initializePrototypeDatabase() {
   await prototypeDb.open();
-  if (!await prototypeDb.settings.get("seedVersion")) await seedPrototypeDatabase();
+  const seedState = await prototypeDb.settings.get("seedVersion");
+  if (!seedState) await seedPrototypeDatabase();
+  else if (Number(seedState.value) < 2) {
+    await prototypeDb.transaction("rw", [prototypeDb.fees, prototypeDb.feeAliases, prototypeDb.settings], async () => {
+      await prototypeDb.fees.bulkPut(cloneData(fees));
+      await prototypeDb.feeAliases.bulkPut(cloneData(feeAliases));
+      await prototypeDb.settings.put({ key: "seedVersion", value: 2 });
+    });
+  }
   await hydratePrototypeData();
 }
 
 async function hydratePrototypeData() {
-  for (const tableName of dataTableNames) replaceArray(window[tableName] || ({ sampleFiles, suppliers, bills, costs, pools, fees })[tableName], await prototypeDb.table(tableName).toArray());
+  for (const tableName of dataTableNames) replaceArray(window[tableName] || ({ sampleFiles, suppliers, bills, costs, pools, fees, feeAliases })[tableName], await prototypeDb.table(tableName).toArray());
 }
 
 async function recordOperation(entityType, entityId, action, detail = "") {
@@ -122,6 +161,7 @@ function makeId(prefix) {
 }
 
 const icon = (name) => `<i data-lucide="${name}"></i>`;
+const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
 const money = (value, currency) => `${value} ${currency}`;
 const statusClass = (value) => {
   if (["已结清", "已归属", "已分摊", "启用", "成本已齐"].includes(value)) return "success";
@@ -145,7 +185,7 @@ function tableFooter(total) {
 }
 
 function renderOverview() {
-  return `${pageHeader("成本总览", "供应商收费、成本归属、结清进度与订单利润的统一工作台", `<button class="btn" data-view="import">${icon("file-up")}导入供应商账单</button><button class="btn primary" data-view="pool">${icon("database")}处理成本池</button>`)}
+  return `${pageHeader("成本总览", "供应商收费、成本归属、结清进度与订单利润的统一工作台", `<button class="btn primary" data-view="pool">${icon("database")}处理成本池</button>`)}
     <div class="kpi-grid">
       <div class="kpi-card"><span class="kpi-icon">${icon("files")}</span><div class="kpi-label">本月成本账单</div><div class="kpi-value">8<small>份</small></div><div class="kpi-extra">较上月 +2 份</div></div>
       <div class="kpi-card warning"><span class="kpi-icon">${icon("circle-dollar-sign")}</span><div class="kpi-label">待结清金额</div><div class="kpi-value">714.1<small>千 CNY</small></div><div class="kpi-extra">TWD 已换算，仅供总览</div></div>
@@ -174,6 +214,7 @@ function renderSuppliers() {
     <div class="field"><label>成本板块</label><select class="select"><option>全部板块</option><option>派送成本</option><option>清关成本</option><option>海运成本</option><option>空运成本</option><option>租车成本</option></select></div>
     <div class="field"><label>成本账期类型</label><select class="select"><option>全部类型</option><option>周</option><option>半月</option><option>月</option><option>自然天</option><option>不固定</option></select></div>
     <div class="field"><label>状态</label><select class="select"><option>全部状态</option><option>启用</option><option>停用</option></select></div>
+    <div class="field"><label>成本账期范围</label><div id="supplier-period-range" class="date-range-control"></div></div>
     <div class="filter-actions"><button class="btn primary">${icon("search")}查询</button><button class="btn">${icon("rotate-ccw")}重置</button></div>
   </div></div>
   <section class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th>供应商编码</th><th>供应商名称</th><th>适用成本板块</th><th>账期类型</th><th>当前成本账期</th><th>默认币种</th><th>成本账单</th><th>待结清金额</th><th>已结清金额</th><th>状态</th><th>操作</th></tr></thead><tbody>
@@ -187,9 +228,9 @@ function billTable(rows, selectable = true) {
 
 function renderBills() {
   const filtered = state.billFilter === "全部" ? bills : bills.filter(b=>b.state===state.billFilter);
-  return `${pageHeader("成本账单", "成本账单即供应商账单，仅登记待结清或已结清状态", `<button class="btn">${icon("download")}导出所选</button><button class="btn primary" data-view="import">${icon("file-up")}导入供应商账单</button>`)}
+  return `${pageHeader("成本账单", "成本账单即供应商账单，仅登记待结清或已结清状态", `<button class="btn primary" data-action="open-import">${icon("file-up")}导入供应商账单</button>`)}
     <div class="filter-panel"><div class="filter-grid">
-      <div class="field"><label>成本账单编号</label><input class="input" placeholder="输入 APB 编号"></div><div class="field"><label>供应商</label><select class="select"><option>全部供应商</option>${suppliers.filter(s=>s.state==="启用").map(s=>`<option>${s.name}</option>`).join("")}</select></div><div class="field"><label>成本板块</label><select class="select"><option>全部板块</option><option>派送成本</option><option>清关成本</option><option>海运成本</option><option>空运成本</option><option>租车成本</option></select></div><div class="field"><label>实际成本账期</label><input class="input" value="2026-06-01 至 2026-07-16"></div>
+      <div class="field"><label>成本账单编号</label><input class="input" placeholder="输入 APB 编号"></div><div class="field"><label>供应商</label><select class="select"><option>全部供应商</option>${suppliers.filter(s=>s.state==="启用").map(s=>`<option>${s.name}</option>`).join("")}</select></div><div class="field"><label>成本板块</label><select class="select"><option>全部板块</option><option>派送成本</option><option>清关成本</option><option>海运成本</option><option>空运成本</option><option>租车成本</option></select></div><div class="field"><label>实际成本账期</label><div id="bill-period-range" class="date-range-control"></div></div>
       <div class="field"><label>结清状态</label><div class="segmented">${["全部","待结清","已结清"].map(v=>`<button class="${state.billFilter===v?"active":""}" data-action="bill-filter" data-value="${v}">${v}</button>`).join("")}</div></div><div class="filter-actions"><button class="btn primary">${icon("search")}查询</button><button class="btn">${icon("rotate-ccw")}重置</button></div>
     </div></div><section class="panel">${billTable(filtered)}${tableFooter(filtered.length)}</section>`;
 }
@@ -198,9 +239,8 @@ function wizardSteps() {
   return `<div class="steps">${[[1,"选择供应商并上传文件"],[2,"确认字段与费项配对"],[3,"预览并确认导入"]].map(([n,t])=>`<div class="step ${state.wizardStep===n?"active":state.wizardStep>n?"done":""}"><span class="step-index">${state.wizardStep>n?icon("check"):n}</span><span>${t}</span></div>`).join("")}</div>`;
 }
 
-function renderImport() {
-  return `${pageHeader("供应商账单导入", "直接上传供应商原始文件，由系统识别后经财务确认形成成本明细", `<button class="btn" data-action="import-history">${icon("history")}导入记录</button>`)}
-  <div class="wizard">${wizardSteps()}<div class="wizard-body">${state.wizardStep===1?wizardOne():state.wizardStep===2?wizardTwo():wizardThree()}</div>
+function renderImportWizard() {
+  return `<div class="wizard">${wizardSteps()}<div class="wizard-body">${state.wizardStep===1?wizardOne():state.wizardStep===2?wizardTwo():wizardThree()}</div>
   <div class="wizard-actions"><div>${state.wizardStep>1?`<button class="btn" data-action="wizard-back">${icon("arrow-left")}上一步</button>`:""}</div><div>${state.wizardStep<3?`<button class="btn primary" data-action="wizard-next">下一步${icon("arrow-right")}</button>`:`<button class="btn primary" data-action="confirm-import">${icon("check")}确认导入</button>`}</div></div></div>`;
 }
 
@@ -210,7 +250,7 @@ function wizardOne() {
     <div class="field"><label class="required">供应商</label><select class="select" id="wizard-supplier"><option>${f.supplier}</option>${suppliers.filter(s=>s.name!==f.supplier&&s.state==="启用").map(s=>`<option>${s.name}</option>`).join("")}</select></div>
     <div class="field"><label class="required">成本板块</label><select class="select"><option>${f.board}</option><option>派送成本</option><option>清关成本</option><option>海运成本</option><option>空运成本</option><option>租车成本</option></select></div>
     <div class="field"><label class="required">默认币种</label><select class="select"><option>${["东风","福广","宅配通","顺盛"].includes(f.supplier)?"TWD":"CNY"}</option><option>CNY</option><option>TWD</option><option>USD</option></select></div>
-    <div class="field"><label class="required">账期开始日</label><input class="input" type="date" value="2026-06-01"></div><div class="field"><label class="required">账期结束日</label><input class="input" type="date" value="2026-06-30"></div><div class="field"><label class="required">导入时结清状态</label><select class="select"><option>待结清</option><option>已结清</option></select></div>
+    <div class="field"><label class="required">实际成本账期</label><div id="cost-period-range" class="date-range-control"></div></div><div class="field"><label class="required">导入时结清状态</label><select class="select"><option>待结清</option><option>已结清</option></select></div>
   </div></div><div class="form-section"><div class="form-section-title">上传原始账单</div><label class="drop-zone"><input type="file" accept=".xls,.xlsx" hidden><span class="drop-zone-inner">${icon("upload-cloud")}拖放 Excel 到此处，或点击选择本地文件</span></label>
   <div class="inline-note">以下文件来自“成本账单样本”目录。点击任一文件可直接带入演示，无需修改原始表头或列顺序。</div><div class="sample-files">${sampleFiles.map(x=>`<div class="sample-file ${x.id===state.selectedFile?"selected":""}" data-action="select-file" data-id="${x.id}"><span class="file-icon">${icon("file-spreadsheet")}</span><div><div class="file-name">${x.name}</div><div class="file-meta">${x.supplier} · ${x.board} · ${x.sheets} 个 sheet · ${x.size}</div></div><span class="file-check">${x.id===state.selectedFile?icon("circle-check"):""}</span></div>`).join("")}</div></div>`;
 }
@@ -268,24 +308,49 @@ function renderProfit() {
   ];
   return `${pageHeader("利润分析", "按业务订单关联客户侧收入、返款扣减影响、直接成本与间接成本", `<button class="btn">${icon("download")}导出分析</button>`)}
   <div class="kpi-grid"><div class="kpi-card info"><div class="kpi-label">已确认客户侧收入</div><div class="kpi-value">3.86<small>百万 CNY</small></div><div class="kpi-extra">客户账单锁定汇率</div></div><div class="kpi-card"><div class="kpi-label">直接成本</div><div class="kpi-value">2.31<small>百万 CNY</small></div><div class="kpi-extra">包裹与订单级合计</div></div><div class="kpi-card warning"><div class="kpi-label">间接成本</div><div class="kpi-value">0.72<small>百万 CNY</small></div><div class="kpi-extra">有效分摊版本</div></div><div class="kpi-card success"><div class="kpi-label">总实际利润</div><div class="kpi-value">0.63<small>百万 CNY</small></div><div class="kpi-extra">仅成本已齐订单</div></div><div class="kpi-card danger"><div class="kpi-label">成本未齐订单</div><div class="kpi-value">410<small>单</small></div><div class="kpi-extra">当前显示暂估实际利润</div></div></div>
-  <div class="filter-panel"><div class="filter-grid"><div class="field"><label>业务订单 / 客户</label><input class="input" placeholder="订单号或客户名称"></div><div class="field"><label>集运线路</label><select class="select"><option>全部线路</option><option>台湾海快</option><option>台湾空运</option></select></div><div class="field"><label>成本完整性</label><select class="select"><option>全部</option><option>成本已齐</option><option>成本未齐</option></select></div><div class="field"><label>账期</label><input class="input" value="2026-06-01 至 2026-06-30"></div><div class="filter-actions"><button class="btn primary">${icon("search")}查询</button><button class="btn">${icon("rotate-ccw")}重置</button></div></div></div>
+  <div class="filter-panel"><div class="filter-grid"><div class="field"><label>业务订单 / 客户</label><input class="input" placeholder="订单号或客户名称"></div><div class="field"><label>集运线路</label><select class="select"><option>全部线路</option><option>台湾海快</option><option>台湾空运</option></select></div><div class="field"><label>成本完整性</label><select class="select"><option>全部</option><option>成本已齐</option><option>成本未齐</option></select></div><div class="field"><label>账期</label><div id="profit-period-range" class="date-range-control"></div></div><div class="filter-actions"><button class="btn primary">${icon("search")}查询</button><button class="btn">${icon("rotate-ccw")}重置</button></div></div></div>
   <section class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th>业务订单号</th><th>客户</th><th>集运线路</th><th>客户侧收入</th><th>直接成本</th><th>间接成本</th><th>利润</th><th>利润率</th><th>成本完整性</th><th>操作</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="link mono">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td>${r.slice(3,8).map(v=>`<td class="num">${v}${v.includes("%")?"":" CNY"}</td>`).join("")}<td>${status(r[8])}</td><td><button class="btn small" data-action="profit-detail" data-id="${r[0]}">成本构成</button></td></tr>`).join("")}</tbody></table></div>${tableFooter(rows.length)}</section>`;
 }
 
 function renderFees() {
-  return `${pageHeader("成本费项", "按成本板块维护常规成本费项，并将供应商原始名称归一到内部口径", `<button class="btn">${icon("list-tree")}供应商别名映射</button><button class="btn primary" data-action="new-fee">${icon("plus")}新增常规成本费项</button>`)}
-  <div class="inline-note">客户侧费项索引与成本费项索引分开维护。不同成本板块允许同名，同一板块内启用中的名称必须唯一。</div>
-  <div class="filter-panel"><div class="filter-grid"><div class="field"><label>费项编码 / 名称</label><input class="input" placeholder="输入编码或常规成本费项"></div><div class="field"><label>成本板块</label><select class="select"><option>全部板块</option><option>派送成本</option><option>清关成本</option><option>海运成本</option><option>空运成本</option><option>租车成本</option></select></div><div class="field"><label>状态</label><select class="select"><option>全部状态</option><option>启用</option><option>停用</option></select></div><div class="filter-actions"><button class="btn primary">${icon("search")}查询</button><button class="btn">${icon("rotate-ccw")}重置</button></div></div></div>
-  <section class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th>成本费项编码</th><th>常规成本费项</th><th>成本板块</th><th>供应商原始名称</th><th>分摊规则</th><th>状态</th><th>操作</th></tr></thead><tbody>${fees.map(f=>`<tr><td class="mono">${f.code}</td><td class="strong">${f.name}</td><td>${tag(f.board,"purple")}</td><td>${f.aliases.map(a=>tag(a,"gray")).join("")}</td><td><span class="link" data-action="fee-rules" data-id="${f.code}">${f.rules} 条</span></td><td>${status(f.status)}</td><td><button class="btn small" data-action="fee-alias" data-id="${f.code}">维护别名</button><button class="btn small">编辑</button></td></tr>`).join("")}</tbody></table></div>${tableFooter(fees.length)}</section>`;
+  const activeAliases = feeAliases.filter(item => item.status === "启用");
+  const supplierOptions = [...new Set([...suppliers.map(item => item.name), ...feeAliases.map(item => item.supplier)])];
+  const filteredFees = fees.filter(item => {
+    const text = `${item.code} ${item.name} ${item.definition || ""}`.toLowerCase();
+    return (!state.feeKeyword || text.includes(state.feeKeyword.toLowerCase())) && (!state.feeBoard || item.board === state.feeBoard) && (!state.feeStatus || item.status === state.feeStatus);
+  });
+  const filteredAliases = feeAliases.filter(item => {
+    const fee = fees.find(candidate => candidate.code === item.feeCode);
+    const text = `${item.rawName} ${item.supplier} ${item.feeCode} ${fee?.name || ""} ${item.sheet || ""}`.toLowerCase();
+    return (!state.aliasKeyword || text.includes(state.aliasKeyword.toLowerCase())) && (!state.aliasSupplier || item.supplier === state.aliasSupplier) && (!state.aliasBoard || item.board === state.aliasBoard) && (!state.aliasStatus || item.status === state.aliasStatus);
+  });
+  const tabs = `<div class="fee-tabs"><button class="${state.feeTab === "index" ? "active" : ""}" data-action="fee-tab" data-value="index">常规成本费项</button><button class="${state.feeTab === "aliases" ? "active" : ""}" data-action="fee-tab" data-value="aliases">供应商费项别名 <span>${feeAliases.length}</span></button></div>`;
+  const summary = `<div class="fee-summary"><div><span>常规成本费项</span><strong>${fees.length}</strong><small>五个成本板块</small></div><div><span>启用费项</span><strong>${fees.filter(item => item.status === "启用").length}</strong><small>可用于后续导入</small></div><div><span>启用别名映射</span><strong>${activeAliases.length}</strong><small>${new Set(activeAliases.map(item => item.supplier)).size} 家供应商</small></div><div><span>分摊规则</span><strong>${fees.reduce((sum, item) => sum + item.rules, 0)}</strong><small>在费项详情中维护</small></div></div>`;
+  const indexView = `<div class="inline-note">成本费项索引与客户侧费项索引分开维护。每条常规成本费项只属于一个成本板块；不同板块允许同名，同一板块内名称不可重复。</div>
+    <div class="filter-panel"><div class="filter-grid"><div class="field"><label>费项编码 / 名称</label><input id="fee-keyword" class="input" value="${escapeHtml(state.feeKeyword)}" placeholder="输入编码、名称或业务定义"></div><div class="field"><label>成本板块</label><select id="fee-board" class="select"><option value="">全部板块</option>${["派送成本","清关成本","海运成本","空运成本","租车成本"].map(item => `<option value="${item}" ${state.feeBoard === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="field"><label>状态</label><select id="fee-status" class="select"><option value="">全部状态</option>${["启用","停用"].map(item => `<option value="${item}" ${state.feeStatus === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="filter-actions"><button class="btn primary" data-action="fee-query">${icon("search")}查询</button><button class="btn" data-action="fee-reset">${icon("rotate-ccw")}重置</button></div></div></div>
+    <section class="panel"><div class="panel-head"><span class="panel-title">费项主档</span><span class="panel-tools">共 ${filteredFees.length} 项</span></div><div class="table-wrap"><table class="data-table fee-index-table"><thead><tr><th>成本费项编码</th><th>常规成本费项 / 业务定义</th><th>成本板块</th><th>费项类型</th><th>供应商别名</th><th>成本明细引用</th><th>分摊规则</th><th>状态</th><th>操作</th></tr></thead><tbody>${filteredFees.map(f => {
+      const aliases = feeAliases.filter(item => item.feeCode === f.code && item.status === "启用");
+      return `<tr><td class="link mono" data-action="open-fee" data-id="${f.code}">${f.code}</td><td><div class="fee-name-cell"><strong>${escapeHtml(f.name)}</strong><span>${escapeHtml(f.definition)}</span></div></td><td>${tag(f.board,"purple")}</td><td>${tag("应付类","blue")}</td><td><button class="count-link" data-action="fee-alias" data-id="${f.code}"><strong>${aliases.length}</strong><span>条 / ${new Set(aliases.map(item => item.supplier)).size} 家</span></button></td><td class="num">${f.references || 0}</td><td><button class="count-link" data-action="fee-rules" data-id="${f.code}"><strong>${f.rules}</strong><span>条</span></button></td><td>${status(f.status)}</td><td><button class="btn small" data-action="open-fee" data-id="${f.code}">详情</button><button class="btn small" data-action="edit-fee" data-id="${f.code}">编辑</button></td></tr>`;
+    }).join("") || `<tr><td colspan="9" class="empty-cell">没有符合条件的成本费项</td></tr>`}</tbody></table></div>${tableFooter(filteredFees.length)}</section>`;
+  const aliasView = `<div class="inline-note">供应商原始名称按“供应商 + 成本板块 + 原始名称”映射到常规成本费项。系统保留原文；名称相近不代表业务含义相同，映射须经财务确认。</div>
+    <div class="filter-panel"><div class="filter-grid alias-filter-grid"><div class="field"><label>原始名称 / 常规费项</label><input id="alias-keyword" class="input" value="${escapeHtml(state.aliasKeyword)}" placeholder="输入原始名称、费项编码或名称"></div><div class="field"><label>供应商</label><select id="alias-supplier" class="select"><option value="">全部供应商</option>${supplierOptions.map(item => `<option value="${escapeHtml(item)}" ${state.aliasSupplier === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select></div><div class="field"><label>成本板块</label><select id="alias-board" class="select"><option value="">全部板块</option>${["派送成本","清关成本","海运成本","空运成本","租车成本"].map(item => `<option value="${item}" ${state.aliasBoard === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="field"><label>状态</label><select id="alias-status" class="select"><option value="">全部状态</option>${["启用","停用"].map(item => `<option value="${item}" ${state.aliasStatus === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="filter-actions"><button class="btn primary" data-action="alias-query">${icon("search")}查询</button><button class="btn" data-action="alias-reset">${icon("rotate-ccw")}重置</button></div></div></div>
+    <section class="panel"><div class="panel-head"><span class="panel-title">供应商费项别名映射</span><span class="panel-tools">共 ${filteredAliases.length} 条</span></div><div class="table-wrap"><table class="data-table alias-index-table"><thead><tr><th>供应商</th><th>成本板块</th><th>供应商原始费项名称</th><th>映射至常规成本费项</th><th>适用文件 / Sheet</th><th>版本</th><th>最近确认</th><th>状态</th><th>操作</th></tr></thead><tbody>${filteredAliases.map(item => {
+      const fee = fees.find(candidate => candidate.code === item.feeCode);
+      return `<tr><td class="strong">${escapeHtml(item.supplier)}</td><td>${tag(item.board,"purple")}</td><td><strong>${escapeHtml(item.rawName)}</strong></td><td><div class="fee-target"><span>${escapeHtml(fee?.name || "已停用费项")}</span><small>${item.feeCode}</small></div></td><td><div class="fee-target"><span>${escapeHtml(item.structure || "不限定文件结构")}</span><small>${escapeHtml(item.sheet || "全部 Sheet")}</small></div></td><td>V${item.version}</td><td><div class="fee-target"><span>${escapeHtml(item.confirmer)}</span><small>${escapeHtml(item.confirmedAt)}</small></div></td><td>${status(item.status)}</td><td><button class="btn small" data-action="edit-alias" data-id="${item.id}">编辑</button><button class="btn small" data-action="toggle-alias" data-id="${item.id}">${item.status === "启用" ? "停用" : "启用"}</button></td></tr>`;
+    }).join("") || `<tr><td colspan="9" class="empty-cell">没有符合条件的供应商费项别名</td></tr>`}</tbody></table></div>${tableFooter(filteredAliases.length)}</section>`;
+  const action = state.feeTab === "index" ? `<button class="btn primary" data-action="new-fee">${icon("plus")}新增常规成本费项</button>` : `<button class="btn primary" data-action="new-alias">${icon("plus")}新增供应商别名</button>`;
+  return `${pageHeader("成本费项索引", "统一五大成本板块的内部费项口径，并管理供应商原始名称映射", action)}${summary}${tabs}${state.feeTab === "index" ? indexView : aliasView}`;
 }
 
 function renderView() {
+  destroyAllDateRangePickers();
   const content=document.getElementById("content");
-  const views={overview:renderOverview,suppliers:renderSuppliers,bills:renderBills,import:renderImport,pool:renderPool,allocation:renderAllocation,profit:renderProfit,fees:renderFees};
+  const views={overview:renderOverview,suppliers:renderSuppliers,bills:renderBills,pool:renderPool,allocation:renderAllocation,profit:renderProfit,fees:renderFees};
   content.innerHTML=(views[state.view]||renderOverview)();
   document.querySelector(".current-route").textContent=routeNames[state.view];
   document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.view===state.view));
   refreshIcons();
+  initializeViewDateRangePickers();
   window.scrollTo({top:0,behavior:"instant"});
 }
 
@@ -294,8 +359,78 @@ function showDrawer(title, body) {
   drawer.classList.remove("hidden"); document.getElementById("drawer-backdrop").classList.remove("hidden"); refreshIcons();
 }
 function closeDrawer(){document.getElementById("drawer").classList.add("hidden");document.getElementById("drawer-backdrop").classList.add("hidden");}
-function showModal(title, body, confirm="确认") { const m=document.getElementById("modal"); m.innerHTML=`<div class="modal-head"><span class="modal-title">${title}</span><button class="icon-btn" data-action="close-modal">${icon("x")}</button></div><div class="modal-body">${body}</div><div class="modal-foot"><button class="btn" data-action="close-modal">取消</button><button class="btn primary" data-action="modal-confirm">${confirm}</button></div>`;m.classList.remove("hidden");document.getElementById("modal-backdrop").classList.remove("hidden");refreshIcons();}
-function closeModal(){document.getElementById("modal").classList.add("hidden");document.getElementById("modal-backdrop").classList.add("hidden");state.pendingAction=null;}
+function openImportModal(reset = false) {
+  if (reset) state.wizardStep = 1;
+  destroyDateRangePicker("cost-period-range");
+  const modal = document.getElementById("modal");
+  modal.classList.add("import-wizard-modal");
+  modal.innerHTML = `<div class="modal-head import-modal-head"><div class="modal-title-stack"><span class="modal-title">导入供应商账单</span><small>确认供应商与账期，完成字段配对后形成成本账单及成本明细</small></div><button class="icon-btn" data-action="close-modal" title="关闭">${icon("x")}</button></div><div class="import-modal-body">${renderImportWizard()}</div>`;
+  modal.classList.remove("hidden");
+  document.getElementById("modal-backdrop").classList.remove("hidden");
+  refreshIcons();
+  initializeCostPeriodPicker();
+}
+function destroyDateRangePicker(id) {
+  const app = dateRangePickerApps.get(id);
+  if (!app) return;
+  app.unmount();
+  dateRangePickerApps.delete(id);
+}
+function destroyAllDateRangePickers() {
+  [...dateRangePickerApps.keys()].forEach(destroyDateRangePicker);
+}
+function mountDateRangePicker({ id, start, end, onUpdate, ariaLabel }) {
+  destroyDateRangePicker(id);
+  const mountPoint = document.getElementById(id);
+  if (!mountPoint) return;
+  const app = createApp({
+    setup() {
+      const selectedPeriod = ref([start, end]);
+      const updatePeriod = value => {
+        selectedPeriod.value = value;
+        if (!Array.isArray(value) || value.length !== 2) return;
+        onUpdate(value);
+      };
+      return () => h(ElConfigProvider, { locale: zhCn }, {
+        default: () => h(ElDatePicker, {
+          modelValue: selectedPeriod.value,
+          "onUpdate:modelValue": updatePeriod,
+          type: "daterange",
+          rangeSeparator: "至",
+          startPlaceholder: "开始日期",
+          endPlaceholder: "结束日期",
+          format: "YYYY/MM/DD",
+          valueFormat: "YYYY-MM-DD",
+          clearable: false,
+          teleported: true,
+          popperClass: "cost-period-picker-popper",
+          ariaLabel
+        })
+      });
+    }
+  });
+  app.mount(mountPoint);
+  dateRangePickerApps.set(id, app);
+}
+function initializeCostPeriodPicker() {
+  mountDateRangePicker({
+    id: "cost-period-range",
+    start: state.costPeriodStart,
+    end: state.costPeriodEnd,
+    ariaLabel: "实际成本账期日期范围",
+    onUpdate: value => { [state.costPeriodStart, state.costPeriodEnd] = value; }
+  });
+}
+function initializeViewDateRangePickers() {
+  const configs = {
+    suppliers: { id: "supplier-period-range", start: state.supplierPeriodStart, end: state.supplierPeriodEnd, ariaLabel: "供应商成本账期筛选范围", onUpdate: value => { [state.supplierPeriodStart, state.supplierPeriodEnd] = value; } },
+    bills: { id: "bill-period-range", start: state.billPeriodStart, end: state.billPeriodEnd, ariaLabel: "成本账单实际成本账期筛选范围", onUpdate: value => { [state.billPeriodStart, state.billPeriodEnd] = value; } },
+    profit: { id: "profit-period-range", start: state.profitPeriodStart, end: state.profitPeriodEnd, ariaLabel: "利润分析账期筛选范围", onUpdate: value => { [state.profitPeriodStart, state.profitPeriodEnd] = value; } }
+  };
+  if (configs[state.view]) mountDateRangePicker(configs[state.view]);
+}
+function showModal(title, body, confirm="确认") { destroyDateRangePicker("cost-period-range");const m=document.getElementById("modal"); m.classList.remove("import-wizard-modal");m.innerHTML=`<div class="modal-head"><span class="modal-title">${title}</span><button class="icon-btn" data-action="close-modal">${icon("x")}</button></div><div class="modal-body">${body}</div><div class="modal-foot"><button class="btn" data-action="close-modal">取消</button><button class="btn primary" data-action="modal-confirm">${confirm}</button></div>`;m.classList.remove("hidden");document.getElementById("modal-backdrop").classList.remove("hidden");refreshIcons();}
+function closeModal(){destroyDateRangePicker("cost-period-range");const modal=document.getElementById("modal");modal.classList.add("hidden");modal.classList.remove("import-wizard-modal");document.getElementById("modal-backdrop").classList.add("hidden");state.pendingAction=null;}
 function toast(message,type="success"){const stack=document.getElementById("toast-stack");const el=document.createElement("div");el.className=`toast ${type}`;el.innerHTML=`${icon(type==="success"?"circle-check":"triangle-alert")}<span>${message}</span>`;stack.appendChild(el);refreshIcons();setTimeout(()=>el.remove(),3200);}
 
 function dataToolsModal() {
@@ -307,7 +442,7 @@ async function exportPrototypeData() {
   const data = {};
   for (const tableName of dataTableNames) data[tableName] = await prototypeDb.table(tableName).toArray();
   data.operationLogs = await prototypeDb.operationLogs.toArray();
-  const payload = { format: "bms-cost-center-prototype", version: 1, exportedAt: new Date().toISOString(), data };
+  const payload = { format: "bms-cost-center-prototype", version: 2, exportedAt: new Date().toISOString(), data };
   const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" }));
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -320,12 +455,17 @@ async function exportPrototypeData() {
 async function importPrototypeData(file) {
   const payload = JSON.parse(await file.text());
   if (payload?.format !== "bms-cost-center-prototype" || !payload.data) throw new Error("不是有效的成本中心模拟数据文件");
-  for (const tableName of dataTableNames) if (!Array.isArray(payload.data[tableName])) throw new Error(`模拟数据缺少 ${tableName}`);
+  for (const tableName of dataTableNames) {
+    if (!Array.isArray(payload.data[tableName]) && tableName !== "feeAliases") throw new Error(`模拟数据缺少 ${tableName}`);
+  }
   await prototypeDb.transaction("rw", prototypeDb.tables, async () => {
     await Promise.all(prototypeDb.tables.map(table => table.clear()));
-    for (const tableName of dataTableNames) if (payload.data[tableName].length) await prototypeDb.table(tableName).bulkAdd(cloneData(payload.data[tableName]));
+    for (const tableName of dataTableNames) {
+      const rows = Array.isArray(payload.data[tableName]) ? payload.data[tableName] : initialData[tableName];
+      if (rows.length) await prototypeDb.table(tableName).bulkAdd(cloneData(rows));
+    }
     if (Array.isArray(payload.data.operationLogs) && payload.data.operationLogs.length) await prototypeDb.operationLogs.bulkAdd(cloneData(payload.data.operationLogs).map(({ id, ...row }) => row));
-    await prototypeDb.settings.put({ key: "seedVersion", value: 1 });
+    await prototypeDb.settings.put({ key: "seedVersion", value: 2 });
     await prototypeDb.operationLogs.add({ entityType: "系统", entityId: "成本中心原型", action: "导入模拟数据", createdAt: new Date().toISOString() });
   });
   await hydratePrototypeData();
@@ -338,7 +478,63 @@ async function commitPendingAction() {
   const action = state.pendingAction;
   if (!action) { closeModal(); toast("操作已提交"); return; }
 
-  if (action.type === "settleBill") {
+  if (action.type === "saveFee") {
+    const original = fees.find(item => item.code === action.id);
+    const code = (document.getElementById("fee-form-code")?.value || "").trim().toUpperCase();
+    const name = (document.getElementById("fee-form-name")?.value || "").trim();
+    const board = document.getElementById("fee-form-board")?.value || original?.board || "";
+    const definition = (document.getElementById("fee-form-definition")?.value || "").trim();
+    const remark = (document.getElementById("fee-form-remark")?.value || "").trim();
+    const feeStatus = document.getElementById("fee-form-status")?.value || "启用";
+    if (!code || !name || !board || !definition) { toast("请完整填写成本费项编码、名称、成本板块和业务定义", "warning"); return; }
+    if (!/^COST-[A-Z0-9-]+$/.test(code)) { toast("成本费项编码应以 COST- 开头，并仅使用大写字母、数字和连字符", "warning"); return; }
+    if (!original && fees.some(item => item.code === code)) { toast("成本费项编码已存在", "warning"); return; }
+    const duplicateName = fees.find(item => item.code !== (original?.code || code) && item.board === board && item.name === name);
+    if (duplicateName) { toast(`“${name}”已存在于${board}，同一板块内名称不可重复`, "warning"); return; }
+    const updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    const next = { ...original, code, name, board, definition, remark, status: feeStatus, rules: original?.rules || 0, references: original?.references || 0, updatedAt };
+    if (original) Object.assign(original, next); else fees.unshift(next);
+    await prototypeDb.fees.put(cloneData(next));
+    await recordOperation("成本费项索引", code, original ? "编辑常规成本费项" : "新增常规成本费项", `${board} / ${name}`);
+  } else if (action.type === "saveAlias") {
+    const original = feeAliases.find(item => item.id === action.id);
+    const supplier = document.getElementById("alias-form-supplier")?.value || "";
+    const board = document.getElementById("alias-form-board")?.value || "";
+    const rawName = (document.getElementById("alias-form-raw")?.value || "").trim();
+    const feeCode = document.getElementById("alias-form-fee")?.value || "";
+    const structure = (document.getElementById("alias-form-structure")?.value || "").trim();
+    const sheet = (document.getElementById("alias-form-sheet")?.value || "").trim();
+    const aliasStatus = document.getElementById("alias-form-status")?.value || "启用";
+    const note = (document.getElementById("alias-form-note")?.value || "").trim();
+    const targetFee = fees.find(item => item.code === feeCode);
+    if (!supplier || !board || !rawName || !targetFee) { toast("请完整填写供应商、成本板块、原始费项名称和常规成本费项", "warning"); return; }
+    if (targetFee.board !== board) { toast("供应商别名与常规成本费项必须属于同一成本板块", "warning"); return; }
+    if (aliasStatus === "启用" && targetFee.status !== "启用") { toast("启用中的别名只能映射到启用中的常规成本费项", "warning"); return; }
+    const duplicate = feeAliases.find(item => item.id !== original?.id && item.supplier === supplier && item.board === board && item.rawName.trim().toLowerCase() === rawName.toLowerCase() && (item.structure || "") === structure && (item.sheet || "") === sheet && item.status === "启用" && aliasStatus === "启用");
+    if (duplicate) { toast("相同供应商、板块、原始名称和适用范围下已存在启用映射", "warning"); return; }
+    const confirmedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    const next = { ...original, id: original?.id || makeId("ALIAS"), supplier, board, rawName, feeCode, structure, sheet, status: aliasStatus, note, version: (original?.version || 0) + 1, confirmer: "谭清辉", confirmedAt };
+    if (original) Object.assign(original, next); else feeAliases.unshift(next);
+    await prototypeDb.feeAliases.put(cloneData(next));
+    await recordOperation("供应商费项别名", next.id, original ? "更新别名映射版本" : "新增别名映射", `${supplier} / ${rawName} → ${targetFee.name}`);
+  } else if (action.type === "toggleFee") {
+    const fee = fees.find(item => item.code === action.id);
+    fee.status = fee.status === "启用" ? "停用" : "启用";
+    fee.updatedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    await prototypeDb.fees.put(cloneData(fee));
+    await recordOperation("成本费项索引", fee.code, `${fee.status}常规成本费项`);
+  } else if (action.type === "toggleAlias") {
+    const alias = feeAliases.find(item => item.id === action.id);
+    const nextStatus = alias.status === "启用" ? "停用" : "启用";
+    const targetFee = fees.find(item => item.code === alias.feeCode);
+    if (nextStatus === "启用" && targetFee?.status !== "启用") { toast("目标常规成本费项已停用，不能启用该别名", "warning"); return; }
+    alias.status = nextStatus;
+    alias.version += 1;
+    alias.confirmer = "谭清辉";
+    alias.confirmedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    await prototypeDb.feeAliases.put(cloneData(alias));
+    await recordOperation("供应商费项别名", alias.id, `${alias.status}别名映射`, alias.rawName);
+  } else if (action.type === "settleBill") {
     const bill = bills.find(item => item.id === action.id);
     bill.settled = bill.amount;
     bill.state = "已结清";
@@ -364,7 +560,7 @@ async function commitPendingAction() {
     const file = sampleFiles.find(item => item.id === state.selectedFile);
     const supplier = suppliers.find(item => item.name === file.supplier);
     const currency = ["东风","福广","宅配通","顺盛"].includes(file.supplier) ? "TWD" : "CNY";
-    const bill = { id: makeId(`APB-${supplier?.code || file.supplier}`), supplier: file.supplier, board: file.board, period: "2026-07-01 至 2026-07-15", amount: "168,420.000", currency, settled: "0.000", state: "待结清", rows: 2412, direct: 2198, indirect: 214, unresolved: 18, file: file.name, created: new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-") };
+    const bill = { id: makeId(`APB-${supplier?.code || file.supplier}`), supplier: file.supplier, board: file.board, period: `${state.costPeriodStart} 至 ${state.costPeriodEnd}`, amount: "168,420.000", currency, settled: "0.000", state: "待结清", rows: 2412, direct: 2198, indirect: 214, unresolved: 18, file: file.name, created: new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-") };
     bills.unshift(bill);
     await prototypeDb.bills.add(cloneData(bill));
     if (supplier) { supplier.bills += 1; supplier.updated = bill.created; await prototypeDb.suppliers.put(cloneData(supplier)); }
@@ -378,6 +574,7 @@ async function commitPendingAction() {
 
   state.pendingAction = null;
   closeModal();
+  if (["saveFee", "saveAlias", "toggleFee"].includes(action.type)) closeDrawer();
   renderView();
   toast(action.type === "resetData" ? "已恢复初始模拟数据" : "操作已保存到浏览器本地数据库");
 }
@@ -390,11 +587,62 @@ function costDrawer(id){const c=costs.find(x=>x.id===id);showDrawer("成本明�
 
 function poolDrawer(id){const p=pools.find(x=>x.id===id);showDrawer(`分摊池详情 · ${p.id}`,`<div class="header-actions" style="justify-content:flex-start;margin-bottom:12px">${p.status!=="已分摊"?`<button class="btn primary" data-action="run-allocation" data-id="${p.id}">${icon("play")}预览并执行分摊</button>`:`<button class="btn">${icon("rotate-cw")}重新分摊</button>`}<button class="btn">${icon("pencil")}调整本次范围</button></div><div class="detail-grid"><div class="detail-item"><span class="detail-label">分摊池名称</span><span class="detail-value">${p.name}</span></div><div class="detail-item"><span class="detail-label">分摊状态</span><span class="detail-value">${status(p.status)}</span></div><div class="detail-item"><span class="detail-label">供应商</span><span class="detail-value">${p.supplier}</span></div><div class="detail-item"><span class="detail-label">常规成本费项</span><span class="detail-value">${p.fee}</span></div><div class="detail-item"><span class="detail-label">适用业务范围</span><span class="detail-value">${p.scope}</span></div><div class="detail-item"><span class="detail-label">候选业务订单</span><span class="detail-value">${p.orders} 单</span></div><div class="detail-item"><span class="detail-label">待分摊金额</span><span class="detail-value strong">${p.amount}</span></div><div class="detail-item"><span class="detail-label">当前有效版本</span><span class="detail-value">${p.version}</span></div></div><div class="drawer-section"><h3>本次分摊规则</h3><div class="detail-grid"><div class="detail-item"><span class="detail-label">范围锚点</span><span class="detail-value">${p.scope}</span></div><div class="detail-item"><span class="detail-label">分摊对象</span><span class="detail-value">业务订单</span></div><div class="detail-item"><span class="detail-label">优先分摊因子</span><span class="detail-value">${p.factor}</span></div><div class="detail-item"><span class="detail-label">兜底分摊因子</span><span class="detail-value">${p.fallback}</span></div></div></div><div class="drawer-section"><h3>候选订单预览</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>业务订单号</th><th>订单级因子值</th><th>分摊权重</th><th>预计分摊金额</th></tr></thead><tbody><tr><td>SO-OG0370-61428</td><td class="num">86.420</td><td class="num">16.28%</td><td class="num">7,944.640</td></tr><tr><td>SO-SZT-A-2606881</td><td class="num">52.180</td><td class="num">9.84%</td><td class="num">4,801.920</td></tr><tr><td>SO-OG0347-62018</td><td class="num">48.960</td><td class="num">9.23%</td><td class="num">4,504.240</td></tr></tbody></table></div></div>`);}
 
+function feeDrawer(id) {
+  const fee = fees.find(item => item.code === id);
+  if (!fee) return;
+  const aliases = feeAliases.filter(item => item.feeCode === id);
+  const activeAliases = aliases.filter(item => item.status === "启用");
+  const ruleRows = Array.from({ length: fee.rules }, (_, index) => ({
+    name: index === 0 ? "费项通用规则" : "供应商专用规则",
+    supplier: index === 0 ? "全部供应商" : aliases[index % Math.max(aliases.length, 1)]?.supplier || "指定供应商",
+    factor: fee.board === "租车成本" ? "业务订单数" : fee.board === "清关成本" ? "清关重量" : "订单计费重量",
+    status: "启用",
+  }));
+  showDrawer(`成本费项详情 · ${fee.name}`, `<div class="header-actions drawer-primary-actions"><button class="btn primary" data-action="edit-fee" data-id="${fee.code}">${icon("pencil")}编辑费项</button><button class="btn" data-action="fee-alias" data-id="${fee.code}">${icon("list-tree")}维护供应商别名</button><button class="btn ${fee.status === "启用" ? "danger" : ""}" data-action="toggle-fee" data-id="${fee.code}">${fee.status === "启用" ? icon("circle-pause") + "停用" : icon("circle-play") + "启用"}</button></div>
+    <div class="fee-detail-hero"><div><span>${tag(fee.board,"purple")}${tag("应付类","blue")}</span><h2>${escapeHtml(fee.name)}</h2><small class="mono">${fee.code}</small></div><div><span>当前状态</span>${status(fee.status)}</div></div>
+    <div class="drawer-section"><h3>费项定义</h3><div class="detail-grid"><div class="detail-item"><span class="detail-label">成本费项编码</span><span class="detail-value mono">${fee.code}</span></div><div class="detail-item"><span class="detail-label">成本板块</span><span class="detail-value">${fee.board}</span></div><div class="detail-item detail-full"><span class="detail-label">业务定义</span><span class="detail-value">${escapeHtml(fee.definition)}</span></div><div class="detail-item detail-full"><span class="detail-label">备注</span><span class="detail-value">${escapeHtml(fee.remark || "-")}</span></div><div class="detail-item"><span class="detail-label">成本明细引用</span><span class="detail-value">${fee.references || 0} 条</span></div><div class="detail-item"><span class="detail-label">最近更新</span><span class="detail-value">${escapeHtml(fee.updatedAt || "-")}</span></div></div></div>
+    <div class="drawer-section"><div class="section-heading"><h3>供应商费项别名</h3><button class="btn small" data-action="new-alias" data-fee-code="${fee.code}">${icon("plus")}新增别名</button></div><div class="alias-stat-line"><span><strong>${activeAliases.length}</strong> 条启用映射</span><span><strong>${new Set(activeAliases.map(item => item.supplier)).size}</strong> 家供应商</span><span>停用 ${aliases.length - activeAliases.length} 条</span></div><div class="table-wrap"><table class="data-table compact-table"><thead><tr><th>供应商</th><th>原始费项名称</th><th>文件 / Sheet</th><th>版本</th><th>状态</th></tr></thead><tbody>${aliases.map(item => `<tr><td>${escapeHtml(item.supplier)}</td><td class="strong">${escapeHtml(item.rawName)}</td><td>${escapeHtml(item.structure || "不限")}<br><span class="muted">${escapeHtml(item.sheet || "全部 Sheet")}</span></td><td>V${item.version}</td><td>${status(item.status)}</td></tr>`).join("") || `<tr><td colspan="5" class="empty-cell">尚未维护供应商别名</td></tr>`}</tbody></table></div></div>
+    <div class="drawer-section"><div class="section-heading"><h3>间接成本分摊规则</h3><button class="btn small" data-action="fee-rules" data-id="${fee.code}">查看全部</button></div><div class="table-wrap"><table class="data-table compact-table"><thead><tr><th>适用层级</th><th>适用供应商</th><th>优先分摊因子</th><th>状态</th></tr></thead><tbody>${ruleRows.map(item => `<tr><td>${item.name}</td><td>${escapeHtml(item.supplier)}</td><td>${item.factor}</td><td>${status(item.status)}</td></tr>`).join("") || `<tr><td colspan="4" class="empty-cell">该费项暂未配置分摊规则</td></tr>`}</tbody></table></div></div>`);
+}
+
+function feeFormModal(id = "") {
+  const fee = fees.find(item => item.code === id);
+  const model = fee || { code: "", name: "", board: "派送成本", definition: "", remark: "", status: "启用" };
+  state.pendingAction = { type: "saveFee", id };
+  showModal(fee ? `编辑常规成本费项 · ${fee.name}` : "新增常规成本费项", `<div class="inline-note">常规成本费项是成本中心内部统一口径。供应商账单中的原始名称应通过别名映射接入，不直接作为费项名称。</div><div class="form-grid fee-form-grid"><div class="field"><label class="required">成本费项编码</label><input id="fee-form-code" class="input mono" value="${escapeHtml(model.code)}" placeholder="例如 COST-DEL-010" ${fee ? "disabled" : ""}></div><div class="field"><label class="required">内部标准名称</label><input id="fee-form-name" class="input" value="${escapeHtml(model.name)}" placeholder="同一成本板块内不可重复"></div><div class="field"><label class="required">成本板块</label><select id="fee-form-board" class="select" ${fee && fee.references ? "disabled" : ""}>${["派送成本","清关成本","海运成本","空运成本","租车成本"].map(item => `<option value="${item}" ${model.board === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="field"><label class="required">状态</label><select id="fee-form-status" class="select">${["启用","停用"].map(item => `<option value="${item}" ${model.status === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="field form-span-2"><label class="required">业务定义</label><textarea id="fee-form-definition" class="textarea" placeholder="说明该费项包含和不包含的供应商收费内容">${escapeHtml(model.definition)}</textarea><small class="field-help">业务定义用于别名映射和导入确认，应能区分相近但核算含义不同的费用。</small></div><div class="field form-span-2"><label>备注</label><textarea id="fee-form-remark" class="textarea" placeholder="记录板块内的特殊核算口径">${escapeHtml(model.remark || "")}</textarea></div></div>${fee && fee.references ? `<div class="validation-item warn">${icon("lock-keyhole")}该费项已被 ${fee.references} 条成本明细引用，编码和成本板块不可修改；停用只影响后续导入、补录和分摊配置。</div>` : ""}`, fee ? "保存修改" : "确认新增");
+}
+
+function syncAliasFeeOptions(board, preferredCode = "") {
+  const select = document.getElementById("alias-form-fee");
+  if (!select) return;
+  const matching = [...select.options].filter(option => option.dataset.board === board);
+  [...select.options].forEach(option => { option.disabled = option.dataset.board !== board; });
+  const preferred = matching.find(option => option.value === preferredCode);
+  if (preferred) select.value = preferred.value;
+  else if (matching[0]) select.value = matching[0].value;
+}
+
+function aliasFormModal(id = "", presetFeeCode = "") {
+  const alias = feeAliases.find(item => item.id === id);
+  const presetFee = fees.find(item => item.code === (alias?.feeCode || presetFeeCode));
+  const model = alias || { supplier: suppliers[0]?.name || "", board: presetFee?.board || "派送成本", rawName: "", feeCode: presetFeeCode, structure: "", sheet: "", status: "启用", note: "" };
+  if (!model.feeCode) model.feeCode = fees.find(item => item.board === model.board && item.status === "启用")?.code || fees[0]?.code || "";
+  const supplierOptions = [...new Set([...suppliers.map(item => item.name), ...feeAliases.map(item => item.supplier)])];
+  state.pendingAction = { type: "saveAlias", id };
+  showModal(alias ? `编辑供应商费项别名 · ${alias.rawName}` : "新增供应商费项别名", `<div class="inline-note">只有在业务含义一致时，才将供应商原始名称映射到常规成本费项。同名异义时应通过文件结构或 Sheet 缩小适用范围。</div><div class="form-grid fee-form-grid"><div class="field"><label class="required">供应商</label><select id="alias-form-supplier" class="select">${supplierOptions.map(item => `<option value="${escapeHtml(item)}" ${model.supplier === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select></div><div class="field"><label class="required">成本板块</label><select id="alias-form-board" class="select">${["派送成本","清关成本","海运成本","空运成本","租车成本"].map(item => `<option value="${item}" ${model.board === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="field"><label class="required">供应商原始费项名称</label><input id="alias-form-raw" class="input" value="${escapeHtml(model.rawName)}" placeholder="原样保留账单中的文本"></div><div class="field"><label class="required">映射至常规成本费项</label><select id="alias-form-fee" class="select">${fees.map(item => `<option value="${item.code}" data-board="${item.board}" ${model.feeCode === item.code ? "selected" : ""}>${item.name} · ${item.board}</option>`).join("")}</select></div><div class="field"><label>文件结构特征</label><input id="alias-form-structure" class="input" value="${escapeHtml(model.structure || "")}" placeholder="同名异义时填写"></div><div class="field"><label>适用 Sheet</label><input id="alias-form-sheet" class="input" value="${escapeHtml(model.sheet || "")}" placeholder="不填写表示全部 Sheet"></div><div class="field"><label class="required">状态</label><select id="alias-form-status" class="select">${["启用","停用"].map(item => `<option value="${item}" ${model.status === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="field form-span-2"><label>业务说明</label><textarea id="alias-form-note" class="textarea" placeholder="首次映射、同名异义或调整映射时说明口径">${escapeHtml(model.note || "")}</textarea></div></div>${alias ? `<div class="validation-item ok">${icon("history")}保存后版本由 V${alias.version} 更新为 V${alias.version + 1}，历史成本明细继续使用导入时的映射快照。</div>` : ""}`, alias ? "保存并生成新版本" : "确认新增");
+  syncAliasFeeOptions(model.board, model.feeCode);
+}
+
+function feeAliasModal(id) {
+  state.feeTab = "aliases";
+  state.aliasKeyword = id;
+  closeDrawer();
+  renderView();
+}
+
 function settleModal(id){state.pendingAction={type:"settleBill",id};const b=bills.find(x=>x.id===id);showModal("登记成本账单结清",`<div class="inline-note">结清只登记供应商账单的资金闭环事实，不会自动确认成本归属或成本已齐。</div><div class="form-grid" style="grid-template-columns:1fr 1fr"><div class="field"><label class="required">本次结清金额</label><input class="input" value="${(Number(b.amount.replaceAll(',',''))-Number(b.settled.replaceAll(',',''))).toFixed(3)}"></div><div class="field"><label class="required">结清币种</label><select class="select"><option>${b.currency}</option></select></div><div class="field"><label class="required">结清日期</label><input class="input" type="date" value="2026-07-17"></div><div class="field"><label class="required">结清方式</label><select class="select"><option>银行转账</option><option>抵扣</option><option>其它</option></select></div><div class="field"><label class="required">成本核销汇率</label><input class="input" value="${b.currency==="CNY"?"1.00000":"0.21780"}"></div><div class="field"><label>付款凭证</label><button class="btn" style="width:100%">${icon("paperclip")}上传凭证</button></div></div><div class="field"><label>备注</label><textarea class="textarea" placeholder="填写供应商付款或抵扣说明"></textarea></div>`,"确认登记");}
 
 function allocationModal(id){state.pendingAction={type:"runAllocation",id};const p=pools.find(x=>x.id===id);showModal("分摊预览",`<div class="preview-summary" style="grid-template-columns:repeat(3,1fr)"><div class="preview-metric"><span>候选业务订单</span><strong>${p.orders}</strong></div><div class="preview-metric"><span>待分摊金额</span><strong>${p.amount}</strong></div><div class="preview-metric"><span>金额差异</span><strong style="color:var(--success)">0.000</strong></div></div><div class="validation-list"><div class="validation-item ok">${icon("circle-check")}候选订单范围不为空，范围外订单未参与</div><div class="validation-item ok">${icon("circle-check")}优先分摊因子“${p.factor}”完整且合计大于 0</div><div class="validation-item ok">${icon("circle-check")}逐币种分摊金额守恒，尾差将按最大余数法处理</div></div><div class="inline-note">执行后生成新的有效分摊版本，结果只落到业务订单，不生成尾程包裹级间接成本。</div>`,"执行分摊");}
-
-function feeAliasModal(id){const f=fees.find(x=>x.code===id);showModal(`维护供应商费项别名 · ${f.name}`,`<div class="inline-note">供应商原始名称只在业务含义一致时映射到同一常规成本费项，历史成本明细不随映射变更。</div><div class="table-wrap"><table class="data-table"><thead><tr><th>供应商</th><th>成本板块</th><th>供应商原始费项名称</th><th>状态</th><th></th></tr></thead><tbody>${f.aliases.map((a,i)=>`<tr><td>${["东风","宅配通","联多"][i%3]}</td><td>${f.board}</td><td><input class="input" value="${a}"></td><td>${status("启用")}</td><td><button class="icon-btn" title="移除">${icon("trash-2")}</button></td></tr>`).join("")}</tbody></table></div><button class="btn" style="margin-top:10px">${icon("plus")}新增别名</button>`,"保存别名");}
 
 document.addEventListener("click", async (event) => {
   const viewBtn=event.target.closest("[data-view]"); if(viewBtn){state.view=viewBtn.dataset.view; state.sidebarOpen=false;document.getElementById("sidebar").classList.remove("open");closeDrawer();renderView();return;}
@@ -405,25 +653,42 @@ document.addEventListener("click", async (event) => {
   else if(a==="import-prototype-data") document.getElementById("prototype-data-file").click();
   else if(a==="reset-prototype-data"){state.pendingAction={type:"resetData"};showModal("恢复初始模拟数据",`<div class="validation-item warn">${icon("triangle-alert")}当前浏览器中的编辑、导入、结清和分摊结果都会被初始样本覆盖。</div>`,"确认恢复");}
   else if(a==="close-drawer") closeDrawer(); else if(a==="close-modal") closeModal();
+  else if(a==="open-import") openImportModal(true);
   else if(a==="open-supplier") supplierDrawer(id); else if(a==="open-bill") billDrawer(id); else if(a==="open-cost") costDrawer(id); else if(a==="open-pool") poolDrawer(id);
-  else if(a==="select-file"){state.selectedFile=id;state.selectedSheet=sampleFiles.find(x=>x.id===id).defaultSheet;renderView();}
-  else if(a==="select-sheet"){state.selectedSheet=id;renderView();}
-  else if(a==="wizard-next"){state.wizardStep=Math.min(3,state.wizardStep+1);renderView();}
-  else if(a==="wizard-back"){state.wizardStep=Math.max(1,state.wizardStep-1);renderView();}
-  else if(a==="confirm-import"){state.pendingAction={type:"importBill"};showModal("确认导入供应商账单",`<div class="validation-list"><div class="validation-item ok">${icon("circle-check")}导入将按整批原子方式执行</div><div class="validation-item ok">${icon("circle-check")}完全成功后形成一张成本账单及 2,412 条成本明细</div></div><div class="inline-note">执行期间可在导入记录中查看进度；任一应导入数据失败时，本次不保留部分成本明细。</div>`,"开始导入");}
+  else if(a==="select-file"){state.selectedFile=id;state.selectedSheet=sampleFiles.find(x=>x.id===id).defaultSheet;openImportModal();}
+  else if(a==="select-sheet"){state.selectedSheet=id;openImportModal();}
+  else if(a==="wizard-next"){state.wizardStep=Math.min(3,state.wizardStep+1);openImportModal();}
+  else if(a==="wizard-back"){state.wizardStep=Math.max(1,state.wizardStep-1);openImportModal();}
+  else if(a==="confirm-import"){state.pendingAction={type:"importBill"};showModal("确认导入供应商账单",`<div class="validation-list"><div class="validation-item ok">${icon("circle-check")}导入将按整批原子方式执行</div><div class="validation-item ok">${icon("circle-check")}完全成功后形成一张成本账单及 2,412 条成本明细</div></div><div class="inline-note">导入成功后可在成本账单列表查看结果；任一应导入数据失败时，本次不保留部分成本明细。</div>`,"开始导入");}
   else if(a==="bill-filter"){state.billFilter=el.dataset.value;renderView();}
   else if(a==="pool-filter"){state.poolFilter=el.dataset.value;renderView();}
+  else if(a==="fee-tab"){state.feeTab=el.dataset.value;state.aliasKeyword="";renderView();}
+  else if(a==="fee-query"){state.feeKeyword=document.getElementById("fee-keyword")?.value.trim()||"";state.feeBoard=document.getElementById("fee-board")?.value||"";state.feeStatus=document.getElementById("fee-status")?.value||"";renderView();}
+  else if(a==="fee-reset"){state.feeKeyword="";state.feeBoard="";state.feeStatus="";renderView();}
+  else if(a==="alias-query"){state.aliasKeyword=document.getElementById("alias-keyword")?.value.trim()||"";state.aliasSupplier=document.getElementById("alias-supplier")?.value||"";state.aliasBoard=document.getElementById("alias-board")?.value||"";state.aliasStatus=document.getElementById("alias-status")?.value||"";renderView();}
+  else if(a==="alias-reset"){state.aliasKeyword="";state.aliasSupplier="";state.aliasBoard="";state.aliasStatus="";renderView();}
   else if(a==="settle-bill") settleModal(id);
   else if(a==="run-allocation") allocationModal(id);
   else if(a==="toggle-cost"){state.pendingAction={type:"toggleCost",id};const c=costs.find(x=>x.id===id);showModal("切换成本类型",`<div class="inline-note">当前为${c.type}。切换前系统会重新校验供应商侧单号关系，并先解除原归属或分摊池占用。</div><div class="field"><label class="required">目标成本类型</label><select class="select"><option>${c.type==="直接成本"?"间接成本":"直接成本"}</option></select></div><div class="field"><label class="required">切换原因</label><textarea class="textarea" placeholder="说明单号关系、覆盖范围或金额粒度发生了什么变化"></textarea></div>`,"确认切换");}
+  else if(a==="open-fee") feeDrawer(id);
+  else if(a==="new-fee") feeFormModal();
+  else if(a==="edit-fee") feeFormModal(id);
   else if(a==="fee-alias") feeAliasModal(id);
+  else if(a==="new-alias") aliasFormModal("",el.dataset.feeCode||"");
+  else if(a==="edit-alias") aliasFormModal(id);
+  else if(a==="toggle-fee"){const fee=fees.find(item=>item.code===id);state.pendingAction={type:"toggleFee",id};showModal(`${fee.status==="启用"?"停用":"启用"}常规成本费项`, `<div class="validation-item warn">${icon("triangle-alert")}${fee.status==="启用"?"停用后，后续账单导入、成本补录和分摊配置不能再选择该费项；历史成本明细与映射快照不变。":"启用后，该费项重新允许用于后续导入、补录和分摊配置。"}</div><div class="detail-grid"><div class="detail-item"><span class="detail-label">成本费项</span><span class="detail-value">${fee.name}</span></div><div class="detail-item"><span class="detail-label">成本板块</span><span class="detail-value">${fee.board}</span></div></div>`, `确认${fee.status==="启用"?"停用":"启用"}`);}
+  else if(a==="toggle-alias"){const alias=feeAliases.find(item=>item.id===id);state.pendingAction={type:"toggleAlias",id};showModal(`${alias.status==="启用"?"停用":"启用"}供应商费项别名`, `<div class="inline-note">状态变更将生成新的映射版本，只影响后续账单导入；历史成本明细继续使用原映射快照。</div><div class="detail-grid"><div class="detail-item"><span class="detail-label">供应商</span><span class="detail-value">${alias.supplier}</span></div><div class="detail-item"><span class="detail-label">原始名称</span><span class="detail-value">${alias.rawName}</span></div></div>`, `确认${alias.status==="启用"?"停用":"启用"}`);}
+  else if(a==="fee-rules") feeDrawer(id);
   else if(a==="reanalyze") toast("已基于当前文件重新识别字段，原快照尚未被覆盖");
   else if(a==="modal-confirm") await commitPendingAction();
-  else if(["new-supplier","new-pool","new-fee","import-history","profit-detail","fee-rules","switch-org"].includes(a)) toast("该入口已纳入原型交互范围，可继续按场景深化","warning");
+  else if(["new-supplier","new-pool","profit-detail","switch-org"].includes(a)) toast("该入口已纳入原型交互范围，可继续按场景深化","warning");
 });
 document.getElementById("drawer-backdrop").addEventListener("click",closeDrawer);
 document.getElementById("modal-backdrop").addEventListener("click",closeModal);
 document.getElementById("prototype-data-file").addEventListener("change",async event=>{const file=event.target.files?.[0];event.target.value="";if(!file)return;try{await importPrototypeData(file);}catch(error){toast(error.message||"模拟数据导入失败","warning");}});
+document.addEventListener("change", event => {
+  if (event.target.id === "alias-form-board") syncAliasFeeOptions(event.target.value);
+});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeDrawer();closeModal();}});
 
 initializePrototypeDatabase().then(renderView).catch(error=>{

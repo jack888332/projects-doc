@@ -7,7 +7,7 @@ description: "BMS供应链结算系统全栈开发工程师。Invoke when develo
 
 你是 BMS（Billing Management System）供应链结算系统的全栈开发工程师。你的职责是根据本项目的开发规范，高质量地完成从数据库建表、Mapper层、Service层、Controller层到 Feign Client 层的全链路开发，并确保前端对接规范一致。
 
-本 Skill 依据 `aidocs/bms/dev-specs/bms-fullstack-dev-spec.md` 制定，所有开发活动必须严格遵循。
+本 Skill 依据 `aidocs/technical-caliber/bms/skill/bms-fullstack-dev-spec.md` 制定，所有开发活动必须严格遵循。
 
 ---
 
@@ -106,18 +106,34 @@ import java.util.Date;
  */
 @Data
 public class {ModuleName} {
-    /** ID */
+    /**
+     * 主键ID。
+     */
     private Long id;
-    /** 供应链ID */
+
+    /**
+     * 供应链ID。
+     */
     private Long scId;
-    /** 店铺ID */
+
+    /**
+     * 店铺ID。
+     */
     private Long shopId;
-    /** 用户ID */
+
+    /**
+     * 用户ID。
+     */
     private Long userId;
-    // ... 每个字段必须有 JavaDoc 注释
-    /** 创建时间 */
+
+    /**
+     * 创建时间。
+     */
     private Date createdAt;
-    /** 更新时间 */
+
+    /**
+     * 更新时间。
+     */
     private Date updatedAt;
 }
 ```
@@ -135,25 +151,46 @@ import java.time.LocalDate;
  */
 @Data
 public class {ModuleName}QueryReqDTO {
-    /** 页码，从1开始 */
+    /**
+     * 页码，从 1 开始。
+     */
     private Integer pageNo = 1;
-    /** 每页条数 */
-    private Integer pageSize = 20;
-    /** 供应链ID（数据隔离必传） */
-    private Long scId;
-    /** 店铺ID（数据隔离必传） */
-    private Long shopId;
-    /** 用户ID（数据隔离必传） */
-    private Long userId;
-    // ... 业务查询条件
 
-    /** 计算 SQL OFFSET */
+    /**
+     * 每页条数。
+     */
+    private Integer pageSize = 20;
+
+    /**
+     * 供应链ID，数据隔离必填字段。
+     */
+    private Long scId;
+
+    /**
+     * 店铺ID，数据隔离必填字段。
+     */
+    private Long shopId;
+
+    /**
+     * 用户ID，数据隔离必填字段。
+     */
+    private Long userId;
+
+    /**
+     * 计算 SQL 查询偏移量。
+     *
+     * @return SQL OFFSET 值
+     */
     public Integer getOffset() {
         int page = pageNo == null || pageNo < 1 ? 1 : pageNo;
         return (page - 1) * getLimit();
     }
 
-    /** 计算 SQL LIMIT，上限 200 */
+    /**
+     * 计算 SQL 查询条数，最大值为 200。
+     *
+     * @return SQL LIMIT 值
+     */
     public Integer getLimit() {
         if (pageSize == null || pageSize < 1) { return 20; }
         return Math.min(pageSize, 200);
@@ -176,15 +213,25 @@ import java.util.List;
  */
 @Data
 public class {ModuleName}PageRespDTO {
-    /** 当前页码 */
+    /**
+     * 当前页码。
+     */
     private Integer pageNo;
-    /** 每页条数 */
+
+    /**
+     * 每页条数。
+     */
     private Integer pageSize;
-    /** 总记录数 */
+
+    /**
+     * 总记录数。
+     */
     private Long total = 0L;
-    /** 当前页数据 */
+
+    /**
+     * 当前页数据。
+     */
     private List<{ModuleName}DTO> records = new ArrayList<>();
-    // 可选：业务汇总字段
 }
 ```
 
@@ -209,32 +256,69 @@ import java.util.List;
 @Mapper
 public interface {ModuleName}Mapper {
 
-    /** 新增 */
+    /**
+     * 新增业务实体。
+     *
+     * @param entity 业务实体
+     * @return 受影响的记录数
+     */
     int insert({ModuleName} entity);
 
-    /** 根据编号查询 */
+    /**
+     * 根据业务编号查询实体。
+     *
+     * @param {businessKey} 业务编号
+     * @return 业务实体；不存在时返回 {@code null}
+     */
     {ModuleName} selectBy{BusinessKey}(@Param("{businessKey}") String {businessKey});
 
-    /** 根据编号查询并锁定（行锁） */
+    /**
+     * 根据业务编号查询实体并加行锁。
+     *
+     * @param {businessKey} 业务编号
+     * @return 已锁定的业务实体；不存在时返回 {@code null}
+     */
     {ModuleName} selectBy{BusinessKey}ForUpdate(@Param("{businessKey}") String {businessKey});
 
-    /** 查询数量 */
+    /**
+     * 按查询条件统计记录数。
+     *
+     * @param query 查询条件
+     * @return 记录数量
+     */
     Long countByCondition({ModuleName}QueryReqDTO query);
 
-    /** 分页查询 */
+    /**
+     * 按查询条件分页查询记录。
+     *
+     * @param query 查询条件及分页参数
+     * @return 当前页的实体列表
+     */
     List<{ModuleName}> selectPageByCondition({ModuleName}QueryReqDTO query);
 
-    /** 汇总查询 */
+    /**
+     * 按查询条件汇总业务数据。
+     *
+     * @param query 查询条件
+     * @return 汇总数据
+     */
     {ModuleName}PageRespDTO selectSummaryByCondition({ModuleName}QueryReqDTO query);
 
-    /** 更新状态 */
+    /**
+     * 根据业务编号更新状态。
+     *
+     * @param {businessKey} 业务编号
+     * @param status 目标状态
+     * @param operator 操作人
+     * @return 受影响的记录数
+     */
     int updateStatusBy{BusinessKey}(@Param("{businessKey}") String {businessKey},
                                      @Param("status") String status,
                                      @Param("operator") String operator);
 }
 ```
 
-**3b. XML Mapper** — `sqlmap/{ModuleName}Mapper.xml`
+**3b. XML Mapper** — `sqlmap/{ModuleName}-mapper.xml`
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" ?>
@@ -374,28 +458,27 @@ public class {ModuleName}ServiceImpl implements {ModuleName}Service {
 
     @Override
     public {ModuleName}PageRespDTO page({ModuleName}QueryReqDTO query) {
-        // 1. null 防御
+        // 对空入参使用默认查询对象，确保后续分页参数计算安全。
         {ModuleName}QueryReqDTO safeQuery = query == null ? new {ModuleName}QueryReqDTO() : query;
 
-        // 2. 先查总数
+        // 先统计总数；总数为 0 时跳过分页查询，避免无效 SQL。
         Long total = {moduleName}Mapper.countByCondition(safeQuery);
 
-        // 3. total 为 0 时直接返回空
         List<{ModuleName}> records = total == null || total == 0
                 ? Collections.emptyList()
                 : {moduleName}Mapper.selectPageByCondition(safeQuery);
 
-        // 4. 组装响应
+        // 组装分页基础数据，并将实体列表转换为对外 DTO。
         {ModuleName}PageRespDTO respDTO = new {ModuleName}PageRespDTO();
         respDTO.setPageNo(safeQuery.getPageNo() == null ? 1 : safeQuery.getPageNo());
         respDTO.setPageSize(safeQuery.getLimit());
         respDTO.setTotal(total == null ? 0L : total);
         respDTO.setRecords(records.stream().map(this::toDTO).collect(Collectors.toList()));
 
-        // 5. 附带汇总数据
+        // 单独查询汇总数据，避免在分页列表查询中重复聚合。
         {ModuleName}PageRespDTO summary = {moduleName}Mapper.selectSummaryByCondition(safeQuery);
         if (summary != null) {
-            // respDTO.setXxx(summary.getXxx());
+            // 将汇总字段写入响应对象。
         }
         return respDTO;
     }
@@ -408,16 +491,33 @@ public class {ModuleName}ServiceImpl implements {ModuleName}Service {
         return true;
     }
 
+    /**
+     * 将业务实体转换为对外传输对象。
+     *
+     * @param entity 业务实体
+     * @return 业务传输对象
+     */
     private {ModuleName}DTO toDTO({ModuleName} entity) {
         {ModuleName}DTO dto = new {ModuleName}DTO();
-        // Entity → DTO 转换
         return dto;
     }
 
+    /**
+     * 将空金额转换为零值。
+     *
+     * @param amount 原始金额
+     * @return 原始金额；为空时返回 {@link BigDecimal#ZERO}
+     */
     private BigDecimal defaultAmount(BigDecimal amount) {
         return amount == null ? BigDecimal.ZERO : amount;
     }
 
+    /**
+     * 判断字符串是否包含非空白字符。
+     *
+     * @param value 待判断的字符串
+     * @return 包含非空白字符时返回 {@code true}
+     */
     private boolean hasText(String value) {
         return value != null && value.trim().length() > 0;
     }
@@ -435,12 +535,30 @@ import org.springframework.web.bind.annotation.*;
 @FeignClient(name = "tmall-bms-service", path = "/api/bms/{module-name}")
 public interface {ModuleName}RemoteService {
 
+    /**
+     * 分页查询业务数据。
+     *
+     * @param reqDTO 查询条件
+     * @return 分页数据
+     */
     @PostMapping("/page")
     {ModuleName}PageRespDTO page(@RequestBody(required = false) {ModuleName}QueryReqDTO reqDTO);
 
+    /**
+     * 根据业务编号查询详情。
+     *
+     * @param {businessKey} 业务编号
+     * @return 业务详情
+     */
     @GetMapping("/detail")
     {ModuleName}DetailRespDTO detail(@RequestParam("{businessKey}") String {businessKey});
 
+    /**
+     * 确认业务数据。
+     *
+     * @param reqDTO 确认请求参数
+     * @return 是否确认成功
+     */
     @PostMapping("/confirm")
     Boolean confirm(@RequestBody {ModuleName}ActionReqDTO reqDTO);
 }
@@ -467,6 +585,12 @@ public class {ModuleName}Controller implements {ModuleName}RemoteService {
     @Resource
     private {ModuleName}Service {moduleName}Service;
 
+    /**
+     * 分页查询业务数据。
+     *
+     * @param reqDTO 查询条件
+     * @return 分页数据
+     */
     @Override
     @PostMapping("/page")
     public {ModuleName}PageRespDTO page(@RequestBody(required = false) {ModuleName}QueryReqDTO reqDTO) {
@@ -483,7 +607,7 @@ public class {ModuleName}Controller implements {ModuleName}RemoteService {
 
 | 规则 | 说明 | 正确 | 错误 |
 |------|------|------|------|
-| SQL 位置 | 全部写在 XML 中 | `sqlmap/XxxMapper.xml` | `@Select` / `@SelectProvider` 拼串 |
+| SQL 位置 | 全部写在 XML 中 | `sqlmap/Xxx-mapper.xml` | `@Select` / `@SelectProvider` 拼串 |
 | Mapper 接口 | 只做方法声明 | `List<ArBill> selectPageByCondition(query)` | 内嵌 `SqlProvider` 内部类 |
 | 动态条件 | XML `<if>` 标签 | `<if test="scId != null">AND sc_id = #{scId}</if>` | Java `StringBuilder.append(" AND sc_id = #{scId}")` |
 | 列复用 | `<sql>` + `<include>` | `<include refid="BaseColumnList"/>` | 每个查询写一遍列 |
@@ -492,7 +616,22 @@ public class {ModuleName}Controller implements {ModuleName}RemoteService {
 | INSERT | `useGeneratedKeys` | `useGeneratedKeys="true" keyProperty="id"` | 不返回自增主键 |
 | 极简查询 | ≤3行无动态条件可用 `@Select` | `@Select("SELECT COUNT(1) FROM ...")` | 超过3行还用注解 |
 
-### 5.2 数据隔离规范
+XML 文件必须放在 `dao/src/main/resources/sqlmap/`，并使用以下 MyBatis 扫描配置：
+
+```yaml
+mybatis:
+  mapper-locations: classpath:sqlmap/*-mapper.xml
+```
+
+### 5.2 文档注释规范
+
+- 实体类、请求 DTO、响应 DTO 的每个字段必须使用标准多行 JavaDoc，禁止 `/** 注释 */` 单行写法。
+- DTO 辅助方法、Mapper 方法、Service 私有方法必须使用标准多行 JavaDoc；方法注释须包含用途、`@param` 参数含义与 `@return` 返回内容（无返回值方法除外）。
+- Feign Client 和 Controller 的每个 API 方法必须使用标准多行 JavaDoc；无返回值接口也必须说明接口用途和入参含义。
+- 核心业务逻辑必须使用行内注释说明处理目的和关键分支，避免只写无意义的步骤编号。
+- 状态、币种等常量必须逐项使用标准多行 JavaDoc 说明业务含义和适用状态。
+
+### 5.3 数据隔离规范
 
 **每张业务表必须包含 `sc_id`, `shop_id`, `user_id` 三字段：**
 
@@ -512,29 +651,61 @@ public class {ModuleName}Controller implements {ModuleName}RemoteService {
 </sql>
 ```
 
-### 5.3 分页规范
+### 5.4 分页规范
 
 **请求 DTO 必含：**
 ```java
-private Integer pageNo = 1;    // 从 1 开始
-private Integer pageSize = 20; // 默认 20
+/**
+ * 页码，从 1 开始。
+ */
+private Integer pageNo = 1;
 
+/**
+ * 每页条数。
+ */
+private Integer pageSize = 20;
+
+/**
+ * 计算 SQL 查询偏移量。
+ *
+ * @return SQL OFFSET 值
+ */
 public Integer getOffset() {
     int page = pageNo == null || pageNo < 1 ? 1 : pageNo;
     return (page - 1) * getLimit();
 }
 
+/**
+ * 计算 SQL 查询条数，最大值为 200。
+ *
+ * @return SQL LIMIT 值
+ */
 public Integer getLimit() {
     if (pageSize == null || pageSize < 1) { return 20; }
-    return Math.min(pageSize, 200);  // 上限 200 防滥用
+    return Math.min(pageSize, 200);
 }
 ```
 
 **响应 DTO 必含：**
 ```java
+/**
+ * 当前页码。
+ */
 private Integer pageNo;
+
+/**
+ * 每页条数。
+ */
 private Integer pageSize;
+
+/**
+ * 总记录数。
+ */
 private Long total = 0L;
+
+/**
+ * 当前页数据。
+ */
 private List<XxxDTO> records = new ArrayList<>();
 ```
 
@@ -550,7 +721,7 @@ respDTO.setTotal(total == null ? 0L : total);
 respDTO.setRecords(records.stream().map(this::toDTO).collect(Collectors.toList()));
 ```
 
-### 5.4 事务规范
+### 5.5 事务规范
 
 ```java
 // ✅ 正确 — 写操作必须加 rollbackFor
@@ -562,11 +733,17 @@ public Boolean confirm(ArBillActionReqDTO reqDTO) { ... }
 public Boolean confirm(ArBillActionReqDTO reqDTO) { ... }
 ```
 
-### 5.5 并发控制（行锁）
+### 5.6 并发控制（行锁）
 
 涉及金额更新的写操作，必须先 `SELECT ... FOR UPDATE` 加行锁：
 
 ```java
+/**
+ * 根据账单编号查询应收账单并加行锁。
+ *
+ * @param billNo 账单编号
+ * @return 已锁定的应收账单
+ */
 private ArBill requireBillForUpdate(String billNo) {
     ArBill bill = arBillMapper.selectByBillNoForUpdate(billNo);
     if (bill == null) {
@@ -576,7 +753,7 @@ private ArBill requireBillForUpdate(String billNo) {
 }
 ```
 
-### 5.6 金额规范
+### 5.7 金额规范
 
 - **Java**: `BigDecimal`，禁止 `double`/`float`
 - **数据库**: `DECIMAL(18,4)`
@@ -584,7 +761,7 @@ private ArBill requireBillForUpdate(String billNo) {
 - **空值**: `amount == null ? BigDecimal.ZERO : amount`
 - **正值**: `amount.compareTo(BigDecimal.ZERO) < 0 ? amount.negate() : amount`
 
-### 5.7 API URL 规范
+### 5.8 API URL 规范
 
 - URL 全小写 kebab-case: `/api/bms/ar-bill`, `/api/bms/fee-detail`
 - 分页查询: POST `/page`
@@ -594,7 +771,7 @@ private ArBill requireBillForUpdate(String billNo) {
 - Controller 实现 Feign 契约接口: `implements XxxRemoteService`
 - 注入用 `@Resource`，不用 `@Autowired`
 
-### 5.8 命名规范速查
+### 5.9 命名规范速查
 
 | 类别 | 规则 | 示例 |
 |------|------|------|
@@ -607,11 +784,11 @@ private ArBill requireBillForUpdate(String billNo) {
 | Controller | `XxxController` | `ArBillController` |
 | Feign Client | `XxxRemoteService` | `ArBillRemoteService` |
 | Mapper 接口 | `XxxMapper` | `ArBillMapper` |
-| XML Mapper | `sqlmap/XxxMapper.xml` | `sqlmap/ArBillMapper.xml` |
+| XML Mapper | `sqlmap/Xxx-mapper.xml` | `sqlmap/ArBill-mapper.xml` |
 | 表名 | 全小写下划线，业务前缀 | `ar_bill`, `fee_detail` |
 | 字段名 | 全小写下划线 | `bill_no`, `sc_id`, `created_at` |
 
-### 5.9 数据库结构归档规范（强制）
+### 5.10 数据库结构归档规范（强制）
 
 `aidocs/technical-caliber/sql/ar_bill.sql` 是 BMS 数据库表结构的统一归档文件。
 
@@ -733,8 +910,8 @@ aidocs/bms/design/
 
 | # | 检查项 | |
 |---|--------|---|
-| 1 | 实体类字段有 JavaDoc 注释 | ☐ |
-| 2 | DTO 字段有 JavaDoc 注释 | ☐ |
+| 1 | 实体类字段均使用标准多行 JavaDoc | ☐ |
+| 2 | DTO 字段和辅助方法均使用标准多行 JavaDoc | ☐ |
 | 3 | 请求数据隔离三字段 `scId`/`shopId`/`userId` | ☐ |
 | 4 | 写操作 `@Transactional(rollbackFor = Exception.class)` | ☐ |
 | 5 | 金额字段 `BigDecimal`，数据库 `DECIMAL(18,4)` | ☐ |
@@ -757,14 +934,17 @@ aidocs/bms/design/
 | 22 | 无 SQL 函数作用在 WHERE 列上 | ☐ |
 | 23 | 业务流程变更已同步到 `aidocs/bms/design/` 对应文档 | ☐ |
 | 24 | 涉及库表结构变更时，已将完整最新表结构同步到 `aidocs/technical-caliber/sql/ar_bill.sql` | ☐ |
+| 25 | Mapper、Service 私有方法、Feign API、Controller API 均有标准多行 JavaDoc | ☐ |
+| 26 | 核心业务逻辑具有目的和关键分支说明，状态/币种常量均有业务注释 | ☐ |
+| 27 | XML 文件名符合 `Xxx-mapper.xml`，且 `mapper-locations` 为 `classpath:sqlmap/*-mapper.xml` | ☐ |
 
 ---
 
 ## 八、参考文件
 
-- 详细开发规范: `aidocs/bms/dev-specs/bms-fullstack-dev-spec.md`
+- 详细开发规范: `aidocs/technical-caliber/bms/skill/bms-fullstack-dev-spec.md`
 - 应收账单 Mapper 接口: `bms/dao/src/main/java/com/szt/supplychain/bms/dao/mapper/ArBillMapper.java`
-- 应收账单 XML Mapper: `bms/dao/src/main/resources/sqlmap/ArBillMapper.xml`
+- 应收账单 XML Mapper: `bms/dao/src/main/resources/sqlmap/ArBill-mapper.xml`
 - 应收账单 Service: `bms/biz/src/main/java/com/szt/supplychain/bms/biz/service/impl/ArBillServiceImpl.java`
 - 应收账单 Controller: `bms/web/src/main/java/com/szt/supplychain/bms/web/controller/ArBillController.java`
 - 应收账单 Feign Client: `bms/client/src/main/java/com/szt/supplychain/bms/client/api/ArBillRemoteService.java`

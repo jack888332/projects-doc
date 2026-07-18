@@ -2,18 +2,32 @@
 import { computed, reactive, ref } from 'vue'
 import { Plus, Search, VideoPlay, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { allocationPools } from '../data'
+import { createBusinessId, db, recordOperation } from '../db'
+import { useLiveData } from '../composables/useLiveData'
 
 const status = ref('全部')
 const keyword = ref('')
 const drawerVisible = ref(false)
 const createVisible = ref(false)
-const selected = ref(allocationPools[0])
+const selected = ref({ id: '', amount: '0.000 CNY', orders: 0 })
 const form = reactive({ name: '', module: '海运成本', item: '', supplier: '', period: '', factor: '计费重量', fallback: '业务订单件数' })
-const filtered = computed(() => allocationPools.filter((item) => (status.value === '全部' || item.status === status.value) && (!keyword.value || `${item.name}${item.supplier}${item.item}`.includes(keyword.value))))
+const { data: allocationPools } = useLiveData(() => db.allocationPools.orderBy('id').reverse().toArray())
+const filtered = computed(() => allocationPools.value.filter((item) => (status.value === '全部' || item.status === status.value) && (!keyword.value || `${item.name}${item.supplier}${item.item}`.includes(keyword.value))))
 function view(row) { selected.value = row; drawerVisible.value = true }
-function createPool() { if (!form.name || !form.item || !form.supplier) return ElMessage.warning('请补充必填信息'); createVisible.value = false; ElMessage.success('分摊池已创建，可继续选择成本明细') }
-function trial(row) { row.progress = Math.max(row.progress, 86); row.status = '待确认'; ElMessage.success('试算完成，请核对分摊结果和尾差') }
+async function createPool() {
+  if (!form.name || !form.item || !form.supplier) return ElMessage.warning('请补充必填信息')
+  const id = createBusinessId('POOL')
+  const period = Array.isArray(form.period) ? form.period.map((item) => new Date(item).toISOString().slice(0, 10)).join(' - ') : '待确定'
+  await db.allocationPools.add({ id, name: form.name, module: form.module, item: form.item, supplier: form.supplier, period, amount: '0.000 CNY', factor: form.factor, fallback: form.fallback, orders: 0, status: '待试算', progress: 0 })
+  await recordOperation('分摊池', id, '新建间接成本分摊池')
+  createVisible.value = false
+  ElMessage.success('分摊池已创建，可继续选择成本明细')
+}
+async function trial(row) {
+  await db.allocationPools.update(row.id, { progress: Math.max(row.progress || 0, 86), status: '待确认', trialAt: new Date().toISOString() })
+  await recordOperation('分摊池', row.id, '执行分摊试算')
+  ElMessage.success('试算完成，请核对分摊结果和尾差')
+}
 </script>
 
 <template>

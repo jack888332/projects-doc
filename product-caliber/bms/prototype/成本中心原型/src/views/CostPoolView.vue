@@ -2,14 +2,17 @@
 import { computed, reactive, ref } from 'vue'
 import { Link, Plus, RefreshRight, Search, View } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { costRows, formatAmount } from '../data'
+import { formatAmount } from '../data'
+import { createBusinessId, db, recordOperation } from '../db'
+import { useLiveData } from '../composables/useLiveData'
 
 const tab = ref('全部')
 const query = reactive({ keyword: '', module: '', status: '' })
-const selected = ref(costRows[0])
+const selected = ref({ id: '', amount: 0, currency: '', module: '' })
 const drawerVisible = ref(false)
 const supplementVisible = ref(false)
 const supplement = reactive({ supplier: '', module: '', item: '', amount: '', currency: 'TWD', keyType: '', key: '', type: '直接成本' })
+const { data: costRows } = useLiveData(() => db.costItems.orderBy('id').reverse().toArray())
 
 const stats = [
   { label: '成本明细', value: '11,301', meta: '5 个成本板块' },
@@ -18,19 +21,39 @@ const stats = [
   { label: '待分摊', value: '556', meta: '4 个分摊池' },
 ]
 
-const filtered = computed(() => costRows.filter((item) => (tab.value === '全部' || item.type === tab.value) && (!query.keyword || `${item.id}${item.bill}${item.key}${item.item}`.toLowerCase().includes(query.keyword.toLowerCase())) && (!query.module || item.module === query.module) && (!query.status || item.status === query.status)))
+const filtered = computed(() => costRows.value.filter((item) => (tab.value === '全部' || item.type === tab.value) && (!query.keyword || `${item.id}${item.bill}${item.key}${item.item}`.toLowerCase().includes(query.keyword.toLowerCase())) && (!query.module || item.module === query.module) && (!query.status || item.status === query.status)))
 
 function view(row) { selected.value = row; drawerVisible.value = true }
 async function toggleType(row) {
   const next = row.type === '直接成本' ? '间接成本' : '直接成本'
   await ElMessageBox.confirm(`将该明细切换为${next}？系统会重新校验关键单号与业务对象关系。`, '切换成本类型', { confirmButtonText: '确认切换', cancelButtonText: '取消', type: 'warning' })
-  row.type = next
-  row.status = next === '间接成本' ? '待处理' : '待人工匹配'
-  row.target = next === '间接成本' ? '尚未选择分摊池' : '待匹配业务对象'
+  await db.costItems.update(row.id, {
+    type: next,
+    status: next === '间接成本' ? '待处理' : '待人工匹配',
+    target: next === '间接成本' ? '尚未选择分摊池' : '待匹配业务对象',
+  })
+  await recordOperation('成本明细', row.id, `切换为${next}`)
   ElMessage.success(`已切换为${next}`)
 }
-function submitSupplement() {
+async function submitSupplement() {
   if (!supplement.supplier || !supplement.module || !supplement.item || !supplement.amount) return ElMessage.warning('请补充必填字段')
+  const id = createBusinessId('COST-MANUAL')
+  await db.costItems.add({
+    id,
+    bill: '成本池手工补录',
+    supplier: supplement.supplier,
+    module: supplement.module,
+    rawItem: supplement.item,
+    item: supplement.item,
+    keyType: supplement.keyType || '无关键单号',
+    key: supplement.key,
+    amount: Number(supplement.amount),
+    currency: supplement.currency,
+    type: supplement.type,
+    target: supplement.type === '间接成本' ? '尚未选择分摊池' : '待匹配业务对象',
+    status: supplement.type === '间接成本' ? '待处理' : '待人工匹配',
+  })
+  await recordOperation('成本明细', id, '手工补录成本')
   supplementVisible.value = false
   ElMessage.success('成本明细已补录至成本池')
 }

@@ -11,6 +11,7 @@ import BillsView from './views/BillsView.vue'
 import CostPoolView from './views/CostPoolView.vue'
 import AllocationView from './views/AllocationView.vue'
 import ImportWizard from './components/ImportWizard.vue'
+import DataTools from './components/DataTools.vue'
 
 const active = ref('overview')
 const collapsed = ref(false)
@@ -105,6 +106,7 @@ function openImport() {
             <h1>{{ current?.label }}</h1>
           </div>
           <div class="heading-actions">
+            <DataTools />
             <el-button v-if="active !== 'overview'" :icon="Setting">页面设置</el-button>
             <el-button type="primary" :icon="Upload" @click="openImport">导入供应商账单</el-button>
           </div>

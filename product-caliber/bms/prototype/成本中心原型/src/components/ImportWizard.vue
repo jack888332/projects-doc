@@ -2,7 +2,8 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { CircleCheck, Document, MagicStick, Refresh, UploadFilled, Warning } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { suppliers } from '../data'
+import { createBusinessId, db } from '../db'
+import { useLiveData } from '../composables/useLiveData'
 
 const props = defineProps({ modelValue: Boolean })
 const emit = defineEmits(['update:modelValue'])
@@ -11,6 +12,7 @@ const identifying = ref(false)
 const submitting = ref(false)
 const showIssuesOnly = ref(false)
 const fileInput = ref()
+const { data: suppliers } = useLiveData(() => db.suppliers.orderBy('code').toArray())
 
 const form = reactive({
   supplier: 'SUP-DF-001', module: '派送成本', period: ['2026-07-01', '2026-07-15'], currency: 'TWD',
@@ -42,8 +44,8 @@ const sampleFiles = {
   'SUP-LD-008': { file: '海快船公司（联多.xlsx', module: '海运成本', currency: 'USD', sheets: ['账单汇总', '海运费', '附加费'] },
 }
 
-const availableSuppliers = computed(() => suppliers.filter((item) => item.status === '启用'))
-const selectedSupplier = computed(() => suppliers.find((item) => item.code === form.supplier))
+const availableSuppliers = computed(() => suppliers.value.filter((item) => item.status === '启用'))
+const selectedSupplier = computed(() => suppliers.value.find((item) => item.code === form.supplier))
 const sheets = computed(() => sampleFiles[form.supplier]?.sheets || ['Sheet1'])
 const visiblePreview = computed(() => showIssuesOnly.value ? previewRows.value.filter((row) => row.issue) : previewRows.value)
 const totalAmount = computed(() => previewRows.value.reduce((sum, row) => sum + Number(row.amount.replaceAll(',', '')), 0))
@@ -76,13 +78,69 @@ function selectFile(event) {
   const file = event.target.files?.[0]
   if (file) form.file = file.name
 }
-function submit() {
+async function submit() {
   submitting.value = true
-  setTimeout(() => {
+  try {
+    const supplier = selectedSupplier.value
+    const period = form.period.join(' - ')
+    const billId = createBusinessId(`APB-${form.supplier.replace('SUP-', '')}`)
+    const importedAt = new Date().toISOString().replace('T', ' ').slice(0, 19)
+    const direct = previewRows.value.filter((row) => row.type === '直接成本').length
+    const indirect = previewRows.value.length - direct
+    const costItems = previewRows.value.map((row) => ({
+      id: createBusinessId('COST'),
+      bill: billId,
+      module: form.module,
+      supplier: supplier.name,
+      rawItem: row.rawItem,
+      item: row.item,
+      keyType: row.key ? '尾程运单号' : '无关键单号',
+      key: row.key,
+      amount: Number(row.amount.replaceAll(',', '')),
+      currency: row.currency,
+      type: row.type,
+      target: row.match,
+      status: row.type === '直接成本' ? '已归属' : '待分摊',
+    }))
+
+    await db.transaction('rw', [db.costBills, db.costItems, db.costItemAliases, db.importSnapshots, db.suppliers, db.operationLogs], async () => {
+      await db.costBills.add({
+        id: billId,
+        supplier: supplier.name,
+        module: form.module,
+        period,
+        amount: totalAmount.value,
+        currency: form.currency,
+        rows: costItems.length,
+        direct,
+        indirect,
+        settled: form.settleStatus,
+        importStatus: '导入成功',
+        importedAt,
+        file: form.file,
+      })
+      await db.costItems.bulkAdd(costItems)
+
+      for (const mapping of mappings.filter((item) => item.role === '成本费项')) {
+        const key = [supplier.name, form.module, mapping.source]
+        const existing = await db.costItemAliases.where('[supplier+module+rawName]').equals(key).first()
+        const alias = { supplier: supplier.name, module: form.module, rawName: mapping.source, item: mapping.meaning, updatedAt: importedAt }
+        if (existing) await db.costItemAliases.update(existing.id, alias)
+        else await db.costItemAliases.add(alias)
+      }
+
+      await db.importSnapshots.put({ supplier: form.supplier, supplierName: supplier.name, module: form.module, fileStructure: mappings.map((item) => ({ role: item.role, source: item.source, meaning: item.meaning })), sheet: form.sheet, headerRow: form.headerRow, updatedAt: importedAt })
+      await db.suppliers.update(form.supplier, { snapshot: importedAt })
+      await db.operationLogs.add({ entityType: '成本账单', entityId: billId, action: '导入供应商账单', detail: form.file, createdAt: new Date().toISOString() })
+    })
+
     submitting.value = false
     active.value = 3
     ElMessage.success('账单导入任务已创建')
-  }, 1100)
+  } catch (error) {
+    submitting.value = false
+    ElMessage.error(error?.message || '账单导入失败')
+  }
 }
 function resolveIssue(row) {
   row.issue = ''

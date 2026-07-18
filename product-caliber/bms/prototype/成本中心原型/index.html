@@ -18,6 +18,7 @@
         <button>首页</button><button>基础信息</button><button>费用中心</button><button>工单系统</button><button>数据中心</button><button>仓库系统</button><button>客户管理</button><button>店铺</button>
       </nav>
       <div class="top-actions">
+        <button class="icon-btn topbar-icon" data-action="open-data-tools" title="模拟数据管理"><i data-lucide="database-backup"></i></button>
         <button class="icon-btn topbar-icon" title="应用"><i data-lucide="layout-grid"></i></button>
         <button class="icon-btn topbar-icon" title="消息"><i data-lucide="message-square"></i><span class="notification-dot"></span></button>
         <span class="avatar">财</span><span class="user-name">财务管理员</span>
@@ -55,8 +56,9 @@
   <div id="modal-backdrop" class="modal-backdrop hidden"></div>
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true"></div>
   <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
+  <input id="prototype-data-file" type="file" accept="application/json,.json" hidden>
 
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>

@@ -2,18 +2,22 @@
 import { computed, reactive, ref } from 'vue'
 import { Check, Download, Search, View } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { bills, formatAmount } from '../data'
+import { formatAmount } from '../data'
+import { db, recordOperation } from '../db'
+import { useLiveData } from '../composables/useLiveData'
 
 const query = reactive({ keyword: '', module: '', settled: '' })
-const selected = ref(bills[0])
+const selected = ref({ id: '', amount: 0, currency: '', rows: 0, direct: 0, indirect: 0 })
 const drawerVisible = ref(false)
+const { data: bills } = useLiveData(() => db.costBills.orderBy('importedAt').reverse().toArray())
 
-const filtered = computed(() => bills.filter((item) => (!query.keyword || `${item.id}${item.supplier}`.toLowerCase().includes(query.keyword.toLowerCase())) && (!query.module || item.module === query.module) && (!query.settled || item.settled === query.settled)))
+const filtered = computed(() => bills.value.filter((item) => (!query.keyword || `${item.id}${item.supplier}`.toLowerCase().includes(query.keyword.toLowerCase())) && (!query.module || item.module === query.module) && (!query.settled || item.settled === query.settled)))
 
 function view(row) { selected.value = row; drawerVisible.value = true }
 async function settle(row) {
   await ElMessageBox.confirm(`确认将 ${row.id} 登记为已结清？结清后不可返结清。`, '登记结清', { confirmButtonText: '确认结清', cancelButtonText: '取消', type: 'warning' })
-  row.settled = '已结清'
+  await db.costBills.update(row.id, { settled: '已结清', settledAt: new Date().toISOString() })
+  await recordOperation('成本账单', row.id, '登记已结清')
   ElMessage.success('结清状态已更新')
 }
 </script>

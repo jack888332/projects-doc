@@ -1,8 +1,11 @@
 <script setup>
 import { ArrowRight, Check, Clock, Coin, TrendCharts, Upload, Warning } from '@element-plus/icons-vue'
-import { bills } from '../data'
+import { db } from '../db'
+import { useLiveData } from '../composables/useLiveData'
 
 defineEmits(['open-import', 'navigate'])
+
+const { data: bills } = useLiveData(() => db.costBills.orderBy('importedAt').reverse().toArray())
 
 const kpis = [
   { label: '本月成本（人民币）', value: '¥ 2,846,391.520', delta: '较上月 +6.8%', direction: 'up', icon: Coin, note: '已归属成本' },

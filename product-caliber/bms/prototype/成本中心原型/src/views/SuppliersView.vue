@@ -2,15 +2,17 @@
 import { computed, reactive, ref } from 'vue'
 import { Edit, Plus, Search, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { suppliers } from '../data'
+import { db, recordOperation } from '../db'
+import { useLiveData } from '../composables/useLiveData'
 
 const query = reactive({ keyword: '', module: '', status: '' })
 const drawerVisible = ref(false)
 const formVisible = ref(false)
-const selected = ref(suppliers[0])
+const selected = ref({ modules: [], name: '', code: '' })
 const form = reactive({ code: '', name: '', modules: [], cycle: '月', currency: 'TWD', status: '启用', remark: '' })
+const { data: suppliers } = useLiveData(() => db.suppliers.orderBy('code').toArray())
 
-const filtered = computed(() => suppliers.filter((item) => {
+const filtered = computed(() => suppliers.value.filter((item) => {
   const keywordMatch = !query.keyword || `${item.code}${item.name}`.toLowerCase().includes(query.keyword.toLowerCase())
   return keywordMatch && (!query.module || item.modules.includes(query.module)) && (!query.status || item.status === query.status)
 }))
@@ -25,10 +27,28 @@ function openForm(row) {
   formVisible.value = true
 }
 
-function submitForm() {
+async function submitForm() {
   if (!form.code || !form.name || !form.modules.length) return ElMessage.warning('请补充必填信息')
+  const existing = await db.suppliers.get(form.code)
+  await db.suppliers.put({
+    ...existing,
+    code: form.code,
+    name: form.name,
+    modules: [...form.modules],
+    cycle: form.cycle,
+    currency: form.currency,
+    status: form.status,
+    remark: form.remark,
+    currentPeriod: existing?.currentPeriod || '尚未形成成本账期',
+    bills: existing?.bills || 0,
+    pending: existing?.pending || 0,
+    pendingAmount: existing?.pendingAmount || `0.000 ${form.currency}`,
+    total: existing?.total || `0.000 ${form.currency}`,
+    snapshot: existing?.snapshot || '暂无',
+  })
+  await recordOperation('供应商', form.code, existing ? '编辑供应商财务档案' : '新增供应商财务档案')
   formVisible.value = false
-  ElMessage.success(form.code.startsWith('SUP-') ? '供应商档案已保存' : '供应商档案已创建')
+  ElMessage.success(existing ? '供应商档案已保存' : '供应商档案已创建')
 }
 </script>
 

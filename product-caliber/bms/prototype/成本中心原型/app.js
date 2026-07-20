@@ -1,4 +1,4 @@
-﻿import Dexie from "dexie";
+import Dexie from "dexie";
 import { createApp, h, ref } from "vue";
 import { ElConfigProvider, ElDatePicker } from "element-plus";
 import zhCn from "element-plus/es/locale/lang/zh-cn.mjs";
@@ -40,31 +40,31 @@ const bills = [
 const costs = [
   { id: "COST-260716-00871", bill: bills[0].id, supplier: "东风", board: "派送", raw: "運費", fee: "派送费", keyType: "追踪号", key: "DF26061088319", amount: "1,260.000", currency: "TWD", type: "直接成本", target: "尾程包裹 TP-TW-88319", status: "已归属" },
   { id: "COST-260716-00872", bill: bills[0].id, supplier: "东风", board: "派送", raw: "超才費", fee: "超才费", keyType: "追踪号", key: "DF26061088319", amount: "320.000", currency: "TWD", type: "直接成本", target: "尾程包裹 TP-TW-88319", status: "已归属" },
-  { id: "COST-260716-00873", bill: bills[0].id, supplier: "东风", board: "派送", raw: "車趟費", fee: "车趟费", keyType: "货柜号", key: "TLLU5088210", amount: "18,600.000", currency: "TWD", type: "间接成本", target: "POOL-DEL-2606-03", status: "待分摊" },
+  { id: "COST-260716-00873", bill: bills[0].id, supplier: "东风", board: "派送", raw: "車趟費", fee: "车趟费", keyType: "货柜号", key: "TLLU5088210", amount: "18,600.000", currency: "TWD", type: "间接成本", target: "SET-DEL-2606-03", status: "待分摊" },
   { id: "COST-260715-00428", bill: bills[1].id, supplier: "东风", board: "清关", raw: "稅金", fee: "进口税费", keyType: "税单号", key: "TW-TAX-260619-0318", amount: "7,280.000", currency: "TWD", type: "直接成本", target: "业务订单 SO-OG0370-61428", status: "已归属" },
-  { id: "COST-260716-00613", bill: bills[4].id, supplier: "福广", board: "清关", raw: "萬海倉租", fee: "清关仓租", keyType: "柜号", key: "SEGU6320198", amount: "23,400.000", currency: "TWD", type: "间接成本", target: "POOL-CLR-2607-01", status: "已分摊" },
-  { id: "COST-260713-00136", bill: bills[5].id, supplier: "联多", board: "海运", raw: "海運費", fee: "海运费", keyType: "提单号", key: "SZTW26061208", amount: "42,800.000", currency: "CNY", type: "间接成本", target: "POOL-SEA-2606-02", status: "已分摊" },
-  { id: "COST-260712-00081", bill: bills[6].id, supplier: "力宝", board: "空运", raw: "中港段費", fee: "中港运输费", keyType: "提单号", key: "160-98562041", amount: "13,680.000", currency: "CNY", type: "间接成本", target: "POOL-AIR-2607-02", status: "待分摊" },
-  { id: "COST-260711-00019", bill: bills[7].id, supplier: "仓库送船公司", board: "租车", raw: "9.6米車", fee: "租车费", keyType: "无关键单号", key: "-", amount: "9,800.000", currency: "CNY", type: "间接成本", target: "待选择分摊池", status: "待人工确认" }
+  { id: "COST-260716-00613", bill: bills[4].id, supplier: "福广", board: "清关", raw: "萬海倉租", fee: "清关仓租", keyType: "柜号", key: "SEGU6320198", amount: "23,400.000", currency: "TWD", type: "间接成本", target: "SET-CLR-2607-01", status: "已分摊" },
+  { id: "COST-260713-00136", bill: bills[5].id, supplier: "联多", board: "海运", raw: "海運費", fee: "海运费", keyType: "提单号", key: "SZTW26061208", amount: "42,800.000", currency: "CNY", type: "间接成本", target: "SET-SEA-2606-02", status: "已分摊" },
+  { id: "COST-260712-00081", bill: bills[6].id, supplier: "力宝", board: "空运", raw: "中港段費", fee: "中港运输费", keyType: "提单号", key: "160-98562041", amount: "13,680.000", currency: "CNY", type: "间接成本", target: "SET-AIR-2607-02", status: "待分摊" },
+  { id: "COST-260711-00019", bill: bills[7].id, supplier: "仓库送船公司", board: "租车", raw: "9.6米車", fee: "租车费", keyType: "无关键单号", key: "-", amount: "9,800.000", currency: "CNY", type: "间接成本", target: "SET-TRK-2606-01", status: "待人工确认" }
 ];
 
 const pools = [
-  { id: "POOL-DEL-2606-03", name: "东风 6 月车趟及拖袋费用", supplier: "东风", fee: "车趟费", scope: "台湾海快 / TW / 2026-06", amount: "48,800.000 TWD", orders: 386, factor: "订单计费重", fallback: "订单包裹数", status: "待分摊", version: "-" },
-  { id: "POOL-CLR-2607-01", name: "福广 7 月上半月仓租", supplier: "福广", fee: "清关仓租", scope: "柜号 SEGU6320198", amount: "23,400.000 TWD", orders: 164, factor: "占用量 × 仓储天数", fallback: "订单计费重", status: "已分摊", version: "V2" },
-  { id: "POOL-SEA-2606-02", name: "联多 SZTW26061208 海运费", supplier: "联多", fee: "海运费", scope: "提单 SZTW26061208 / 2 柜", amount: "71,800.000 CNY", orders: 218, factor: "订单计费吨", fallback: "订单体积", status: "已分摊", version: "V1" },
-  { id: "POOL-AIR-2607-02", name: "力宝 160-98562041 空运费用", supplier: "力宝", fee: "中港运输费", scope: "主运单 160-98562041", amount: "18,600.000 CNY", orders: 94, factor: "空运计费重", fallback: "订单实重", status: "待分摊", version: "-" },
-  { id: "POOL-TRK-2606-01", name: "6 月仓库送船租车费用", supplier: "仓库送船公司", fee: "租车费", scope: "深圳仓 / 6 月 / 海快线路", amount: "39,600.000 CNY", orders: 612, factor: "订单计费重", fallback: "订单数", status: "待人工确认", version: "-" }
+  { id: "SET-DEL-2606-03", bill: bills[0].id, supplier: "东风", board: "派送成本", fee: "车趟费", currency: "TWD", detailCount: 28, scope: "台湾海快 / TW / 2026-06", amount: "48,800.000 TWD", orders: 386, ruleId: "RULE-SP-DF-001", factor: "订单占用体积", fallback: "订单计费重", status: "待分摊", version: "-" },
+  { id: "SET-CLR-2607-01", bill: bills[4].id, supplier: "福广", board: "清关成本", fee: "仓租", currency: "TWD", detailCount: 65, scope: "柜号 SEGU6320198", amount: "23,400.000 TWD", orders: 164, ruleId: "RULE-SP-FG-001", factor: "占用量 × 仓储天数", fallback: "订单计费重", status: "已分摊", version: "V2" },
+  { id: "SET-SEA-2606-02", bill: bills[5].id, supplier: "联多", board: "海运成本", fee: "海运费", currency: "CNY", detailCount: 66, scope: "提单 SZTW26061208 / 2 柜", amount: "71,800.000 CNY", orders: 218, ruleId: "RULE-SEA-001", factor: "订单计费吨", fallback: "订单体积", status: "已分摊", version: "V1" },
+  { id: "SET-AIR-2607-02", bill: bills[6].id, supplier: "力宝", board: "空运成本", fee: "中港运输费", currency: "CNY", detailCount: 88, scope: "主运单 160-98562041", amount: "18,600.000 CNY", orders: 94, ruleId: "RULE-SP-LB-001", factor: "空运计费重", fallback: "订单实重", status: "待分摊", version: "-" },
+  { id: "SET-TRK-2606-01", bill: bills[7].id, supplier: "仓库送船公司", board: "租车成本", fee: "租车费", currency: "CNY", detailCount: 26, scope: "深圳仓 / 6 月 / 海快线路", amount: "39,600.000 CNY", orders: 612, ruleId: "", factor: "-", fallback: "-", status: "待人工确认", version: "-" }
 ];
 
 const allocationRules = [
-  { id: "RULE-DEL-001", board: "派送成本", fee: "车趟费", scene: "整车或车趟运输", supplier: "全部供应商", scope: "同一集运线路、目的国和成本账期内的业务订单", factor: "订单计费重", fallback: "订单包裹数", rounding: "最大余数法", effective: "2026-01-01 起", status: "启用" },
-  { id: "RULE-CLR-001", board: "清关成本", fee: "仓租", scene: "清关仓储占用", supplier: "全部供应商", scope: "同一柜号或同一清关批次覆盖的业务订单", factor: "占用量 × 仓储天数", fallback: "订单计费重", rounding: "最大余数法", effective: "2026-01-01 起", status: "启用" },
-  { id: "RULE-SEA-001", board: "海运成本", fee: "海运费", scene: "整柜或拼箱主程运输", supplier: "全部供应商", scope: "同一提单或货柜覆盖的业务订单", factor: "订单计费吨", fallback: "订单体积", rounding: "最大余数法", effective: "2026-01-01 起", status: "启用" },
-  { id: "RULE-AIR-001", board: "空运成本", fee: "中港运输费", scene: "空运前段运输", supplier: "全部供应商", scope: "同一主运单覆盖的业务订单", factor: "空运计费重", fallback: "订单实重", rounding: "最大余数法", effective: "2026-01-01 起", status: "启用" },
-  { id: "RULE-TRK-001", board: "租车成本", fee: "租车费", scene: "仓库至码头运输", supplier: "全部供应商", scope: "同一仓库、集运线路和成本账期内的业务订单", factor: "订单计费重", fallback: "订单数", rounding: "最大余数法", effective: "2026-01-01 起", status: "启用" },
-  { id: "RULE-SP-DF-001", board: "派送成本", fee: "车趟费", scene: "东风整车派送", supplier: "东风", scope: "同一车次实际装载且已交接给东风的业务订单", factor: "订单占用体积", fallback: "订单计费重", rounding: "最大余数法", effective: "2026-06-01 起", status: "启用" },
-  { id: "RULE-SP-FG-001", board: "清关成本", fee: "仓租", scene: "福广监管仓仓租", supplier: "福广", scope: "同一柜号内实际产生监管仓占用天数的业务订单", factor: "占用量 × 仓储天数", fallback: "订单计费重", rounding: "最大余数法", effective: "2026-07-01 起", status: "启用" },
-  { id: "RULE-SP-LB-001", board: "空运成本", fee: "中港运输费", scene: "力宝中港段运输", supplier: "力宝", scope: "同一主运单下已完成中港段交接的业务订单", factor: "空运计费重", fallback: "订单实重", rounding: "最大余数法", effective: "2026-07-01 起", status: "启用" }
+  { id: "RULE-DEL-001", board: "派送成本", fee: "车趟费", supplier: "全部供应商", scope: "同一集运线路、目的国和成本账期内的业务订单", factor: "订单计费重", fallback: "订单包裹数", rounding: "最大余数法", effective: "2026-01-01 起", status: "启用" },
+  { id: "RULE-CLR-001", board: "清关成本", fee: "仓租", supplier: "全部供应商", scope: "同一柜号或同一清关批次覆盖的业务订单", factor: "占用量 × 仓储天数", fallback: "订单计费重", rounding: "最大余数法", effective: "2026-01-01 起", status: "启用" },
+  { id: "RULE-SEA-001", board: "海运成本", fee: "海运费", supplier: "全部供应商", scope: "同一提单或货柜覆盖的业务订单", factor: "订单计费吨", fallback: "订单体积", rounding: "最大余数法", effective: "2026-01-01 起", status: "启用" },
+  { id: "RULE-AIR-001", board: "空运成本", fee: "中港运输费", supplier: "全部供应商", scope: "同一主运单覆盖的业务订单", factor: "空运计费重", fallback: "订单实重", rounding: "最大余数法", effective: "2026-01-01 起", status: "启用" },
+  { id: "RULE-TRK-001", board: "租车成本", fee: "租车费", supplier: "全部供应商", scope: "同一仓库、集运线路和成本账期内的业务订单", factor: "订单计费重", fallback: "订单数", rounding: "最大余数法", effective: "2026-01-01 起", status: "启用" },
+  { id: "RULE-SP-DF-001", board: "派送成本", fee: "车趟费", supplier: "东风", scope: "同一车次实际装载且已交接给东风的业务订单", factor: "订单占用体积", fallback: "订单计费重", rounding: "最大余数法", effective: "2026-06-01 起", status: "启用" },
+  { id: "RULE-SP-FG-001", board: "清关成本", fee: "仓租", supplier: "福广", scope: "同一柜号内实际产生监管仓占用天数的业务订单", factor: "占用量 × 仓储天数", fallback: "订单计费重", rounding: "最大余数法", effective: "2026-07-01 起", status: "启用" },
+  { id: "RULE-SP-LB-001", board: "空运成本", fee: "中港运输费", supplier: "力宝", scope: "同一主运单下已完成中港段交接的业务订单", factor: "空运计费重", fallback: "订单实重", rounding: "最大余数法", effective: "2026-07-01 起", status: "启用" }
 ];
 
 const fees = [
@@ -100,7 +100,7 @@ const fees = [
 
   { code: "COST-AIR-001", name: "空运费", board: "空运成本", definition: "空运主程产生的基础运输费用。", remark: "与海运费分别维护。", rules: 2, references: 84, status: "启用", updatedAt: "2026-07-05 10:12" },
   { code: "COST-AIR-002", name: "提单费", board: "空运成本", definition: "空运提单、分单或单证处理产生的费用。", remark: "可与账单费并存。", rules: 1, references: 88, status: "启用", updatedAt: "2026-07-05 10:17" },
-  { code: "COST-AIR-003", name: "中港段费", board: "空运成本", definition: "空运货物由内地集货点运往香港机场或操作仓产生的运输费用。", remark: "按主运单或账期进入分摊池。", rules: 1, references: 88, status: "启用", updatedAt: "2026-07-05 10:27" },
+  { code: "COST-AIR-003", name: "中港段费", board: "空运成本", definition: "空运货物由内地集货点运往香港机场或操作仓产生的运输费用。", remark: "间接成本按所属账单、标准成本费项和币种进入分摊集。", rules: 1, references: 88, status: "启用", updatedAt: "2026-07-05 10:27" },
   { code: "COST-AIR-004", name: "收送费", board: "空运成本", definition: "空运收件、派送、收货或送货环节发生的费用。", remark: "可按收送范围归属。", rules: 1, references: 59, status: "启用", updatedAt: "2026-07-05 10:33" },
   { code: "COST-AIR-005", name: "打包费", board: "空运成本", definition: "空运打包、包装、加固或分箱产生的费用。", remark: "与订单包装范围相关。", rules: 1, references: 41, status: "启用", updatedAt: "2026-07-05 10:40" },
   { code: "COST-AIR-006", name: "报关费", board: "空运成本", definition: "空运业务对应的报关或申报费用。", remark: "与空运费分开维护。", rules: 1, references: 24, status: "启用", updatedAt: "2026-07-05 10:45" },
@@ -174,8 +174,8 @@ const feeAliases = [
   { id: "ALIAS-TRK-007", supplier: "仓库送船公司", board: "租车成本", rawName: "里程費", feeCode: "COST-TRK-005", structure: "租车月结单", sheet: "租车", status: "启用", version: 1, confirmer: "谭清辉", confirmedAt: "2026-07-03 10:48", note: "" }
 ];
 
-const state = { view: "overview", wizardStep: 1, selectedFile: "df-delivery", selectedSheet: "黑貓", costPeriodStart: "2026-06-01", costPeriodEnd: "2026-06-30", supplierPeriodStart: "2026-06-01", supplierPeriodEnd: "2026-07-16", billPeriodStart: "2026-06-01", billPeriodEnd: "2026-07-16", profitPeriodStart: "2026-06-01", profitPeriodEnd: "2026-06-30", newPoolPeriodStart: "2026-07-01", newPoolPeriodEnd: "2026-07-31", billFilter: "全部", poolFilter: "全部", ruleTab: "base", ruleBoard: "", ruleKeyword: "", ruleSupplier: "", ruleStatus: "", feeTab: "index", feeCodeKeyword: "", feeNameKeyword: "", feeBoard: "", feeStatus: "", aliasKeyword: "", aliasSupplier: "", aliasBoard: "", aliasStatus: "", sidebarOpen: false, pendingAction: null };
-const routeNames = { overview: "成本总览", suppliers: "供应商管理", bills: "成本账单", pool: "成本池", allocation: "分摊池", rules: "分摊规则", profit: "利润分析", fees: "成本费项索引" };
+const state = { view: "overview", selectedBillId: "", billDetailTab: "summary", wizardStep: 1, selectedFile: "df-delivery", selectedSheet: "黑貓", costPeriodStart: "2026-06-01", costPeriodEnd: "2026-06-30", supplierPeriodStart: "2026-06-01", supplierPeriodEnd: "2026-07-16", billPeriodStart: "2026-06-01", billPeriodEnd: "2026-07-16", profitPeriodStart: "2026-06-01", profitPeriodEnd: "2026-06-30", billFilter: "全部", ruleTab: "base", ruleBoard: "", ruleKeyword: "", ruleSupplier: "", ruleStatus: "", feeTab: "index", feeCodeKeyword: "", feeNameKeyword: "", feeBoard: "", feeStatus: "", aliasKeyword: "", aliasSupplier: "", aliasBoard: "", aliasStatus: "", sidebarOpen: false, pendingAction: null };
+const routeNames = { overview: "成本总览", suppliers: "供应商管理", bills: "成本账单", billDetail: "成本账单详情", pool: "成本池", rules: "分摊规则", profit: "利润分析", fees: "成本费项索引" };
 const dateRangePickerApps = new Map();
 
 const prototypeDb = new Dexie("BmsCostCenterPrototype");
@@ -217,7 +217,7 @@ async function seedPrototypeDatabase(force = false) {
   await prototypeDb.transaction("rw", prototypeDb.tables, async () => {
     if (force) await Promise.all(prototypeDb.tables.map(table => table.clear()));
     for (const tableName of dataTableNames) await prototypeDb.table(tableName).bulkPut(cloneData(initialData[tableName]));
-    await prototypeDb.settings.put({ key: "seedVersion", value: 5 });
+    await prototypeDb.settings.put({ key: "seedVersion", value: 7 });
     await prototypeDb.operationLogs.add({ entityType: "系统", entityId: "成本中心原型", action: force ? "恢复初始模拟数据" : "初始化模拟数据", createdAt: new Date().toISOString() });
   });
 }
@@ -226,12 +226,17 @@ async function initializePrototypeDatabase() {
   await prototypeDb.open();
   const seedState = await prototypeDb.settings.get("seedVersion");
   if (!seedState) await seedPrototypeDatabase();
-  else if (Number(seedState.value) < 5) {
-    await prototypeDb.transaction("rw", [prototypeDb.fees, prototypeDb.feeAliases, prototypeDb.allocationRules, prototypeDb.settings], async () => {
+  else if (Number(seedState.value) < 8) {
+    await prototypeDb.transaction("rw", [prototypeDb.costs, prototypeDb.pools, prototypeDb.fees, prototypeDb.feeAliases, prototypeDb.allocationRules, prototypeDb.settings], async () => {
+      await prototypeDb.costs.clear();
+      await prototypeDb.pools.clear();
+      await prototypeDb.allocationRules.clear();
+      await prototypeDb.costs.bulkPut(cloneData(costs));
+      await prototypeDb.pools.bulkPut(cloneData(pools));
       await prototypeDb.fees.bulkPut(cloneData(fees));
       await prototypeDb.feeAliases.bulkPut(cloneData(feeAliases));
       await prototypeDb.allocationRules.bulkPut(cloneData(allocationRules));
-      await prototypeDb.settings.put({ key: "seedVersion", value: 5 });
+      await prototypeDb.settings.put({ key: "seedVersion", value: 8 });
     });
   }
   await hydratePrototypeData();
@@ -308,7 +313,7 @@ function renderOverview() {
       <div class="kpi-card"><span class="kpi-icon">${icon("files")}</span><div class="kpi-label">本月成本账单</div><div class="kpi-value">8<small>份</small></div><div class="kpi-extra">较上月 +2 份</div></div>
       <div class="kpi-card warning"><span class="kpi-icon">${icon("circle-dollar-sign")}</span><div class="kpi-label">待结清金额</div><div class="kpi-value">714.1<small>千 CNY</small></div><div class="kpi-extra">TWD 已换算，仅供总览</div></div>
       <div class="kpi-card info"><span class="kpi-icon">${icon("git-branch")}</span><div class="kpi-label">待归属成本</div><div class="kpi-value">23<small>笔</small></div><div class="kpi-extra">18 笔待匹配 · 5 笔待确认</div></div>
-      <div class="kpi-card danger"><span class="kpi-icon">${icon("split")}</span><div class="kpi-label">待分摊金额</div><div class="kpi-value">106.8<small>千 CNY</small></div><div class="kpi-extra">5 个分摊池待处理</div></div>
+      <div class="kpi-card danger"><span class="kpi-icon">${icon("split")}</span><div class="kpi-label">待分摊金额</div><div class="kpi-value">106.8<small>千 CNY</small></div><div class="kpi-extra">5 个间接成本分摊集待处理</div></div>
       <div class="kpi-card success"><span class="kpi-icon">${icon("badge-check")}</span><div class="kpi-label">成本已齐订单</div><div class="kpi-value">82.6<small>%</small></div><div class="kpi-extra">1,946 / 2,356 单</div></div>
     </div>
     <div class="dashboard-grid">
@@ -318,7 +323,7 @@ function renderOverview() {
       <section class="panel"><div class="panel-head"><span class="panel-title">待处理事项</span><button class="btn small" data-view="pool">全部处理</button></div><div class="panel-body"><div class="todo-list">
         <div class="todo-item" data-view="bills"><span class="todo-icon danger">${icon("file-x-2")}</span><div><div class="todo-name">导入失败</div><div class="todo-desc">字段格式或金额合计异常</div></div><strong class="todo-count">2</strong></div>
         <div class="todo-item" data-view="pool"><span class="todo-icon">${icon("link-2-off")}</span><div><div class="todo-name">待人工匹配</div><div class="todo-desc">关键单号未命中业务对象</div></div><strong class="todo-count">18</strong></div>
-        <div class="todo-item" data-view="allocation"><span class="todo-icon info">${icon("split")}</span><div><div class="todo-name">待执行分摊</div><div class="todo-desc">范围与因子已确认</div></div><strong class="todo-count">4</strong></div>
+        <div class="todo-item" data-view="bills"><span class="todo-icon info">${icon("split")}</span><div><div class="todo-name">待执行分摊</div><div class="todo-desc">到账单详情确认分摊集规则</div></div><strong class="todo-count">4</strong></div>
         <div class="todo-item" data-view="profit"><span class="todo-icon">${icon("badge-alert")}</span><div><div class="todo-name">成本未齐订单</div><div class="todo-desc">影响实际利润确认</div></div><strong class="todo-count">410</strong></div>
       </div></div></section>
     </div>
@@ -398,23 +403,16 @@ function wizardThree() {
   <div class="table-wrap"><table class="data-table"><thead><tr><th>原始行</th><th>关键单号</th><th>供应商原始费项</th><th>标准成本费项</th><th>金额</th><th>成本类型建议</th><th>归属结果</th><th>校验</th></tr></thead><tbody>
   <tr><td>第 3 行</td><td>DF26061088319</td><td>運費</td><td>派送费</td><td class="num">1,260.000 ${currency}</td><td>${tag("直接成本","green")}</td><td>尾程包裹 TP-TW-88319</td><td>${status("已匹配")}</td></tr>
   <tr><td>第 3 行</td><td>DF26061088319</td><td>超才費</td><td>超才费</td><td class="num">320.000 ${currency}</td><td>${tag("直接成本","green")}</td><td>尾程包裹 TP-TW-88319</td><td>${status("已匹配")}</td></tr>
-  <tr><td>第 28 行</td><td>TLLU5088210</td><td>車趟費</td><td>车趟费</td><td class="num">18,600.000 ${currency}</td><td>${tag("间接成本","orange")}</td><td>待选择分摊池</td><td>${tag("待确认","orange")}</td></tr>
+  <tr><td>第 28 行</td><td>TLLU5088210</td><td>車趟費</td><td>车趟费</td><td class="num">18,600.000 ${currency}</td><td>${tag("间接成本","orange")}</td><td>待归入间接成本分摊集</td><td>${tag("待确认","orange")}</td></tr>
   <tr><td>第 76 行</td><td>DF26060810211</td><td>運費</td><td>派送费</td><td class="num">860.000 ${currency}</td><td>${tag("直接成本","green")}</td><td>尾程包裹 TP-TW-10211</td><td>${tag("疑似重复","red")}</td></tr>
   </tbody></table></div></div>`;
 }
 
 function renderPool() {
-  return `${pageHeader("成本池", "逐行查看已标准化成本，确认直接归属或进入唯一间接成本分摊池", `<button class="btn">${icon("plus")}补录成本</button><button class="btn primary" data-view="allocation">${icon("split")}处理待分摊</button>`)}
+  return `${pageHeader("成本池", "逐行查看已标准化成本；直接成本归属业务对象，间接成本按所属账单进入分摊集", `<button class="btn">${icon("plus")}补录成本</button><button class="btn primary" data-view="bills">${icon("file-spreadsheet")}查看成本账单</button>`)}
   <div class="kpi-grid"><div class="kpi-card"><div class="kpi-label">成本明细</div><div class="kpi-value">4,543<small>笔</small></div><div class="kpi-extra">来自 8 份供应商账单</div></div><div class="kpi-card success"><div class="kpi-label">直接成本</div><div class="kpi-value">3,773<small>笔</small></div><div class="kpi-extra">已归属 98.7%</div></div><div class="kpi-card warning"><div class="kpi-label">间接成本</div><div class="kpi-value">770<small>笔</small></div><div class="kpi-extra">待分摊 106,800.000 CNY</div></div><div class="kpi-card danger"><div class="kpi-label">待人工确认</div><div class="kpi-value">23<small>笔</small></div><div class="kpi-extra">单号关系或成本类型待确认</div></div><div class="kpi-card info"><div class="kpi-label">汇率待确认</div><div class="kpi-value">6<small>笔</small></div><div class="kpi-extra">暂不进入人民币利润合计</div></div></div>
   <div class="filter-panel"><div class="filter-grid"><div class="field"><label>成本明细编号 / 关键单号</label><input class="input" placeholder="输入编号、运单、提单或柜号"></div><div class="field"><label>供应商</label><select class="select"><option>全部供应商</option>${suppliers.map(s=>`<option>${s.name}</option>`).join("")}</select></div><div class="field"><label>成本类型</label><select class="select"><option>全部类型</option><option>直接成本</option><option>间接成本</option></select></div><div class="field"><label>处理状态</label><select class="select"><option>全部状态</option><option>已归属</option><option>待分摊</option><option>已分摊</option><option>待人工确认</option></select></div><div class="filter-actions"><button class="btn primary">${icon("search")}查询</button><button class="btn">${icon("rotate-ccw")}重置</button></div></div></div>
-  <section class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th><input class="row-check" type="checkbox"></th><th>成本明细编号</th><th>供应商</th><th>成本板块</th><th>供应商原始费项</th><th>标准成本费项</th><th>关键单号</th><th>原始金额</th><th>成本类型</th><th>归属对象 / 分摊池</th><th>处理状态</th><th>操作</th></tr></thead><tbody>${costs.map(c=>`<tr><td><input class="row-check" type="checkbox"></td><td class="link mono" data-action="open-cost" data-id="${c.id}">${c.id}</td><td>${c.supplier}</td><td>${tag(getCostBoardLabel(c),"purple")}</td><td>${c.raw}</td><td>${c.fee}</td><td><span class="muted">${c.keyType}</span><br>${c.key}</td><td class="num strong">${money(c.amount,c.currency)}</td><td>${tag(c.type,c.type==="直接成本"?"green":"orange")}</td><td>${c.target}</td><td>${status(c.status)}</td><td><button class="btn small" data-action="open-cost" data-id="${c.id}">详情</button><button class="btn small" data-action="toggle-cost" data-id="${c.id}">切换类型</button></td></tr>`).join("")}</tbody></table></div>${tableFooter(costs.length)}</section>`;
-}
-
-function renderAllocation() {
-  const filtered=state.poolFilter==="全部"?pools:pools.filter(p=>p.status===state.poolFilter);
-  return `${pageHeader("分摊池", "先确定待分摊成本与候选业务订单，再按有效分摊规则逐币种计算", `<button class="btn primary" data-action="new-pool">${icon("plus")}新建分摊池</button>`)}
-  <div class="filter-panel"><div class="filter-grid"><div class="field"><label>分摊池编号 / 名称</label><input class="input" placeholder="输入分摊池编号或名称"></div><div class="field"><label>供应商</label><select class="select"><option>全部供应商</option>${suppliers.map(s=>`<option>${s.name}</option>`).join("")}</select></div><div class="field"><label>标准成本费项</label><select class="select"><option>全部费项</option>${fees.map(f=>`<option>${f.name}</option>`).join("")}</select></div><div class="field"><label>分摊状态</label><div class="segmented">${["全部","待人工确认","待分摊","已分摊"].map(v=>`<button class="${state.poolFilter===v?"active":""}" data-action="pool-filter" data-value="${v}">${v}</button>`).join("")}</div></div></div></div>
-  <section class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th>分摊池编号</th><th>分摊池名称</th><th>供应商</th><th>标准成本费项</th><th>业务范围</th><th>待分摊金额</th><th>候选订单</th><th>优先 / 兜底因子</th><th>有效版本</th><th>状态</th><th>操作</th></tr></thead><tbody>${filtered.map(p=>`<tr><td class="link mono" data-action="open-pool" data-id="${p.id}">${p.id}</td><td>${p.name}</td><td>${p.supplier}</td><td>${p.fee}</td><td>${p.scope}</td><td class="num strong">${p.amount}</td><td class="num">${p.orders}</td><td>${p.factor}<br><span class="muted">兜底：${p.fallback}</span></td><td>${p.version}</td><td>${status(p.status)}</td><td><button class="btn small" data-action="open-pool" data-id="${p.id}">详情</button>${p.status!=="已分摊"?`<button class="btn small" data-action="run-allocation" data-id="${p.id}">预览分摊</button>`:""}</td></tr>`).join("")}</tbody></table></div>${tableFooter(filtered.length)}</section>`;
+  <section class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th><input class="row-check" type="checkbox"></th><th>成本明细编号</th><th>供应商</th><th>成本板块</th><th>供应商原始费项</th><th>标准成本费项</th><th>关键单号</th><th>原始金额</th><th>成本类型</th><th>归属对象 / 所属分摊集</th><th>处理状态</th><th>操作</th></tr></thead><tbody>${costs.map(c=>`<tr><td><input class="row-check" type="checkbox"></td><td class="link mono" data-action="open-cost" data-id="${c.id}">${c.id}</td><td>${c.supplier}</td><td>${tag(getCostBoardLabel(c),"purple")}</td><td>${c.raw}</td><td>${c.fee}</td><td><span class="muted">${c.keyType}</span><br>${c.key}</td><td class="num strong">${money(c.amount,c.currency)}</td><td>${tag(c.type,c.type==="直接成本"?"green":"orange")}</td><td>${c.type === "间接成本" ? `<button class="count-link" data-action="open-bucket" data-id="${c.target}">${c.target}</button>` : c.target}</td><td>${status(c.status)}</td><td><button class="btn small" data-action="open-cost" data-id="${c.id}">详情</button><button class="btn small" data-action="toggle-cost" data-id="${c.id}">切换类型</button></td></tr>`).join("")}</tbody></table></div>${tableFooter(costs.length)}</section>`;
 }
 
 function renderRules() {
@@ -423,7 +421,7 @@ function renderRules() {
   const keyword = state.ruleKeyword.trim().toLowerCase();
   const filtered = allocationRules.filter(rule => {
     const matchesType = activeType === "supplier" ? isSupplierRule(rule) : !isSupplierRule(rule);
-    const matchesKeyword = !keyword || `${rule.id} ${rule.fee} ${rule.scene || ""} ${rule.scope}`.toLowerCase().includes(keyword);
+    const matchesKeyword = !keyword || `${rule.id} ${rule.fee} ${rule.scope}`.toLowerCase().includes(keyword);
     const matchesBoard = !state.ruleBoard || rule.board === state.ruleBoard;
     const matchesSupplier = activeType === "base" || !state.ruleSupplier || rule.supplier === state.ruleSupplier;
     const matchesStatus = !state.ruleStatus || rule.status === state.ruleStatus;
@@ -438,11 +436,11 @@ function renderRules() {
     <section class="rule-priority-panel" aria-label="分摊规则命中优先级">
       <div class="rule-priority-title">规则命中优先级</div>
       <div class="rule-priority-flow"><span class="priority-step primary"><b>1</b>供应商特调分摊规则</span>${icon("arrow-right")}<span class="priority-step"><b>2</b>基础分摊规则</span></div>
-      <p>系统先按供应商、标准成本费项、费用场景和成本发生时间匹配特调规则；未命中时再采用同口径的基础规则。同一层级命中多条规则时停止自动匹配，转财务确认。</p>
+      <p>系统先按供应商、标准成本费项和成本发生时间匹配特调规则；未命中时再采用同一标准成本费项的基础规则。同一层级命中多条规则时停止自动匹配，转财务确认。</p>
     </section>
-    <div class="filter-panel rule-filter-panel"><div class="filter-grid rule-filter-grid"><div class="field"><label>规则编号 / 费项 / 场景</label><input id="rule-keyword" class="input" value="${escapeHtml(state.ruleKeyword)}" placeholder="输入规则编号、标准成本费项或费用场景"></div><div class="field"><label>成本板块</label><select id="rule-board-filter" class="select"><option value="">全部板块</option>${["派送成本","清关成本","海运成本","空运成本","租车成本"].map(item => `<option value="${item}" ${state.ruleBoard === item ? "selected" : ""}>${item}</option>`).join("")}</select></div>${supplierFilter}<div class="field"><label>状态</label><select id="rule-status-filter" class="select"><option value="">全部状态</option>${["启用","停用"].map(item => `<option value="${item}" ${state.ruleStatus === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="filter-actions"><button class="btn primary" data-action="rule-query">${icon("search")}查询</button><button class="btn" data-action="rule-reset">${icon("rotate-ccw")}重置</button></div></div></div>
+    <div class="filter-panel rule-filter-panel"><div class="filter-grid rule-filter-grid"><div class="field"><label>规则编号 / 标准成本费项</label><input id="rule-keyword" class="input" value="${escapeHtml(state.ruleKeyword)}" placeholder="输入规则编号、标准成本费项或候选订单范围"></div><div class="field"><label>成本板块</label><select id="rule-board-filter" class="select"><option value="">全部板块</option>${["派送成本","清关成本","海运成本","空运成本","租车成本"].map(item => `<option value="${item}" ${state.ruleBoard === item ? "selected" : ""}>${item}</option>`).join("")}</select></div>${supplierFilter}<div class="field"><label>状态</label><select id="rule-status-filter" class="select"><option value="">全部状态</option>${["启用","停用"].map(item => `<option value="${item}" ${state.ruleStatus === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="filter-actions"><button class="btn primary" data-action="rule-query">${icon("search")}查询</button><button class="btn" data-action="rule-reset">${icon("rotate-ccw")}重置</button></div></div></div>
     <section class="panel"><div class="panel-head rule-type-tabbar"><div class="rule-type-tabs"><button class="${activeType === "base" ? "active" : ""}" data-action="rule-type-tab" data-value="base"><span>基础分摊规则</span><small>${baseCount}</small></button><button class="${activeType === "supplier" ? "active" : ""}" data-action="rule-type-tab" data-value="supplier"><span>供应商特调分摊规则</span><small>${supplierCount}</small></button></div><span class="panel-tools">共 ${filtered.length} 条</span></div>
-      <div class="table-wrap"><table class="data-table rule-list-table"><thead><tr><th>规则编号</th><th>成本板块</th><th>标准成本费项</th><th>费用场景</th>${supplierColumn}<th>候选业务订单范围</th><th>优先 / 兜底因子</th><th>生效期间</th><th>状态</th><th>操作</th></tr></thead><tbody>${filtered.map(rule => `<tr><td class="link mono" data-action="open-rule" data-id="${rule.id}">${rule.id}</td><td>${tag(rule.board,"purple")}</td><td><strong>${escapeHtml(rule.fee)}</strong></td><td>${escapeHtml(rule.scene || "未命名场景")}</td>${activeType === "supplier" ? `<td>${escapeHtml(rule.supplier)}</td>` : ""}<td class="wrap-cell">${escapeHtml(rule.scope)}</td><td>${escapeHtml(rule.factor)}<br><span class="muted">兜底：${escapeHtml(rule.fallback)}</span></td><td>${escapeHtml(rule.effective || "长期有效")}</td><td>${status(rule.status)}</td><td><button class="btn small" data-action="open-rule" data-id="${rule.id}">详情</button><button class="btn small" data-action="edit-rule" data-id="${rule.id}">编辑</button></td></tr>`).join("") || `<tr><td colspan="${activeType === "supplier" ? 10 : 9}" class="empty-cell">${emptyMessage}</td></tr>`}</tbody></table></div>${tableFooter(filtered.length)}</section>`;
+      <div class="table-wrap"><table class="data-table rule-list-table"><thead><tr><th>规则编号</th><th>成本板块</th><th>标准成本费项</th>${supplierColumn}<th>候选业务订单范围</th><th>优先 / 兜底因子</th><th>生效期间</th><th>状态</th><th>操作</th></tr></thead><tbody>${filtered.map(rule => `<tr><td class="link mono" data-action="open-rule" data-id="${rule.id}">${rule.id}</td><td>${tag(rule.board,"purple")}</td><td><strong>${escapeHtml(rule.fee)}</strong></td>${activeType === "supplier" ? `<td>${escapeHtml(rule.supplier)}</td>` : ""}<td class="wrap-cell">${escapeHtml(rule.scope)}</td><td>${escapeHtml(rule.factor)}<br><span class="muted">兜底：${escapeHtml(rule.fallback)}</span></td><td>${escapeHtml(rule.effective || "长期有效")}</td><td>${status(rule.status)}</td><td><button class="btn small" data-action="open-rule" data-id="${rule.id}">详情</button><button class="btn small" data-action="edit-rule" data-id="${rule.id}">编辑</button></td></tr>`).join("") || `<tr><td colspan="${activeType === "supplier" ? 9 : 8}" class="empty-cell">${emptyMessage}</td></tr>`}</tbody></table></div>${tableFooter(filtered.length)}</section>`;
 }
 
 function renderProfit() {
@@ -478,10 +476,12 @@ function renderFees() {
 function renderView() {
   destroyAllDateRangePickers();
   const content=document.getElementById("content");
-  const views={overview:renderOverview,suppliers:renderSuppliers,bills:renderBills,pool:renderPool,allocation:renderAllocation,rules:renderRules,profit:renderProfit,fees:renderFees};
+  const views={overview:renderOverview,suppliers:renderSuppliers,bills:renderBills,billDetail:renderBillDetail,pool:renderPool,rules:renderRules,profit:renderProfit,fees:renderFees};
   content.innerHTML=(views[state.view]||renderOverview)();
   document.querySelector(".current-route").textContent=routeNames[state.view];
-  document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.view===state.view));
+  document.getElementById("route-back").classList.toggle("hidden",state.view!=="billDetail");
+  const activeView = state.view === "billDetail" ? "bills" : state.view;
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.view===activeView));
   refreshIcons();
   initializeViewDateRangePickers();
   window.scrollTo({top:0,behavior:"instant"});
@@ -562,8 +562,8 @@ function initializeViewDateRangePickers() {
   };
   if (configs[state.view]) mountDateRangePicker(configs[state.view]);
 }
-function showModal(title, body, confirm="确认") { destroyDateRangePicker("cost-period-range");destroyDateRangePicker("pool-period-range");const m=document.getElementById("modal"); m.classList.remove("import-wizard-modal","allocation-config-modal");m.innerHTML=`<div class="modal-head"><span class="modal-title">${title}</span><button class="icon-btn" data-action="close-modal">${icon("x")}</button></div><div class="modal-body">${body}</div><div class="modal-foot"><button class="btn" data-action="close-modal">取消</button><button class="btn primary" data-action="modal-confirm">${confirm}</button></div>`;m.classList.remove("hidden");document.getElementById("modal-backdrop").classList.remove("hidden");refreshIcons();}
-function closeModal(){destroyDateRangePicker("cost-period-range");destroyDateRangePicker("pool-period-range");const modal=document.getElementById("modal");modal.classList.add("hidden");modal.classList.remove("import-wizard-modal","allocation-config-modal");document.getElementById("modal-backdrop").classList.add("hidden");state.pendingAction=null;}
+function showModal(title, body, confirm="确认") { destroyDateRangePicker("cost-period-range");const m=document.getElementById("modal"); m.classList.remove("import-wizard-modal","allocation-config-modal");m.innerHTML=`<div class="modal-head"><span class="modal-title">${title}</span><button class="icon-btn" data-action="close-modal">${icon("x")}</button></div><div class="modal-body">${body}</div><div class="modal-foot"><button class="btn" data-action="close-modal">取消</button><button id="modal-confirm" class="btn primary" data-action="modal-confirm">${confirm}</button></div>`;m.classList.remove("hidden");document.getElementById("modal-backdrop").classList.remove("hidden");refreshIcons();}
+function closeModal(){destroyDateRangePicker("cost-period-range");const modal=document.getElementById("modal");modal.classList.add("hidden");modal.classList.remove("import-wizard-modal","allocation-config-modal");document.getElementById("modal-backdrop").classList.add("hidden");state.pendingAction=null;}
 function toast(message,type="success"){const stack=document.getElementById("toast-stack");const el=document.createElement("div");el.className=`toast ${type}`;el.innerHTML=`${icon(type==="success"?"circle-check":"triangle-alert")}<span>${message}</span>`;stack.appendChild(el);refreshIcons();setTimeout(()=>el.remove(),3200);}
 
 function dataToolsModal() {
@@ -654,7 +654,6 @@ async function commitPendingAction() {
     const original = allocationRules.find(item => item.id === action.id);
     const board = document.getElementById("rule-form-board")?.value || "";
     const fee = document.getElementById("rule-form-fee")?.value || "";
-    const scene = (document.getElementById("rule-form-scene")?.value || "").trim();
     const supplier = action.ruleType === "supplier" ? (document.getElementById("rule-form-supplier")?.value || "") : "全部供应商";
     const scope = (document.getElementById("rule-form-scope")?.value || "").trim();
     const factor = document.getElementById("rule-form-factor")?.value || "";
@@ -663,38 +662,26 @@ async function commitPendingAction() {
     const effective = (document.getElementById("rule-form-effective")?.value || "").trim();
     const ruleStatus = document.getElementById("rule-form-status")?.value || "启用";
     const targetFee = fees.find(item => item.name === fee && item.board === board);
-    if (!board || !fee || !scene || !supplier || !scope || !factor || !fallback || !effective) { toast("请完整填写分摊规则的必填信息", "warning"); return; }
+    if (!board || !fee || !supplier || !scope || !factor || !fallback || !effective) { toast("请完整填写分摊规则的必填信息", "warning"); return; }
     if (!targetFee) { toast("标准成本费项必须与所选成本板块一致", "warning"); return; }
-    const duplicate = allocationRules.find(item => item.id !== original?.id && item.board === board && item.fee === fee && (item.scene || "") === scene && item.supplier === supplier && item.status === "启用" && ruleStatus === "启用");
-    if (duplicate) { toast("相同板块、费项、费用场景和规则层级下已存在启用中的分摊规则", "warning"); return; }
-    const rule = { ...original, id: original?.id || makeId(action.ruleType === "supplier" ? "RULE-SP" : "RULE"), board, fee, scene, supplier, scope, factor, fallback, rounding, effective, status: ruleStatus };
+    const duplicate = allocationRules.find(item => item.id !== original?.id && item.board === board && item.fee === fee && item.supplier === supplier && item.status === "启用" && ruleStatus === "启用");
+    if (duplicate) { toast("相同标准成本费项和规则层级下已存在启用中的分摊规则", "warning"); return; }
+    const rule = { ...original, id: original?.id || makeId(action.ruleType === "supplier" ? "RULE-SP" : "RULE"), board, fee, supplier, scope, factor, fallback, rounding, effective, status: ruleStatus };
     if (original) Object.assign(original, rule); else allocationRules.unshift(rule);
     await prototypeDb.allocationRules.put(cloneData(rule));
     await recordOperation("分摊规则", rule.id, original ? "更新间接成本分摊规则" : "新增间接成本分摊规则", `${action.ruleType === "supplier" ? "供应商特调" : "基础"} / ${board} / ${fee} / ${supplier}`);
-  } else if (action.type === "savePool") {
-    const name = (document.getElementById("pool-form-name")?.value || "").trim();
-    const supplier = document.getElementById("pool-form-supplier")?.value || "";
-    const feeCode = document.getElementById("pool-form-fee")?.value || "";
-    const scope = (document.getElementById("pool-form-scope")?.value || "").trim();
-    const amountValue = Number(document.getElementById("pool-form-amount")?.value || 0);
-    const currency = document.getElementById("pool-form-currency")?.value || "CNY";
-    const orders = Number(document.getElementById("pool-form-orders")?.value || 0);
-    const factor = document.getElementById("pool-form-factor")?.value || "";
-    const fallback = document.getElementById("pool-form-fallback")?.value || "";
-    const note = (document.getElementById("pool-form-note")?.value || "").trim();
-    const targetFee = fees.find(item => item.code === feeCode && item.status === "启用");
-    if (!name || !supplier || !targetFee || !scope || !factor || !fallback) { toast("请完整填写分摊池的必填信息", "warning"); return; }
-    if (!Number.isFinite(amountValue) || amountValue <= 0) { toast("待分摊金额必须大于 0", "warning"); return; }
-    if (!Number.isInteger(orders) || orders <= 0) { toast("候选业务订单数必须为正整数", "warning"); return; }
-    if (pools.some(item => item.name === name && item.status !== "已分摊")) { toast("已存在同名且尚未完成的分摊池", "warning"); return; }
-    const boardCode = { "派送成本": "DEL", "清关成本": "CLR", "海运成本": "SEA", "空运成本": "AIR", "租车成本": "TRK" }[targetFee.board] || "GEN";
-    const id = makeId(`POOL-${boardCode}`);
-    const period = `${state.newPoolPeriodStart} 至 ${state.newPoolPeriodEnd}`;
-    const amount = `${amountValue.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${currency}`;
-    const pool = { id, name, supplier, fee: targetFee.name, board: targetFee.board, period, scope, amount, orders, factor, fallback, status: "待人工确认", version: "-", note };
-    pools.unshift(pool);
-    await prototypeDb.pools.add(cloneData(pool));
-    await recordOperation("分摊池", id, "新建间接成本分摊池", `${targetFee.board} / ${targetFee.name} / ${amount}`);
+  } else if (action.type === "saveBucketRule") {
+    const bucket = pools.find(item => item.id === action.id);
+    const ruleId = document.getElementById("bucket-rule-select")?.value || "";
+    const rule = allocationRules.find(item => item.id === ruleId && item.status === "启用");
+    if (!bucket || !rule) { toast("请选择一条有效分摊规则", "warning"); return; }
+    bucket.ruleId = rule.id;
+    bucket.factor = rule.factor;
+    bucket.fallback = rule.fallback;
+    bucket.scope = rule.scope;
+    bucket.status = "待分摊";
+    await prototypeDb.pools.put(cloneData(bucket));
+    await recordOperation("间接成本分摊集", bucket.id, "确认采用的分摊规则", `${rule.id} / ${rule.supplier}`);
   } else if (action.type === "toggleFee") {
     const fee = fees.find(item => item.code === action.id);
     fee.status = fee.status === "启用" ? "停用" : "启用";
@@ -722,18 +709,18 @@ async function commitPendingAction() {
     const cost = costs.find(item => item.id === action.id);
     cost.type = cost.type === "直接成本" ? "间接成本" : "直接成本";
     cost.status = cost.type === "直接成本" ? "待人工确认" : "待分摊";
-    cost.target = cost.type === "直接成本" ? "待匹配业务对象" : "待选择分摊池";
+    cost.target = cost.type === "直接成本" ? "待匹配业务对象" : "待归入间接成本分摊集";
     await prototypeDb.costs.put(cloneData(cost));
     await recordOperation("成本明细", cost.id, `切换为${cost.type}`);
   } else if (action.type === "runAllocation") {
-    const pool = pools.find(item => item.id === action.id);
-    pool.status = "已分摊";
-    pool.version = pool.version === "-" ? "V1" : `V${Number(pool.version.slice(1)) + 1}`;
-    await prototypeDb.pools.put(cloneData(pool));
-    const affected = costs.filter(cost => cost.target === pool.id);
+    const bucket = pools.find(item => item.id === action.id);
+    bucket.status = "已分摊";
+    bucket.version = bucket.version === "-" ? "V1" : `V${Number(bucket.version.slice(1)) + 1}`;
+    await prototypeDb.pools.put(cloneData(bucket));
+    const affected = costs.filter(cost => cost.target === bucket.id);
     for (const cost of affected) cost.status = "已分摊";
     if (affected.length) await prototypeDb.costs.bulkPut(cloneData(affected));
-    await recordOperation("分摊池", pool.id, "执行间接成本分摊", pool.version);
+    await recordOperation("间接成本分摊集", bucket.id, "执行间接成本分摊", bucket.version);
   } else if (action.type === "importBill") {
     const file = sampleFiles.find(item => item.id === state.selectedFile);
     const supplier = suppliers.find(item => item.name === file.supplier);
@@ -759,17 +746,42 @@ async function commitPendingAction() {
 
 function supplierDrawer(id){const s=suppliers.find(x=>x.code===id);const boards=normalizeSupplierBoards(s?.boards);showDrawer(`供应商财务档案 · ${s.name}`,`<div class="header-actions" style="justify-content:flex-start;margin-bottom:12px"><button class="btn primary">${icon("pencil")}编辑档案</button><button class="btn" data-view="bills">查看成本账单</button></div><div class="detail-grid"><div class="detail-item"><span class="detail-label">供应商编码</span><span class="detail-value">${s.code}</span></div><div class="detail-item"><span class="detail-label">供应商状态</span><span class="detail-value">${status(s.state)}</span></div><div class="detail-item"><span class="detail-label">供应商名称</span><span class="detail-value">${s.name}</span></div><div class="detail-item"><span class="detail-label">适用成本板块</span><span class="detail-value">${renderSupplierBoardTags(boards)}</span></div><div class="detail-item"><span class="detail-label">成本账期类型</span><span class="detail-value">${s.cycle}</span></div><div class="detail-item"><span class="detail-label">默认币种</span><span class="detail-value">${s.currency}</span></div><div class="detail-item"><span class="detail-label">当前成本账期</span><span class="detail-value">${s.current}</span></div><div class="detail-item"><span class="detail-label">最近更新时间</span><span class="detail-value">${s.updated}</span></div></div><div class="drawer-section"><h3>金额统计</h3><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)"><div class="kpi-card"><div class="kpi-label">成本账单</div><div class="kpi-value">${s.bills}</div></div><div class="kpi-card warning"><div class="kpi-label">待结清金额</div><div class="kpi-value" style="font-size:16px">${s.pending}</div></div><div class="kpi-card success"><div class="kpi-label">已结清金额</div><div class="kpi-value" style="font-size:16px">${s.settled}</div></div></div></div><div class="drawer-section"><h3>当前导入设置</h3><div class="timeline"><div class="timeline-item"><span class="timeline-dot"></span><div class="timeline-title">最近确认的导入设置可直接复用</div><div class="timeline-meta">成本板块：${boards[0] || "未配置"} · 最近确认：${s.updated}</div></div><div class="timeline-item"><span class="timeline-dot"></span><div class="timeline-title">供应商导入设置快照 8 项</div><div class="timeline-meta">下次账单格式变化时仍可重新自动识别</div></div></div></div>`);}
 
-function billDrawer(id){const b=bills.find(x=>x.id===id);showDrawer("成本账单详情",`<div class="header-actions" style="justify-content:flex-start;margin-bottom:12px"><button class="btn">${icon("file-down")}下载原始账单</button>${b.state==="待结清"?`<button class="btn primary" data-action="settle-bill" data-id="${b.id}">${icon("badge-check")}登记结清</button>`:""}</div><div class="detail-grid"><div class="detail-item"><span class="detail-label">成本账单编号</span><span class="detail-value mono">${b.id}</span></div><div class="detail-item"><span class="detail-label">结清状态</span><span class="detail-value">${status(b.state)}</span></div><div class="detail-item"><span class="detail-label">供应商</span><span class="detail-value">${b.supplier}</span></div><div class="detail-item"><span class="detail-label">成本板块</span><span class="detail-value">${b.board}</span></div><div class="detail-item"><span class="detail-label">实际成本账期</span><span class="detail-value">${b.period}</span></div><div class="detail-item"><span class="detail-label">原始文件</span><span class="detail-value">${b.file}</span></div><div class="detail-item"><span class="detail-label">账单金额</span><span class="detail-value strong">${money(b.amount,b.currency)}</span></div><div class="detail-item"><span class="detail-label">已结清金额</span><span class="detail-value">${money(b.settled,b.currency)}</span></div></div><div class="drawer-section"><div class="tabbar"><button class="active">成本明细</button><button>结清记录</button><button>导入追溯</button></div><div class="preview-summary"><div class="preview-metric"><span>成本明细</span><strong>${b.rows}</strong></div><div class="preview-metric"><span>直接成本</span><strong>${b.direct}</strong></div><div class="preview-metric"><span>间接成本</span><strong>${b.indirect}</strong></div><div class="preview-metric"><span>待处理</span><strong>${b.unresolved}</strong></div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>标准成本费项</th><th>关键单号</th><th>金额</th><th>成本类型</th><th>状态</th></tr></thead><tbody>${costs.filter(c=>c.bill===b.id).map(c=>`<tr><td>${c.fee}</td><td>${c.key}</td><td class="num">${money(c.amount,c.currency)}</td><td>${tag(c.type,c.type==="直接成本"?"green":"orange")}</td><td>${status(c.status)}</td></tr>`).join("")||`<tr><td colspan="5" class="muted">当前仅展示代表性明细，完整账单共 ${b.rows} 条</td></tr>`}</tbody></table></div></div>`);}
+function renderBillDetail(){
+  const b=bills.find(item=>item.id===state.selectedBillId);
+  if(!b){
+    return `${pageHeader("成本账单详情", "未找到指定成本账单")}<div class="validation-item warn">${icon("triangle-alert")}该成本账单不存在或已被移除。</div>`;
+  }
+  const billCosts=costs.filter(cost=>cost.bill===b.id);
+  const allocationSets=pools.filter(item=>item.bill===b.id);
+  const setRows=allocationSets.map(item=>{
+    const rule=allocationRules.find(ruleItem=>ruleItem.id===item.ruleId);
+    const ruleText=rule?`${rule.id}<br><span class="muted">${rule.supplier === "全部供应商" ? "基础规则" : "供应商特调"}</span>`:'<span class="muted">待财务确认</span>';
+    return `<tr><td class="link mono" data-action="open-bucket" data-id="${item.id}">${item.id}</td><td>${item.fee}</td><td>${item.currency}</td><td class="num">${item.detailCount}</td><td class="num strong">${item.amount}</td><td>${ruleText}</td><td>${status(item.status)}</td><td><button class="btn small" data-action="configure-bucket" data-id="${item.id}">${item.ruleId?"调整规则":"确认规则"}</button>${item.ruleId?`<button class="btn small" data-action="run-allocation" data-id="${item.id}">${item.status === "已分摊" ? "重新预览" : "预览分摊"}</button>`:""}</td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="empty-cell">该账单没有间接成本分摊集</td></tr>`;
+  const actions=`<button class="btn">${icon("file-down")}下载原始账单</button>${b.state==="待结清"?`<button class="btn primary" data-action="settle-bill" data-id="${b.id}">${icon("badge-check")}登记结清</button>`:""}`;
+  const detailTabs=`<div class="bill-detail-tabs" role="tablist" aria-label="成本账单详情内容"><button role="tab" aria-selected="${state.billDetailTab==="summary"}" class="${state.billDetailTab==="summary"?"active":""}" data-action="bill-detail-tab" data-value="summary">成本费项汇总</button><button role="tab" aria-selected="${state.billDetailTab==="details"}" class="${state.billDetailTab==="details"?"active":""}" data-action="bill-detail-tab" data-value="details">成本费项明细</button></div>`;
+  const summaryContent=`<div class="preview-summary bill-detail-metrics"><div class="preview-metric"><span>成本明细</span><strong>${b.rows}</strong></div><div class="preview-metric"><span>直接成本</span><strong>${b.direct}</strong></div><div class="preview-metric"><span>间接成本</span><strong>${b.indirect}</strong></div><div class="preview-metric"><span>待处理</span><strong>${b.unresolved}</strong></div></div><div class="bill-detail-section-head"><span class="panel-title">间接成本分摊集</span><button class="btn small" data-view="rules">${icon("list-checks")}维护分摊规则</button></div><div class="bill-detail-note"><div class="inline-note">同一账单内，成本板块、标准成本费项和币种相同的间接成本明细归入同一分摊集。每个分摊集采用一条分摊规则，集内明细仍按各自金额和范围锚点独立计算。</div></div><div class="table-wrap"><table class="data-table bucket-table"><thead><tr><th>分摊集编号</th><th>标准成本费项</th><th>币种</th><th>明细数</th><th>分摊集金额</th><th>采用规则</th><th>状态</th><th>操作</th></tr></thead><tbody>${setRows}</tbody></table></div>`;
+  const detailContent=`<div class="table-wrap"><table class="data-table"><thead><tr><th>标准成本费项</th><th>关键单号</th><th>金额</th><th>成本类型</th><th>归属对象 / 所属分摊集</th><th>状态</th></tr></thead><tbody>${billCosts.map(cost=>`<tr><td>${cost.fee}</td><td>${cost.key}</td><td class="num">${money(cost.amount,cost.currency)}</td><td>${tag(cost.type,cost.type==="直接成本"?"green":"orange")}</td><td>${cost.type === "间接成本" ? `<button class="count-link" data-action="open-bucket" data-id="${cost.target}">${cost.target}</button>` : cost.target}</td><td>${status(cost.status)}</td></tr>`).join("")||`<tr><td colspan="6" class="empty-cell">当前账单暂无成本明细</td></tr>`}</tbody></table></div>`;
+  return `<div class="bill-detail-page">${pageHeader("成本账单详情", `${b.id} · ${b.supplier}`, actions)}
+    <section class="panel"><div class="panel-head"><span class="panel-title">账单基本信息</span></div><div class="panel-body"><div class="detail-grid"><div class="detail-item"><span class="detail-label">成本账单编号</span><span class="detail-value mono">${b.id}</span></div><div class="detail-item"><span class="detail-label">结清状态</span><span class="detail-value">${status(b.state)}</span></div><div class="detail-item"><span class="detail-label">供应商</span><span class="detail-value">${b.supplier}</span></div><div class="detail-item"><span class="detail-label">成本板块</span><span class="detail-value">${b.board}</span></div><div class="detail-item"><span class="detail-label">实际成本账期</span><span class="detail-value">${b.period}</span></div><div class="detail-item"><span class="detail-label">原始文件</span><span class="detail-value">${b.file}</span></div><div class="detail-item"><span class="detail-label">账单金额</span><span class="detail-value strong">${money(b.amount,b.currency)}</span></div><div class="detail-item"><span class="detail-label">已结清金额</span><span class="detail-value">${money(b.settled,b.currency)}</span></div></div></div></section>
+    <section class="panel bill-detail-content">${detailTabs}<div class="bill-detail-tab-content">${state.billDetailTab==="details"?detailContent:summaryContent}</div></section>
+  </div>`;
+}
 
 function costDrawer(id){const c=costs.find(x=>x.id===id);showDrawer("成本明细详情",`<div class="header-actions" style="justify-content:flex-start;margin-bottom:12px"><button class="btn" data-action="toggle-cost" data-id="${c.id}">${icon("repeat-2")}切换成本类型</button><button class="btn">${icon("link")}维护单号关系</button></div><div class="detail-grid"><div class="detail-item"><span class="detail-label">成本明细编号</span><span class="detail-value mono">${c.id}</span></div><div class="detail-item"><span class="detail-label">处理状态</span><span class="detail-value">${status(c.status)}</span></div><div class="detail-item"><span class="detail-label">供应商</span><span class="detail-value">${c.supplier}</span></div><div class="detail-item"><span class="detail-label">成本板块</span><span class="detail-value">${getCostBoardLabel(c)}</span></div><div class="detail-item"><span class="detail-label">供应商原始费项</span><span class="detail-value">${c.raw}</span></div><div class="detail-item"><span class="detail-label">标准成本费项</span><span class="detail-value">${c.fee}</span></div><div class="detail-item"><span class="detail-label">关键单号</span><span class="detail-value">${c.keyType} · ${c.key}</span></div><div class="detail-item"><span class="detail-label">原始金额</span><span class="detail-value strong">${money(c.amount,c.currency)}</span></div><div class="detail-item"><span class="detail-label">成本类型</span><span class="detail-value">${tag(c.type,c.type==="直接成本"?"green":"orange")}</span></div><div class="detail-item"><span class="detail-label">归属结果</span><span class="detail-value">${c.target}</span></div></div><div class="drawer-section"><h3>判断依据</h3><div class="inline-note">系统依据供应商侧单号关系提出建议，财务确认后形成当前成本类型。若一笔金额覆盖多个对象且未拆分，即使单号可追溯也应按间接成本处理。</div></div><div class="drawer-section"><h3>原始行快照</h3><div class="detail-grid"><div class="detail-item"><span class="detail-label">原始表头</span><span class="detail-value">追踪号 / ${c.raw} / 币别 / 备注</span></div><div class="detail-item"><span class="detail-label">原始值</span><span class="detail-value">${c.key} / ${c.amount} / ${c.currency} / -</span></div></div></div>`);}
 
-function poolDrawer(id){const p=pools.find(x=>x.id===id);showDrawer(`分摊池详情 · ${p.id}`,`<div class="header-actions" style="justify-content:flex-start;margin-bottom:12px">${p.status!=="已分摊"?`<button class="btn primary" data-action="run-allocation" data-id="${p.id}">${icon("play")}预览并执行分摊</button>`:`<button class="btn">${icon("rotate-cw")}重新分摊</button>`}<button class="btn">${icon("pencil")}调整本次范围</button></div><div class="detail-grid"><div class="detail-item"><span class="detail-label">分摊池名称</span><span class="detail-value">${p.name}</span></div><div class="detail-item"><span class="detail-label">分摊状态</span><span class="detail-value">${status(p.status)}</span></div><div class="detail-item"><span class="detail-label">供应商</span><span class="detail-value">${p.supplier}</span></div><div class="detail-item"><span class="detail-label">标准成本费项</span><span class="detail-value">${p.fee}</span></div><div class="detail-item"><span class="detail-label">适用业务范围</span><span class="detail-value">${p.scope}</span></div><div class="detail-item"><span class="detail-label">候选业务订单</span><span class="detail-value">${p.orders} 单</span></div><div class="detail-item"><span class="detail-label">待分摊金额</span><span class="detail-value strong">${p.amount}</span></div><div class="detail-item"><span class="detail-label">当前有效版本</span><span class="detail-value">${p.version}</span></div></div><div class="drawer-section"><h3>本次分摊规则</h3><div class="detail-grid"><div class="detail-item"><span class="detail-label">范围锚点</span><span class="detail-value">${p.scope}</span></div><div class="detail-item"><span class="detail-label">分摊对象</span><span class="detail-value">业务订单</span></div><div class="detail-item"><span class="detail-label">优先分摊因子</span><span class="detail-value">${p.factor}</span></div><div class="detail-item"><span class="detail-label">兜底分摊因子</span><span class="detail-value">${p.fallback}</span></div></div></div><div class="drawer-section"><h3>候选订单预览</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>业务订单号</th><th>订单级因子值</th><th>分摊权重</th><th>预计分摊金额</th></tr></thead><tbody><tr><td>SO-OG0370-61428</td><td class="num">86.420</td><td class="num">16.28%</td><td class="num">7,944.640</td></tr><tr><td>SO-SZT-A-2606881</td><td class="num">52.180</td><td class="num">9.84%</td><td class="num">4,801.920</td></tr><tr><td>SO-OG0347-62018</td><td class="num">48.960</td><td class="num">9.23%</td><td class="num">4,504.240</td></tr></tbody></table></div></div>`);}
+function bucketDrawer(id){
+  const p=pools.find(x=>x.id===id);
+  if(!p)return;
+  const rule=allocationRules.find(item=>item.id===p.ruleId);
+  showDrawer(`间接成本分摊集 · ${p.id}`,`<div class="header-actions" style="justify-content:flex-start;margin-bottom:12px"><button class="btn primary" data-action="configure-bucket" data-id="${p.id}">${icon("list-checks")}${p.ruleId?"调整采用规则":"确认采用规则"}</button>${p.ruleId?`<button class="btn" data-action="run-allocation" data-id="${p.id}">${icon("play")}预览分摊</button>`:""}</div><div class="detail-grid"><div class="detail-item"><span class="detail-label">所属成本账单</span><span class="detail-value mono">${p.bill}</span></div><div class="detail-item"><span class="detail-label">分摊状态</span><span class="detail-value">${status(p.status)}</span></div><div class="detail-item"><span class="detail-label">供应商</span><span class="detail-value">${p.supplier}</span></div><div class="detail-item"><span class="detail-label">成本板块</span><span class="detail-value">${p.board}</span></div><div class="detail-item"><span class="detail-label">标准成本费项</span><span class="detail-value">${p.fee}</span></div><div class="detail-item"><span class="detail-label">币种</span><span class="detail-value">${p.currency}</span></div><div class="detail-item"><span class="detail-label">成本明细</span><span class="detail-value">${p.detailCount} 条</span></div><div class="detail-item"><span class="detail-label">分摊集金额</span><span class="detail-value strong">${p.amount}</span></div><div class="detail-item"><span class="detail-label">当前分摊版本</span><span class="detail-value">${p.version}</span></div></div><div class="drawer-section"><h3>采用的分摊规则</h3>${rule?`<div class="detail-grid"><div class="detail-item"><span class="detail-label">规则编号</span><span class="detail-value mono">${rule.id}</span></div><div class="detail-item"><span class="detail-label">规则层级</span><span class="detail-value">${rule.supplier === "全部供应商" ? "基础分摊规则" : "供应商特调分摊规则"}</span></div><div class="detail-item detail-full"><span class="detail-label">候选订单范围</span><span class="detail-value">${rule.scope}</span></div><div class="detail-item"><span class="detail-label">优先分摊因子</span><span class="detail-value">${rule.factor}</span></div><div class="detail-item"><span class="detail-label">兜底分摊因子</span><span class="detail-value">${rule.fallback}</span></div></div>`:`<div class="validation-item warn">${icon("triangle-alert")}尚未确认分摊规则，不能执行分摊。</div>`}</div><div class="drawer-section"><h3>计算边界</h3><div class="inline-note">分摊集只统一规则口径，不合并成本明细的业务范围。系统仍依据每条成本明细自己的金额与范围锚点寻找候选业务订单，再汇总形成分摊结果。</div></div>`);
+}
 
 function ruleDrawer(id) {
   const rule = allocationRules.find(item => item.id === id);
   if (!rule) return;
   const typeLabel = rule.supplier === "全部供应商" ? "基础分摊规则" : "供应商特调分摊规则";
-  showDrawer(`分摊规则详情 · ${rule.id}`, `<div class="header-actions" style="justify-content:flex-start;margin-bottom:12px"><button class="btn primary" data-action="edit-rule" data-id="${rule.id}">${icon("pencil")}编辑规则</button></div><div class="detail-grid"><div class="detail-item"><span class="detail-label">规则类型</span><span class="detail-value">${tag(typeLabel, rule.supplier === "全部供应商" ? "blue" : "purple")}</span></div><div class="detail-item"><span class="detail-label">规则状态</span><span class="detail-value">${status(rule.status)}</span></div><div class="detail-item"><span class="detail-label">成本板块</span><span class="detail-value">${rule.board}</span></div><div class="detail-item"><span class="detail-label">标准成本费项</span><span class="detail-value">${rule.fee}</span></div><div class="detail-item"><span class="detail-label">费用场景</span><span class="detail-value">${rule.scene || "未命名场景"}</span></div><div class="detail-item"><span class="detail-label">适用供应商</span><span class="detail-value">${rule.supplier}</span></div><div class="detail-item"><span class="detail-label">生效期间</span><span class="detail-value">${rule.effective || "长期有效"}</span></div><div class="detail-item"><span class="detail-label">尾差处理</span><span class="detail-value">${rule.rounding}</span></div></div><div class="drawer-section"><h3>候选业务订单范围</h3><div class="inline-note">${escapeHtml(rule.scope)}</div></div><div class="drawer-section"><h3>分摊因子</h3><div class="detail-grid"><div class="detail-item"><span class="detail-label">优先分摊因子</span><span class="detail-value">${rule.factor}</span></div><div class="detail-item"><span class="detail-label">兜底分摊因子</span><span class="detail-value">${rule.fallback}</span></div></div></div>${rule.supplier !== "全部供应商" ? `<div class="validation-item ok">${icon("badge-check")}该规则命中时优先于同标准成本费项、同费用场景的基础分摊规则。</div>` : ""}`);
+  showDrawer(`分摊规则详情 · ${rule.id}`, `<div class="header-actions" style="justify-content:flex-start;margin-bottom:12px"><button class="btn primary" data-action="edit-rule" data-id="${rule.id}">${icon("pencil")}编辑规则</button></div><div class="detail-grid"><div class="detail-item"><span class="detail-label">规则类型</span><span class="detail-value">${tag(typeLabel, rule.supplier === "全部供应商" ? "blue" : "purple")}</span></div><div class="detail-item"><span class="detail-label">规则状态</span><span class="detail-value">${status(rule.status)}</span></div><div class="detail-item"><span class="detail-label">成本板块</span><span class="detail-value">${rule.board}</span></div><div class="detail-item"><span class="detail-label">标准成本费项</span><span class="detail-value">${rule.fee}</span></div><div class="detail-item"><span class="detail-label">适用供应商</span><span class="detail-value">${rule.supplier}</span></div><div class="detail-item"><span class="detail-label">生效期间</span><span class="detail-value">${rule.effective || "长期有效"}</span></div><div class="detail-item"><span class="detail-label">尾差处理</span><span class="detail-value">${rule.rounding}</span></div></div><div class="drawer-section"><h3>候选业务订单范围</h3><div class="inline-note">${escapeHtml(rule.scope)}</div></div><div class="drawer-section"><h3>分摊因子</h3><div class="detail-grid"><div class="detail-item"><span class="detail-label">优先分摊因子</span><span class="detail-value">${rule.factor}</span></div><div class="detail-item"><span class="detail-label">兜底分摊因子</span><span class="detail-value">${rule.fallback}</span></div></div></div>${rule.supplier !== "全部供应商" ? `<div class="validation-item ok">${icon("badge-check")}该规则命中时优先于同一标准成本费项的基础分摊规则。</div>` : ""}`);
 }
 
 function feeDrawer(id) {
@@ -829,7 +841,7 @@ function settleModal(id){state.pendingAction={type:"settleBill",id};const b=bill
 function allocationRuleModal(ruleType = "base", id = "") {
   const original = allocationRules.find(item => item.id === id);
   const actualType = original && original.supplier !== "全部供应商" ? "supplier" : ruleType;
-  const model = original || { board: "派送成本", fee: "", scene: "", supplier: actualType === "supplier" ? suppliers.find(item => item.state === "启用")?.name || "" : "全部供应商", scope: "", factor: "订单计费重", fallback: "订单包裹数", rounding: "最大余数法", effective: "2026-07-01 起", status: "启用" };
+  const model = original || { board: "派送成本", fee: "", supplier: actualType === "supplier" ? suppliers.find(item => item.state === "启用")?.name || "" : "全部供应商", scope: "", factor: "订单计费重", fallback: "订单包裹数", rounding: "最大余数法", effective: "2026-07-01 起", status: "启用" };
   const activeFees = fees.filter(item => item.status === "启用");
   if (!model.fee) model.fee = activeFees.find(item => item.board === model.board)?.name || "";
   state.pendingAction = { type: "saveAllocationRule", ruleType: actualType, id };
@@ -839,7 +851,6 @@ function allocationRuleModal(ruleType = "base", id = "") {
     <div class="form-grid allocation-form-grid">
       <div class="field"><label class="required">成本板块</label><select id="rule-form-board" class="select">${["派送成本","清关成本","海运成本","空运成本","租车成本"].map(item => `<option value="${item}" ${model.board === item ? "selected" : ""}>${item}</option>`).join("")}</select></div>
       <div class="field"><label class="required">标准成本费项</label><select id="rule-form-fee" class="select">${activeFees.map(item => `<option value="${escapeHtml(item.name)}" data-board="${item.board}" ${model.fee === item.name ? "selected" : ""}>${escapeHtml(item.name)} · ${item.board}</option>`).join("")}</select></div>
-      <div class="field"><label class="required">费用场景</label><input id="rule-form-scene" class="input" value="${escapeHtml(model.scene || "")}" placeholder="例如：整车或车趟运输"></div>
       ${supplierField}
       <div class="field form-span-2"><label class="required">候选业务订单范围</label><input id="rule-form-scope" class="input" value="${escapeHtml(model.scope)}" placeholder="例如：同一提单覆盖且完成时间落在成本账期内的业务订单"></div>
       <div class="field"><label class="required">优先分摊因子</label><select id="rule-form-factor" class="select">${["订单计费重","订单包裹数","订单占用体积","订单体积","订单实重","订单计费吨","申报金额","占用量 × 仓储天数"].map(item => `<option ${model.factor === item ? "selected" : ""}>${item}</option>`).join("")}</select></div>
@@ -862,29 +873,22 @@ function syncRuleFeeOptions(board, preferredFee = "") {
   else if (matching.length) select.value = matching[0].value;
 }
 
-function newPoolModal() {
-  state.pendingAction = { type: "savePool" };
-  const activeFees = fees.filter(item => item.status === "启用");
-  showModal("新建间接成本分摊池", `<div class="inline-note">先划定待分摊成本与候选业务订单的共同边界。创建后状态为“待人工确认”，财务确认成本明细未被其它有效分摊池占用后再执行分摊。</div>
-    <div class="form-grid allocation-form-grid">
-      <div class="field form-span-2"><label class="required">分摊池名称</label><input id="pool-form-name" class="input" placeholder="例如：联多 7 月海运文件费"></div>
-      <div class="field"><label class="required">供应商</label><select id="pool-form-supplier" class="select">${suppliers.filter(item => item.state === "启用").map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join("")}</select></div>
-      <div class="field"><label class="required">标准成本费项</label><select id="pool-form-fee" class="select">${activeFees.map(item => `<option value="${item.code}" data-board="${item.board}">${escapeHtml(item.name)} · ${item.board}</option>`).join("")}</select></div>
-      <div class="field form-span-2"><label class="required">实际成本账期</label><div id="pool-period-range" class="date-range-control"></div></div>
-      <div class="field form-span-2"><label class="required">业务范围</label><input id="pool-form-scope" class="input" placeholder="例如：提单 SZTW26061208 / 台湾海快线路"></div>
-      <div class="field"><label class="required">待分摊金额</label><input id="pool-form-amount" class="input" type="number" min="0.001" step="0.001" placeholder="0.000"></div>
-      <div class="field"><label class="required">币种</label><select id="pool-form-currency" class="select"><option>CNY</option><option>TWD</option><option>USD</option><option>HKD</option></select></div>
-      <div class="field"><label class="required">候选业务订单数</label><input id="pool-form-orders" class="input" type="number" min="1" step="1" placeholder="请输入候选订单数量"></div>
-      <div class="field"><label class="required">优先分摊因子</label><select id="pool-form-factor" class="select">${["订单计费重","订单包裹数","订单体积","订单实重","订单计费吨","申报金额","占用量 × 仓储天数"].map(item => `<option>${item}</option>`).join("")}</select></div>
-      <div class="field"><label class="required">兜底分摊因子</label><select id="pool-form-fallback" class="select">${["订单包裹数","订单计费重","订单体积","订单实重","订单数"].map(item => `<option>${item}</option>`).join("")}</select></div>
-      <div class="field form-span-2"><label>备注</label><textarea id="pool-form-note" class="textarea" placeholder="可补充关键单号、供应商账单范围或财务核对说明"></textarea></div>
-    </div>
-    <div class="validation-list"><div class="validation-item ok">${icon("circle-check")}分摊结果只落到业务订单，用于计算业务订单利润</div><div class="validation-item warn">${icon("triangle-alert")}币种分别成池、分别分摊，不跨币种合并金额</div></div>`, "创建分摊池");
-  document.getElementById("modal").classList.add("allocation-config-modal");
-  mountDateRangePicker({ id: "pool-period-range", start: state.newPoolPeriodStart, end: state.newPoolPeriodEnd, ariaLabel: "新建分摊池实际成本账期", onUpdate: value => { [state.newPoolPeriodStart, state.newPoolPeriodEnd] = value; } });
+function bucketRuleModal(id) {
+  const bucket = pools.find(item => item.id === id);
+  if (!bucket) return;
+  const matchingRules = allocationRules.filter(rule => rule.status === "启用" && rule.board === bucket.board && rule.fee === bucket.fee && (rule.supplier === bucket.supplier || rule.supplier === "全部供应商"));
+  matchingRules.sort((left, right) => Number(right.supplier === bucket.supplier) - Number(left.supplier === bucket.supplier));
+  state.pendingAction = { type: "saveBucketRule", id };
+  showModal("确认分摊集采用的分摊规则", `<div class="inline-note">系统已按“供应商特调分摊规则 > 基础分摊规则”的优先级给出候选项。确认后，分摊集内所有间接成本明细沿用同一规则版本，但每条明细仍按自身金额和范围锚点独立计算。</div><div class="detail-grid"><div class="detail-item"><span class="detail-label">成本账单</span><span class="detail-value mono">${bucket.bill}</span></div><div class="detail-item"><span class="detail-label">分摊集编号</span><span class="detail-value mono">${bucket.id}</span></div><div class="detail-item"><span class="detail-label">标准成本费项</span><span class="detail-value">${bucket.fee}</span></div><div class="detail-item"><span class="detail-label">币种</span><span class="detail-value">${bucket.currency}</span></div><div class="detail-item"><span class="detail-label">成本明细</span><span class="detail-value">${bucket.detailCount} 条</span></div></div><div class="field"><label class="required">采用的分摊规则</label><select id="bucket-rule-select" class="select">${matchingRules.map(rule => `<option value="${rule.id}" ${bucket.ruleId === rule.id ? "selected" : ""}>${rule.id} · ${rule.supplier === bucket.supplier ? "供应商特调" : "基础"} · ${rule.factor}</option>`).join("")}</select></div>${matchingRules.length ? `<div class="validation-list"><div class="validation-item ok">${icon("circle-check")}已找到 ${matchingRules.length} 条适用规则，列表已按命中优先级排序</div></div>` : `<div class="validation-item warn">${icon("triangle-alert")}当前没有适用规则，请先到“分摊规则”页面新增或启用规则。</div>`}`, "确认规则");
+  document.getElementById("modal-confirm")?.toggleAttribute("disabled", matchingRules.length === 0);
 }
 
-function allocationModal(id){state.pendingAction={type:"runAllocation",id};const p=pools.find(x=>x.id===id);showModal("分摊预览",`<div class="preview-summary" style="grid-template-columns:repeat(3,1fr)"><div class="preview-metric"><span>候选业务订单</span><strong>${p.orders}</strong></div><div class="preview-metric"><span>待分摊金额</span><strong>${p.amount}</strong></div><div class="preview-metric"><span>金额差异</span><strong style="color:var(--success)">0.000</strong></div></div><div class="validation-list"><div class="validation-item ok">${icon("circle-check")}候选订单范围不为空，范围外订单未参与</div><div class="validation-item ok">${icon("circle-check")}优先分摊因子“${p.factor}”完整且合计大于 0</div><div class="validation-item ok">${icon("circle-check")}逐币种分摊金额守恒，尾差将按最大余数法处理</div></div><div class="inline-note">执行后生成新的有效分摊版本，结果只落到业务订单，不生成尾程包裹级间接成本。</div>`,"执行分摊");}
+function allocationModal(id){
+  const p=pools.find(x=>x.id===id);
+  if(!p?.ruleId){toast("请先确认该分摊集采用的分摊规则","warning");return;}
+  state.pendingAction={type:"runAllocation",id};
+  showModal("分摊预览",`<div class="preview-summary" style="grid-template-columns:repeat(4,1fr)"><div class="preview-metric"><span>成本明细</span><strong>${p.detailCount}</strong></div><div class="preview-metric"><span>候选业务订单</span><strong>${p.orders}</strong></div><div class="preview-metric"><span>分摊集金额</span><strong>${p.amount}</strong></div><div class="preview-metric"><span>金额差异</span><strong style="color:var(--success)">0.000</strong></div></div><div class="validation-list"><div class="validation-item ok">${icon("circle-check")}已锁定规则 ${p.ruleId}，候选订单范围不为空</div><div class="validation-item ok">${icon("circle-check")}每条成本明细按自身范围锚点独立筛选候选订单</div><div class="validation-item ok">${icon("circle-check")}分摊集内逐明细计算后汇总，${p.currency} 金额守恒</div><div class="validation-item ok">${icon("circle-check")}尾差按最大余数法处理</div></div><div class="inline-note">执行后生成新的分摊版本，结果只落到业务订单，用于计算业务订单利润。</div>`,"执行分摊");
+}
 
 document.addEventListener("click", async (event) => {
   const viewBtn=event.target.closest("[data-view]"); if(viewBtn){state.view=viewBtn.dataset.view; state.sidebarOpen=false;document.getElementById("sidebar").classList.remove("open");closeDrawer();renderView();return;}
@@ -896,14 +900,13 @@ document.addEventListener("click", async (event) => {
   else if(a==="reset-prototype-data"){state.pendingAction={type:"resetData"};showModal("恢复初始模拟数据",`<div class="validation-item warn">${icon("triangle-alert")}当前浏览器中的编辑、导入、结清和分摊结果都会被初始样本覆盖。</div>`,"确认恢复");}
   else if(a==="close-drawer") closeDrawer(); else if(a==="close-modal") closeModal();
   else if(a==="open-import") openImportModal(true);
-  else if(a==="open-supplier") supplierDrawer(id); else if(a==="open-bill") billDrawer(id); else if(a==="open-cost") costDrawer(id); else if(a==="open-pool") poolDrawer(id);
+  else if(a==="open-supplier") supplierDrawer(id); else if(a==="open-bill"){state.selectedBillId=id;state.billDetailTab="summary";state.view="billDetail";closeDrawer();renderView();} else if(a==="back-bills"){state.view="bills";renderView();} else if(a==="bill-detail-tab"){state.billDetailTab=el.dataset.value;renderView();} else if(a==="open-cost") costDrawer(id); else if(a==="open-bucket") bucketDrawer(id);
   else if(a==="select-file"){state.selectedFile=id;state.selectedSheet=sampleFiles.find(x=>x.id===id).defaultSheet;openImportModal();}
   else if(a==="select-sheet"){state.selectedSheet=id;openImportModal();}
   else if(a==="wizard-next"){state.wizardStep=Math.min(3,state.wizardStep+1);openImportModal();}
   else if(a==="wizard-back"){state.wizardStep=Math.max(1,state.wizardStep-1);openImportModal();}
   else if(a==="confirm-import"){state.pendingAction={type:"importBill"};showModal("确认导入供应商账单",`<div class="validation-list"><div class="validation-item ok">${icon("circle-check")}导入将按整批原子方式执行</div><div class="validation-item ok">${icon("circle-check")}完全成功后形成一张成本账单及 2,412 条成本明细</div></div><div class="inline-note">导入成功后可在成本账单列表查看结果；任一应导入数据失败时，本次不保留部分成本明细。</div>`,"开始导入");}
   else if(a==="bill-filter"){state.billFilter=el.dataset.value;renderView();}
-  else if(a==="pool-filter"){state.poolFilter=el.dataset.value;renderView();}
   else if(a==="rule-type-tab"){state.ruleTab=el.dataset.value;state.ruleSupplier="";renderView();}
   else if(a==="rule-query"){state.ruleKeyword=document.getElementById("rule-keyword")?.value.trim()||"";state.ruleBoard=document.getElementById("rule-board-filter")?.value||"";state.ruleSupplier=document.getElementById("rule-supplier-filter")?.value||"";state.ruleStatus=document.getElementById("rule-status-filter")?.value||"";renderView();}
   else if(a==="rule-reset"){state.ruleKeyword="";state.ruleBoard="";state.ruleSupplier="";state.ruleStatus="";renderView();}
@@ -915,12 +918,12 @@ document.addEventListener("click", async (event) => {
   
   else if(a==="settle-bill") settleModal(id);
   else if(a==="run-allocation") allocationModal(id);
+  else if(a==="configure-bucket"){closeDrawer();bucketRuleModal(id);}
   else if(a==="allocation-rules"){state.view="rules";renderView();}
   else if(a==="new-allocation-rule") allocationRuleModal(el.dataset.type || state.ruleTab);
   else if(a==="open-rule") ruleDrawer(id);
   else if(a==="edit-rule"){closeDrawer();allocationRuleModal("base",id);}
-  else if(a==="new-pool") newPoolModal();
-  else if(a==="toggle-cost"){state.pendingAction={type:"toggleCost",id};const c=costs.find(x=>x.id===id);showModal("切换成本类型",`<div class="inline-note">当前为${c.type}。切换前系统会重新校验供应商侧单号关系，并先解除原归属或分摊池占用。</div><div class="field"><label class="required">目标成本类型</label><select class="select"><option>${c.type==="直接成本"?"间接成本":"直接成本"}</option></select></div><div class="field"><label class="required">切换原因</label><textarea class="textarea" placeholder="说明单号关系、覆盖范围或金额粒度发生了什么变化"></textarea></div>`,"确认切换");}
+  else if(a==="toggle-cost"){state.pendingAction={type:"toggleCost",id};const c=costs.find(x=>x.id===id);showModal("切换成本类型",`<div class="inline-note">当前为${c.type}。切换前系统会重新校验供应商侧单号关系，并解除原业务对象归属或分摊集关系。</div><div class="field"><label class="required">目标成本类型</label><select class="select"><option>${c.type==="直接成本"?"间接成本":"直接成本"}</option></select></div><div class="field"><label class="required">切换原因</label><textarea class="textarea" placeholder="说明单号关系、覆盖范围或金额粒度发生了什么变化"></textarea></div>`,"确认切换");}
   else if(a==="open-fee") feeDrawer(id);
   else if(a==="new-fee") feeFormModal();
   else if(a==="edit-fee") feeFormModal(id);

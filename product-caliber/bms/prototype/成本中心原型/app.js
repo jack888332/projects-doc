@@ -175,7 +175,7 @@ const feeAliases = [
 ];
 
 const state = { view: "overview", wizardStep: 1, selectedFile: "df-delivery", selectedSheet: "黑貓", costPeriodStart: "2026-06-01", costPeriodEnd: "2026-06-30", supplierPeriodStart: "2026-06-01", supplierPeriodEnd: "2026-07-16", billPeriodStart: "2026-06-01", billPeriodEnd: "2026-07-16", profitPeriodStart: "2026-06-01", profitPeriodEnd: "2026-06-30", newPoolPeriodStart: "2026-07-01", newPoolPeriodEnd: "2026-07-31", billFilter: "全部", poolFilter: "全部", ruleTab: "base", ruleBoard: "", ruleKeyword: "", ruleSupplier: "", ruleStatus: "", feeTab: "index", feeCodeKeyword: "", feeNameKeyword: "", feeBoard: "", feeStatus: "", aliasKeyword: "", aliasSupplier: "", aliasBoard: "", aliasStatus: "", sidebarOpen: false, pendingAction: null };
-const routeNames = { overview: "成本总览", suppliers: "供应商管理", bills: "成本账单", pool: "成本池", allocation: "间接成本分摊", rules: "分摊规则", profit: "利润分析", fees: "成本费项索引" };
+const routeNames = { overview: "成本总览", suppliers: "供应商管理", bills: "成本账单", pool: "成本池", allocation: "分摊池", rules: "分摊规则", profit: "利润分析", fees: "成本费项索引" };
 const dateRangePickerApps = new Map();
 
 const prototypeDb = new Dexie("BmsCostCenterPrototype");
@@ -412,7 +412,7 @@ function renderPool() {
 
 function renderAllocation() {
   const filtered=state.poolFilter==="全部"?pools:pools.filter(p=>p.status===state.poolFilter);
-  return `${pageHeader("间接成本分摊", "先确定成本池边界与候选业务订单，再按有效分摊因子逐币种计算", `<button class="btn primary" data-action="new-pool">${icon("plus")}新建分摊池</button>`)}
+  return `${pageHeader("分摊池", "先确定待分摊成本与候选业务订单，再按有效分摊规则逐币种计算", `<button class="btn primary" data-action="new-pool">${icon("plus")}新建分摊池</button>`)}
   <div class="filter-panel"><div class="filter-grid"><div class="field"><label>分摊池编号 / 名称</label><input class="input" placeholder="输入分摊池编号或名称"></div><div class="field"><label>供应商</label><select class="select"><option>全部供应商</option>${suppliers.map(s=>`<option>${s.name}</option>`).join("")}</select></div><div class="field"><label>标准成本费项</label><select class="select"><option>全部费项</option>${fees.map(f=>`<option>${f.name}</option>`).join("")}</select></div><div class="field"><label>分摊状态</label><div class="segmented">${["全部","待人工确认","待分摊","已分摊"].map(v=>`<button class="${state.poolFilter===v?"active":""}" data-action="pool-filter" data-value="${v}">${v}</button>`).join("")}</div></div></div></div>
   <section class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th>分摊池编号</th><th>分摊池名称</th><th>供应商</th><th>标准成本费项</th><th>业务范围</th><th>待分摊金额</th><th>候选订单</th><th>优先 / 兜底因子</th><th>有效版本</th><th>状态</th><th>操作</th></tr></thead><tbody>${filtered.map(p=>`<tr><td class="link mono" data-action="open-pool" data-id="${p.id}">${p.id}</td><td>${p.name}</td><td>${p.supplier}</td><td>${p.fee}</td><td>${p.scope}</td><td class="num strong">${p.amount}</td><td class="num">${p.orders}</td><td>${p.factor}<br><span class="muted">兜底：${p.fallback}</span></td><td>${p.version}</td><td>${status(p.status)}</td><td><button class="btn small" data-action="open-pool" data-id="${p.id}">详情</button>${p.status!=="已分摊"?`<button class="btn small" data-action="run-allocation" data-id="${p.id}">预览分摊</button>`:""}</td></tr>`).join("")}</tbody></table></div>${tableFooter(filtered.length)}</section>`;
 }

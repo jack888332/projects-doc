@@ -40,7 +40,7 @@ async function trial(row) {
     <el-table :data="filtered" class="clean-table" row-key="id">
       <el-table-column prop="name" label="分摊池" min-width="210" fixed><template #default="scope"><div class="pool-name"><strong>{{ scope.row.name }}</strong><small>{{ scope.row.id }}</small></div></template></el-table-column>
       <el-table-column prop="module" label="成本板块" width="110"><template #default="scope"><span :class="['module-pill', scope.row.module]">{{ scope.row.module }}</span></template></el-table-column>
-      <el-table-column prop="item" label="常规成本费项" width="125" />
+      <el-table-column prop="item" label="标准成本费项" width="125" />
       <el-table-column prop="supplier" label="供应商" min-width="180" />
       <el-table-column prop="period" label="分摊范围" width="195" />
       <el-table-column prop="amount" label="待分摊金额" width="155" align="right"><template #default="scope"><strong class="amount-cell">{{ scope.row.amount }}</strong></template></el-table-column>
@@ -56,7 +56,7 @@ async function trial(row) {
     <template #header><div class="drawer-title"><span>分摊池详情</span><small>{{ selected.id }}</small></div></template>
     <div class="allocation-hero"><div><span>待分摊金额</span><strong>{{ selected.amount }}</strong></div><div><span>候选业务订单</span><strong>{{ selected.orders.toLocaleString() }}</strong></div><div><span>当前状态</span><strong>{{ selected.status }}</strong></div></div>
     <h4 class="section-title">分摊口径</h4>
-    <dl class="detail-grid"><div><dt>分摊池名称</dt><dd>{{ selected.name }}</dd></div><div><dt>成本板块</dt><dd>{{ selected.module }}</dd></div><div><dt>常规成本费项</dt><dd>{{ selected.item }}</dd></div><div><dt>适用供应商</dt><dd>{{ selected.supplier }}</dd></div><div><dt>分摊范围</dt><dd>{{ selected.period }}</dd></div><div><dt>优先分摊因子</dt><dd>{{ selected.factor }}</dd></div></dl>
+    <dl class="detail-grid"><div><dt>分摊池名称</dt><dd>{{ selected.name }}</dd></div><div><dt>成本板块</dt><dd>{{ selected.module }}</dd></div><div><dt>标准成本费项</dt><dd>{{ selected.item }}</dd></div><div><dt>适用供应商</dt><dd>{{ selected.supplier }}</dd></div><div><dt>分摊范围</dt><dd>{{ selected.period }}</dd></div><div><dt>优先分摊因子</dt><dd>{{ selected.factor }}</dd></div></dl>
     <h4 class="section-title">分摊原理</h4>
     <div class="allocation-formula"><span>订单分摊金额</span><b>=</b><span>池内原币金额</span><b>×</b><span>订单因子值 ÷ 全部订单因子合计</span></div>
     <div class="notice-box">间接成本仅分摊到业务订单。同一成本明细不能同时进入多个有效分摊池；规则和结果按版本留痕。</div>
@@ -67,7 +67,7 @@ async function trial(row) {
     <el-form label-position="top" class="two-column-form">
       <el-form-item label="分摊池名称" required class="span-2"><el-input v-model="form.name" placeholder="例如 海运文件费分摊池 07月" /></el-form-item>
       <el-form-item label="成本板块" required><el-select v-model="form.module"><el-option v-for="item in ['派送成本','清关成本','海运成本','空运成本','租车成本']" :key="item" :label="item" :value="item" /></el-select></el-form-item>
-      <el-form-item label="常规成本费项" required><el-input v-model="form.item" placeholder="搜索费项" /></el-form-item>
+      <el-form-item label="标准成本费项" required><el-input v-model="form.item" placeholder="搜索费项" /></el-form-item>
       <el-form-item label="适用供应商" required><el-input v-model="form.supplier" placeholder="搜索供应商" /></el-form-item>
       <el-form-item label="成本账期"><el-date-picker v-model="form.period" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" /></el-form-item>
       <el-form-item label="优先分摊因子" required><el-select v-model="form.factor"><el-option v-for="item in ['计费重量','业务订单件数','申报金额','清关重量','体积']" :key="item" :label="item" :value="item" /></el-select></el-form-item>

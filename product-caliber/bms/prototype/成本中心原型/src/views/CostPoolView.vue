@@ -72,9 +72,9 @@ async function submitSupplement() {
       </div>
       <el-table :data="filtered" class="clean-table" row-key="id">
         <el-table-column prop="id" label="成本明细编号" width="180" fixed />
-        <el-table-column prop="module" label="成本板块" width="110"><template #default="scope"><span :class="['module-pill', scope.row.module]">{{ scope.row.module }}</span></template></el-table-column>
         <el-table-column prop="supplier" label="供应商" min-width="180" />
-        <el-table-column label="供应商费项 → 常规成本费项" min-width="220"><template #default="scope"><div class="mapping-cell"><span>{{ scope.row.rawItem }}</span><i>→</i><strong>{{ scope.row.item }}</strong></div></template></el-table-column>
+        <el-table-column prop="module" label="成本板块" width="110"><template #default="scope"><span :class="['module-pill', scope.row.module]">{{ scope.row.module }}</span></template></el-table-column>
+        <el-table-column label="供应商费项 → 标准成本费项" min-width="220"><template #default="scope"><div class="mapping-cell"><span>{{ scope.row.rawItem }}</span><i>→</i><strong>{{ scope.row.item }}</strong></div></template></el-table-column>
         <el-table-column label="关键单号" min-width="175"><template #default="scope"><div class="key-cell"><small>{{ scope.row.keyType }}</small><strong>{{ scope.row.key }}</strong></div></template></el-table-column>
         <el-table-column label="成本金额" min-width="145" align="right"><template #default="scope"><strong class="amount-cell">{{ formatAmount(scope.row.amount, scope.row.currency) }}</strong></template></el-table-column>
         <el-table-column prop="type" label="成本类型" width="105"><template #default="scope"><span :class="['status-tag', scope.row.type === '直接成本' ? 'info' : 'violet']">{{ scope.row.type }}</span></template></el-table-column>
@@ -87,7 +87,7 @@ async function submitSupplement() {
       <template #header><div class="drawer-title"><span>成本明细详情</span><small>{{ selected.id }}</small></div></template>
       <div class="cost-detail-hero"><span :class="['module-pill', selected.module]">{{ selected.module }}</span><h3>{{ selected.item }}</h3><strong>{{ formatAmount(selected.amount, selected.currency) }}</strong></div>
       <h4 class="section-title">标准成本字段</h4>
-      <dl class="detail-grid"><div><dt>供应商</dt><dd>{{ selected.supplier }}</dd></div><div><dt>成本账单编号</dt><dd>{{ selected.bill }}</dd></div><div><dt>供应商原始费项</dt><dd>{{ selected.rawItem }}</dd></div><div><dt>常规成本费项</dt><dd>{{ selected.item }}</dd></div><div><dt>关键单号类型</dt><dd>{{ selected.keyType }}</dd></div><div><dt>关键单号</dt><dd>{{ selected.key }}</dd></div></dl>
+      <dl class="detail-grid"><div><dt>供应商</dt><dd>{{ selected.supplier }}</dd></div><div><dt>成本账单编号</dt><dd>{{ selected.bill }}</dd></div><div><dt>供应商原始费项</dt><dd>{{ selected.rawItem }}</dd></div><div><dt>标准成本费项</dt><dd>{{ selected.item }}</dd></div><div><dt>关键单号类型</dt><dd>{{ selected.keyType }}</dd></div><div><dt>关键单号</dt><dd>{{ selected.key }}</dd></div></dl>
       <h4 class="section-title">成本识别与归属</h4>
       <div class="relation-path"><span>供应商侧单号<br><strong>{{ selected.key }}</strong></span><el-icon><Link /></el-icon><span>成本类型<br><strong>{{ selected.type }}</strong></span><el-icon><Link /></el-icon><span>当前归属<br><strong>{{ selected.target }}</strong></span></div>
       <div class="notice-box">系统依据供应商侧单号与尾程运单号、我方业务订单号的关系建议成本类型。人工切换后仍会保留判断依据与操作记录。</div>
@@ -97,7 +97,7 @@ async function submitSupplement() {
       <el-form label-position="top" class="two-column-form">
         <el-form-item label="供应商" required><el-select v-model="supplement.supplier" filterable><el-option v-for="item in ['东风速运有限公司','福广国际报关有限公司','力宝国际物流','联多国际货运']" :key="item" :label="item" :value="item" /></el-select></el-form-item>
         <el-form-item label="成本板块" required><el-select v-model="supplement.module"><el-option v-for="item in ['派送成本','清关成本','海运成本','空运成本','租车成本']" :key="item" :label="item" :value="item" /></el-select></el-form-item>
-        <el-form-item label="常规成本费项" required><el-input v-model="supplement.item" placeholder="选择或搜索费项" /></el-form-item>
+        <el-form-item label="标准成本费项" required><el-input v-model="supplement.item" placeholder="选择或搜索费项" /></el-form-item>
         <el-form-item label="成本类型" required><el-radio-group v-model="supplement.type"><el-radio-button value="直接成本">直接成本</el-radio-button><el-radio-button value="间接成本">间接成本</el-radio-button></el-radio-group></el-form-item>
         <el-form-item label="成本金额" required><el-input v-model="supplement.amount" placeholder="0.000"><template #append><el-select v-model="supplement.currency" style="width: 82px"><el-option label="CNY" value="CNY" /><el-option label="TWD" value="TWD" /><el-option label="USD" value="USD" /></el-select></template></el-input></el-form-item>
         <el-form-item label="关键单号类型"><el-select v-model="supplement.keyType" clearable><el-option v-for="item in ['业务订单号','尾程运单号','提单号','柜号','无关键单号']" :key="item" :label="item" :value="item" /></el-select></el-form-item>

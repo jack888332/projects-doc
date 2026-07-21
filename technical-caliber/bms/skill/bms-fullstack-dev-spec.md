@@ -101,13 +101,20 @@ common ← model ← dao ← biz ← web
 
 ### 3.2 注解风格
 
+实体类和 DTO 的字段注释必须使用标准多行 JavaDoc，注释内容单独占行；禁止使用 `/** 注释 */` 单行写法。
+
 ```java
 // 实体类：使用 @Data
 @Data
 public class ArBill {
-    /** ID */
+    /**
+     * 账单ID
+     */
     private Long id;
-    /** 供应链ID */
+
+    /**
+     * 供应链ID
+     */
     private Long scId;
     // ...
 }
@@ -115,9 +122,14 @@ public class ArBill {
 // DTO 类：使用 @Data，字段必须有 JavaDoc 注释
 @Data
 public class ArBillQueryReqDTO {
-    /** 页码，从1开始 */
+    /**
+     * 页码，从 1 开始
+     */
     private Integer pageNo = 1;
-    /** 每页条数 */
+
+    /**
+     * 每页条数
+     */
     private Integer pageSize = 20;
     // ...
 }
@@ -136,6 +148,12 @@ public class ArBillController implements ArBillRemoteService {
     @Resource
     private ArBillService arBillService;
 
+    /**
+     * 分页查询应收账单。
+     *
+     * @param reqDTO 查询条件
+     * @return 应收账单分页数据
+     */
     @Override
     @PostMapping("/page")
     public ArBillPageRespDTO page(@RequestBody(required = false) ArBillQueryReqDTO reqDTO) {
@@ -150,6 +168,7 @@ public class ArBillController implements ArBillRemoteService {
 - 使用 `@Resource` 注入（不用 `@Autowired`）
 - Controller 只做转发，不含业务逻辑
 - 每个方法加 `@Override`
+- 每个 API 方法上方必须有完整 JavaDoc，至少说明接口用途、`@param` 入参含义和 `@return` 返回内容；无返回值接口也必须说明接口用途和入参含义
 - 写操作必须加 `@PostMapping`（POST），读操作可加 `@GetMapping`（GET）
 
 ### 3.4 Service 风格
@@ -205,38 +224,75 @@ BMS 项目 Mapper 层采用 **Mapper 接口 + XML** 的规范写法，SQL 全部
 
 #### 3.5.2 规范写法示例
 
-**Mapper 接口** — 只声明方法，不含任何 SQL：
+**Mapper 接口** — 只声明方法，不含任何 SQL；每个方法必须使用标准多行 JavaDoc，说明用途、`@param` 参数含义与 `@return` 返回内容：
 
 ```java
 @Mapper
 public interface ArBillMapper {
 
-    /** 新增应收账单 */
+    /**
+     * 新增应收账单。
+     *
+     * @param arBill 应收账单实体
+     * @return 受影响的记录数
+     */
     int insert(ArBill arBill);
 
-    /** 根据账单编号查询 */
+    /**
+     * 根据账单编号查询应收账单。
+     *
+     * @param billNo 账单编号
+     * @return 应收账单；不存在时返回 {@code null}
+     */
     ArBill selectByBillNo(@Param("billNo") String billNo);
 
-    /** 根据账单编号查询并锁定（行锁） */
+    /**
+     * 根据账单编号查询应收账单并加行锁。
+     *
+     * @param billNo 账单编号
+     * @return 已锁定的应收账单；不存在时返回 {@code null}
+     */
     ArBill selectByBillNoForUpdate(@Param("billNo") String billNo);
 
-    /** 查询应收账单数量 */
+    /**
+     * 按查询条件统计应收账单数量。
+     *
+     * @param query 查询条件
+     * @return 应收账单数量
+     */
     Long countByCondition(ArBillQueryReqDTO query);
 
-    /** 分页查询应收账单 */
+    /**
+     * 按查询条件分页查询应收账单。
+     *
+     * @param query 查询条件及分页参数
+     * @return 当前页的应收账单列表
+     */
     List<ArBill> selectPageByCondition(ArBillQueryReqDTO query);
 
-    /** 查询当前条件下的账单汇总 */
+    /**
+     * 按查询条件汇总应收账单数据。
+     *
+     * @param query 查询条件
+     * @return 应收账单汇总数据
+     */
     ArBillPageRespDTO selectSummaryByCondition(ArBillQueryReqDTO query);
 
-    /** 确认账单（更新状态） */
+    /**
+     * 根据账单编号更新账单状态。
+     *
+     * @param billNo 账单编号
+     * @param status 目标账单状态
+     * @param operator 操作人
+     * @return 受影响的记录数
+     */
     int updateStatusByBillNo(@Param("billNo") String billNo,
                              @Param("status") String status,
                              @Param("operator") String operator);
 }
 ```
 
-**XML Mapper** — `sqlmap/ArBillMapper.xml`：
+**XML Mapper** — `sqlmap/ArBill-mapper.xml`：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" ?>
@@ -432,7 +488,13 @@ public interface ArBillMapper {
 只有**极其简单的单表单行查询**（无动态条件，SQL 不超过 3 行）才允许用 `@Select` 注解直接写在 Mapper 接口中：
 
 ```java
-/** 极简场景：按主键查单行，无动态条件 */
+/**
+ * 按账单编号和订单编号统计主订单数量。
+ *
+ * @param billNo 账单编号
+ * @param orderNo 订单编号
+ * @return 匹配的主订单数量
+ */
 @Select("SELECT COUNT(1) FROM main_order WHERE bill_no = #{billNo} AND order_no = #{orderNo}")
 int countMainOrderInBill(@Param("billNo") String billNo, @Param("orderNo") String orderNo);
 ```
@@ -473,30 +535,58 @@ int countMainOrderInBill(@Param("billNo") String billNo, @Param("orderNo") Strin
 ```java
 @Data
 public class ArBillQueryReqDTO {
-    /** 页码，从1开始 */
+    /**
+     * 页码，从 1 开始。
+     */
     private Integer pageNo = 1;
-    /** 每页条数 */
+
+    /**
+     * 每页条数。
+     */
     private Integer pageSize = 20;
-    /** 账单编号（模糊搜索） */
+
+    /**
+     * 账单编号，支持模糊搜索。
+     */
     private String billNo;
-    /** 账单状态（精确匹配） */
+
+    /**
+     * 账单状态，精确匹配。
+     */
     private String billStatus;
-    /** 供应链ID（数据隔离必须字段） */
+
+    /**
+     * 供应链ID，数据隔离必填字段。
+     */
     private Long scId;
-    /** 店铺ID（数据隔离必须字段） */
+
+    /**
+     * 店铺ID，数据隔离必填字段。
+     */
     private Long shopId;
-    /** 用户ID（数据隔离必须字段） */
+
+    /**
+     * 用户ID，数据隔离必填字段。
+     */
     private Long userId;
     // ... 其他业务查询条件
 
-    /** 计算 SQL OFFSET */
+    /**
+     * 计算 SQL 查询偏移量。
+     *
+     * @return SQL OFFSET 值
+     */
     public Integer getOffset() {
         int page = pageNo == null || pageNo < 1 ? 1 : pageNo;
         int size = getLimit();
         return (page - 1) * size;
     }
 
-    /** 计算 SQL LIMIT，上限 200 */
+    /**
+     * 计算 SQL 查询条数，最大值为 200。
+     *
+     * @return SQL LIMIT 值
+     */
     public Integer getLimit() {
         if (pageSize == null || pageSize < 1) { return 20; }
         return Math.min(pageSize, 200);
@@ -509,20 +599,40 @@ public class ArBillQueryReqDTO {
 ```java
 @Data
 public class ArBillPageRespDTO {
-    /** 当前页码 */
+    /**
+     * 当前页码。
+     */
     private Integer pageNo;
-    /** 每页条数 */
+
+    /**
+     * 每页条数。
+     */
     private Integer pageSize;
-    /** 总记录数 */
+
+    /**
+     * 总记录数。
+     */
     private Long total = 0L;
-    /** 当前页数据 */
+
+    /**
+     * 当前页应收账单数据。
+     */
     private List<ArBillDTO> records = new ArrayList<>();
-    // 以下为业务汇总字段
+
+    /**
+     * 应收金额汇总。
+     */
     private BigDecimal receivableAmount = BigDecimal.ZERO;
+
+    /**
+     * 已收金额汇总。
+     */
     private BigDecimal paidAmount = BigDecimal.ZERO;
     // ...
 }
 ```
+
+**注释要求**：请求 DTO、响应 DTO 的所有字段及其辅助方法必须使用标准多行 JavaDoc；方法注释还必须包含完整的 `@param`（如有入参）和 `@return` 说明。
 
 #### 4.2.3 Feign Client 契约
 
@@ -530,12 +640,30 @@ public class ArBillPageRespDTO {
 @FeignClient(name = "tmall-bms-service", path = "/api/bms/ar-bill")
 public interface ArBillRemoteService {
 
+    /**
+     * 分页查询应收账单。
+     *
+     * @param reqDTO 查询条件
+     * @return 应收账单分页数据
+     */
     @PostMapping("/page")
     ArBillPageRespDTO page(@RequestBody(required = false) ArBillQueryReqDTO reqDTO);
 
+    /**
+     * 根据账单编号查询应收账单详情。
+     *
+     * @param billNo 账单编号
+     * @return 应收账单详情
+     */
     @GetMapping("/detail")
     ArBillDetailRespDTO detail(@RequestParam("billNo") String billNo);
 
+    /**
+     * 确认应收账单。
+     *
+     * @param reqDTO 账单确认请求参数
+     * @return 是否确认成功
+     */
     @PostMapping("/confirm")
     Boolean confirm(@RequestBody ArBillActionReqDTO reqDTO);
     // ...
@@ -546,6 +674,7 @@ public interface ArBillRemoteService {
 - `@FeignClient(name = "tmall-bms-service")` name 对应 Eureka 注册名
 - `path` 与 Controller 的 `@RequestMapping` 一致
 - 方法签名与 Controller 完全一致（Controller `implements` 此接口）
+- 每个接口方法必须使用标准多行 JavaDoc，说明接口用途、`@param` 参数含义与 `@return` 返回内容
 - 外部服务只需引入 `client` 模块即可调用
 
 ### 4.3 完整调用链路（以应收账单列表为例）
@@ -582,7 +711,7 @@ public interface ArBillRemoteService {
   │
   ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ BMS - ArBillMapper + ArBillMapper.xml                        │
+│ BMS - ArBillMapper + ArBill-mapper.xml                       │
 │   countByCondition:  SELECT COUNT(1) FROM ar_bill            │
 │       <include refid="QueryWhere"/>                          │
 │   selectPageByCondition:  SELECT ... FROM ar_bill            │
@@ -719,37 +848,55 @@ CREATE TABLE ar_bill (
 
 ### 6.1 分页查询
 
+本节 Java 示例中的 DTO 字段、接口方法、业务方法和工具方法均必须使用标准多行 JavaDoc；方法注释须包含完整的 `@param` 和 `@return` 说明。
+
 #### 6.1.1 请求 DTO
 
 ```java
 @Data
 public class ArBillQueryReqDTO {
 
-    /** 页码，从1开始 */
+    /**
+     * 页码，从 1 开始。
+     */
     private Integer pageNo = 1;
 
-    /** 每页条数 */
+    /**
+     * 每页条数。
+     */
     private Integer pageSize = 20;
 
-    /** 供应链ID（数据隔离） */
+    /**
+     * 供应链ID，用于数据隔离。
+     */
     private Long scId;
 
-    /** 店铺ID（数据隔离） */
+    /**
+     * 店铺ID，用于数据隔离。
+     */
     private Long shopId;
 
-    /** 用户ID（数据隔离） */
+    /**
+     * 用户ID，用于数据隔离。
+     */
     private Long userId;
 
-    // ... 业务查询条件
-
-    /** OFFSET 计算 */
+    /**
+     * 计算 SQL 查询偏移量。
+     *
+     * @return SQL OFFSET 值
+     */
     public Integer getOffset() {
         int page = pageNo == null || pageNo < 1 ? 1 : pageNo;
         int size = getLimit();
         return (page - 1) * size;
     }
 
-    /** LIMIT 计算，上限 200 防止滥用 */
+    /**
+     * 计算 SQL 查询条数，最大值为 200。
+     *
+     * @return SQL LIMIT 值
+     */
     public Integer getLimit() {
         if (pageSize == null || pageSize < 1) { return 20; }
         return Math.min(pageSize, 200);
@@ -762,17 +909,34 @@ public class ArBillQueryReqDTO {
 ```java
 @Data
 public class ArBillPageRespDTO {
-    /** 当前页码 */
+    /**
+     * 当前页码。
+     */
     private Integer pageNo;
-    /** 每页条数 */
+
+    /**
+     * 每页条数。
+     */
     private Integer pageSize;
-    /** 总记录数 */
+
+    /**
+     * 总记录数。
+     */
     private Long total = 0L;
-    /** 当前页数据 */
+
+    /**
+     * 当前页应收账单数据。
+     */
     private List<ArBillDTO> records = new ArrayList<>();
-    /** 业务汇总：应收总额 */
+
+    /**
+     * 应收金额汇总。
+     */
     private BigDecimal receivableAmount = BigDecimal.ZERO;
-    /** 业务汇总：实收总额 */
+
+    /**
+     * 已收金额汇总。
+     */
     private BigDecimal paidAmount = BigDecimal.ZERO;
 }
 ```
@@ -780,29 +944,30 @@ public class ArBillPageRespDTO {
 #### 6.1.3 Service 层分页逻辑（先 COUNT 再 SELECT）
 
 ```java
+/**
+ * 按查询条件分页查询应收账单。
+ *
+ * @param query 查询条件及分页参数
+ * @return 应收账单分页数据
+ */
 @Override
 public ArBillPageRespDTO page(ArBillQueryReqDTO query) {
     ArBillQueryReqDTO safeQuery = query == null ? new ArBillQueryReqDTO() : query;
 
-    // 1. 先查总数
     Long total = arBillMapper.countByCondition(safeQuery);
 
-    // 2. total 为 0 时直接返回空，避免无效 SQL
     List<ArBill> records = total == null || total == 0
             ? Collections.emptyList()
             : arBillMapper.selectPageByCondition(safeQuery);
 
-    // 3. 组装响应
     ArBillPageRespDTO respDTO = new ArBillPageRespDTO();
     respDTO.setPageNo(safeQuery.getPageNo() == null ? 1 : safeQuery.getPageNo());
     respDTO.setPageSize(safeQuery.getLimit());
     respDTO.setTotal(total == null ? 0L : total);
 
-    // 4. Entity → DTO 转换
     List<ArBillDTO> billRecords = records.stream().map(this::toDTO).collect(Collectors.toList());
     respDTO.setRecords(billRecords);
 
-    // 5. 可选：附带汇总数据
     ArBillPageRespDTO summary = arBillMapper.selectSummaryByCondition(safeQuery);
     if (summary != null) {
         respDTO.setReceivableAmount(defaultAmount(summary.getReceivableAmount()));
@@ -814,25 +979,40 @@ public ArBillPageRespDTO page(ArBillQueryReqDTO query) {
 
 #### 6.1.4 Mapper 层分页 SQL（LIMIT / OFFSET）
 
-Mapper 接口只做方法声明，SQL 全部放在 XML 中：
+Mapper 接口只做方法声明，SQL 全部放在 XML 中；每个方法必须使用标准多行 JavaDoc，说明用途、`@param` 参数含义与 `@return` 返回内容：
 
 **Mapper 接口** `ArBillMapper.java`：
 
 ```java
 @Mapper
 public interface ArBillMapper {
-    /** 查询应收账单数量 */
+    /**
+     * 按查询条件统计应收账单数量。
+     *
+     * @param query 查询条件
+     * @return 应收账单数量
+     */
     Long countByCondition(ArBillQueryReqDTO query);
 
-    /** 分页查询应收账单 */
+    /**
+     * 按查询条件分页查询应收账单。
+     *
+     * @param query 查询条件及分页参数
+     * @return 当前页的应收账单列表
+     */
     List<ArBill> selectPageByCondition(ArBillQueryReqDTO query);
 
-    /** 查询当前条件下的账单汇总 */
+    /**
+     * 按查询条件汇总应收账单数据。
+     *
+     * @param query 查询条件
+     * @return 应收账单汇总数据
+     */
     ArBillPageRespDTO selectSummaryByCondition(ArBillQueryReqDTO query);
 }
 ```
 
-**XML Mapper** `sqlmap/ArBillMapper.xml`：
+**XML Mapper** `sqlmap/ArBill-mapper.xml`：
 
 ```xml
 <!-- COUNT -->
@@ -870,6 +1050,15 @@ public interface ArBillMapper {
 当数据需要先在内存中加工再分页时，使用 `List.subList`：
 
 ```java
+/**
+ * 对聚合后的列表进行内存分页。
+ *
+ * @param list 待分页的数据列表
+ * @param pageNo 页码，从 1 开始
+ * @param pageSize 每页条数
+ * @param <T> 列表元素类型
+ * @return 当前页的数据列表
+ */
 private <T> List<T> pageSlice(List<T> list, int pageNo, int pageSize) {
     if (list == null || list.isEmpty()) { return Collections.emptyList(); }
     int from = Math.min((pageNo - 1) * pageSize, list.size());
@@ -897,13 +1086,20 @@ BMS 作为纯后端微服务，**自身不做用户认证和权限校验**。权
 ```java
 @Data
 public class ArBillQueryReqDTO {
-    /** 供应链ID — 必传，用于数据隔离 */
+    /**
+     * 供应链ID，数据隔离必填字段。
+     */
     private Long scId;
-    /** 店铺ID — 必传，用于数据隔离 */
+
+    /**
+     * 店铺ID，数据隔离必填字段。
+     */
     private Long shopId;
-    /** 用户ID — 必传，用于数据隔离 */
+
+    /**
+     * 用户ID，数据隔离必填字段。
+     */
     private Long userId;
-    // ...
 }
 ```
 
@@ -1133,31 +1329,69 @@ import java.util.Date;
  */
 @Data
 public class ApBill {
-    /** ID */
+    /**
+     * 主键ID。
+     */
     private Long id;
-    /** 应付账单编号 */
+
+    /**
+     * 应付账单编号。
+     */
     private String billNo;
-    /** 状态 */
+
+    /**
+     * 账单状态。
+     */
     private String billStatus;
-    /** 供应链ID */
+
+    /**
+     * 供应链ID。
+     */
     private Long scId;
-    /** 店铺ID */
+
+    /**
+     * 店铺ID。
+     */
     private Long shopId;
-    /** 用户ID */
+
+    /**
+     * 用户ID。
+     */
     private Long userId;
-    /** 供应商编码 */
+
+    /**
+     * 供应商编码。
+     */
     private String memberCode;
-    /** 供应商名称 */
+
+    /**
+     * 供应商名称。
+     */
     private String memberName;
-    /** 币种 */
+
+    /**
+     * 账单币种。
+     */
     private String billCurrency;
-    /** 应付金额 */
+
+    /**
+     * 应付金额。
+     */
     private BigDecimal payableAmount;
-    /** 已付金额 */
+
+    /**
+     * 已付金额。
+     */
     private BigDecimal paidAmount;
-    /** 创建时间 */
+
+    /**
+     * 创建时间。
+     */
     private Date createdAt;
-    /** 更新时间 */
+
+    /**
+     * 更新时间。
+     */
     private Date updatedAt;
 }
 ```
@@ -1174,26 +1408,56 @@ import lombok.Data;
  */
 @Data
 public class ApBillQueryReqDTO {
-    /** 页码，从1开始 */
+    /**
+     * 页码，从 1 开始。
+     */
     private Integer pageNo = 1;
-    /** 每页条数 */
+
+    /**
+     * 每页条数。
+     */
     private Integer pageSize = 20;
-    /** 供应链ID */
+
+    /**
+     * 供应链ID。
+     */
     private Long scId;
-    /** 店铺ID */
+
+    /**
+     * 店铺ID。
+     */
     private Long shopId;
-    /** 用户ID */
+
+    /**
+     * 用户ID。
+     */
     private Long userId;
-    /** 账单编号（模糊搜索） */
+
+    /**
+     * 账单编号，支持模糊搜索。
+     */
     private String billNo;
-    /** 账单状态 */
+
+    /**
+     * 账单状态。
+     */
     private String billStatus;
 
+    /**
+     * 计算 SQL 查询偏移量。
+     *
+     * @return SQL OFFSET 值
+     */
     public Integer getOffset() {
         int page = pageNo == null || pageNo < 1 ? 1 : pageNo;
         return (page - 1) * getLimit();
     }
 
+    /**
+     * 计算 SQL 查询条数，最大值为 200。
+     *
+     * @return SQL LIMIT 值
+     */
     public Integer getLimit() {
         if (pageSize == null || pageSize < 1) { return 20; }
         return Math.min(pageSize, 200);
@@ -1216,24 +1480,41 @@ import java.util.List;
  */
 @Data
 public class ApBillPageRespDTO {
-    /** 当前页码 */
+    /**
+     * 当前页码。
+     */
     private Integer pageNo;
-    /** 每页条数 */
+
+    /**
+     * 每页条数。
+     */
     private Integer pageSize;
-    /** 总记录数 */
+
+    /**
+     * 总记录数。
+     */
     private Long total = 0L;
-    /** 当前页数据 */
+
+    /**
+     * 当前页应付账单数据。
+     */
     private List<ApBillDTO> records = new ArrayList<>();
-    /** 汇总：应付总额 */
+
+    /**
+     * 应付金额汇总。
+     */
     private BigDecimal totalPayableAmount = BigDecimal.ZERO;
-    /** 汇总：已付总额 */
+
+    /**
+     * 已付金额汇总。
+     */
     private BigDecimal totalPaidAmount = BigDecimal.ZERO;
 }
 ```
 
 #### Step 3：Mapper 层（dao 模块）
 
-**3a. Mapper 接口** `ApBillMapper.java` — 只声明方法，不含 SQL：
+**3a. Mapper 接口** `ApBillMapper.java` — 只声明方法，不含 SQL；每个方法必须使用标准多行 JavaDoc，说明用途、`@param` 参数含义与 `@return` 返回内容：
 
 ```java
 package com.szt.supplychain.bms.dao.mapper;
@@ -1252,24 +1533,49 @@ import java.util.List;
 @Mapper
 public interface ApBillMapper {
 
-    /** 新增应付账单 */
+    /**
+     * 新增应付账单。
+     *
+     * @param apBill 应付账单实体
+     * @return 受影响的记录数
+     */
     int insert(ApBill apBill);
 
-    /** 根据账单编号查询 */
+    /**
+     * 根据账单编号查询应付账单。
+     *
+     * @param billNo 账单编号
+     * @return 应付账单；不存在时返回 {@code null}
+     */
     ApBill selectByBillNo(@Param("billNo") String billNo);
 
-    /** 查询数量 */
+    /**
+     * 按查询条件统计应付账单数量。
+     *
+     * @param query 查询条件
+     * @return 应付账单数量
+     */
     Long countByCondition(ApBillQueryReqDTO query);
 
-    /** 分页查询 */
+    /**
+     * 按查询条件分页查询应付账单。
+     *
+     * @param query 查询条件及分页参数
+     * @return 当前页的应付账单列表
+     */
     List<ApBill> selectPageByCondition(ApBillQueryReqDTO query);
 
-    /** 汇总查询 */
+    /**
+     * 按查询条件汇总应付账单数据。
+     *
+     * @param query 查询条件
+     * @return 应付账单汇总数据
+     */
     ApBillPageRespDTO selectSummaryByCondition(ApBillQueryReqDTO query);
 }
 ```
 
-**3b. XML Mapper** `sqlmap/ApBillMapper.xml`：
+**XML Mapper** — `sqlmap/ApBill-mapper.xml`：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" ?>
@@ -1375,7 +1681,7 @@ public interface ApBillMapper {
 
 ```yaml
 mybatis:
-  mapper-locations: classpath*:sqlmap/*.xml
+  mapper-locations: classpath:sqlmap/*-mapper.xml
   configuration:
     map-underscore-to-camel-case: true
 ```
@@ -1410,7 +1716,7 @@ public interface ApBillService {
 }
 ```
 
-**4b. 实现** `ApBillServiceImpl.java`：
+**4b. 实现** `ApBillServiceImpl.java`：私有方法必须使用标准多行 JavaDoc，核心业务逻辑必须使用行内注释说明处理目的与关键分支。
 
 ```java
 package com.szt.supplychain.bms.biz.service.impl;
@@ -1437,18 +1743,23 @@ public class ApBillServiceImpl implements ApBillService {
 
     @Override
     public ApBillPageRespDTO page(ApBillQueryReqDTO query) {
+        // 对空入参使用默认查询对象，确保后续分页参数计算安全。
         ApBillQueryReqDTO safeQuery = query == null ? new ApBillQueryReqDTO() : query;
+
+        // 先统计总数；总数为 0 时跳过分页查询，避免无效 SQL。
         Long total = apBillMapper.countByCondition(safeQuery);
         List<ApBill> records = total == null || total == 0
                 ? Collections.emptyList()
                 : apBillMapper.selectPageByCondition(safeQuery);
 
+        // 组装分页基础数据，并将实体列表转换为对外 DTO。
         ApBillPageRespDTO respDTO = new ApBillPageRespDTO();
         respDTO.setPageNo(safeQuery.getPageNo() == null ? 1 : safeQuery.getPageNo());
         respDTO.setPageSize(safeQuery.getLimit());
         respDTO.setTotal(total == null ? 0L : total);
         respDTO.setRecords(records.stream().map(this::toDTO).collect(Collectors.toList()));
 
+        // 单独查询金额汇总，避免在分页列表查询中重复聚合。
         ApBillPageRespDTO summary = apBillMapper.selectSummaryByCondition(safeQuery);
         if (summary != null) {
             respDTO.setTotalPayableAmount(defaultAmount(summary.getTotalPayableAmount()));
@@ -1457,6 +1768,12 @@ public class ApBillServiceImpl implements ApBillService {
         return respDTO;
     }
 
+    /**
+     * 将应付账单实体转换为对外传输对象。
+     *
+     * @param apBill 应付账单实体
+     * @return 应付账单传输对象
+     */
     private ApBillDTO toDTO(ArBill apBill) {
         ApBillDTO dto = new ApBillDTO();
         dto.setId(apBill.getId());
@@ -1475,6 +1792,12 @@ public class ApBillServiceImpl implements ApBillService {
         return dto;
     }
 
+    /**
+     * 将空金额转换为零值，避免金额计算和响应序列化出现空值。
+     *
+     * @param amount 原始金额
+     * @return 原始金额；原始金额为空时返回 {@link BigDecimal#ZERO}
+     */
     private BigDecimal defaultAmount(BigDecimal amount) {
         return amount == null ? BigDecimal.ZERO : amount;
     }
@@ -1482,6 +1805,8 @@ public class ApBillServiceImpl implements ApBillService {
 ```
 
 #### Step 5：Client 层（client 模块）
+
+Client 契约中的每个 API 方法必须使用标准多行 JavaDoc，说明接口用途、`@param` 参数含义与 `@return` 返回内容。
 
 ```java
 package com.szt.supplychain.bms.client.api;
@@ -1495,12 +1820,20 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(name = "tmall-bms-service", path = "/api/bms/ap-bill")
 public interface ApBillRemoteService {
 
+    /**
+     * 分页查询应付账单。
+     *
+     * @param reqDTO 查询条件
+     * @return 应付账单分页数据
+     */
     @PostMapping("/page")
     ApBillPageRespDTO page(@RequestBody(required = false) ApBillQueryReqDTO reqDTO);
 }
 ```
 
 #### Step 6：Controller 层（web 模块）
+
+Controller 中的每个 API 方法必须使用标准多行 JavaDoc，说明接口用途、`@param` 参数含义与 `@return` 返回内容；无返回值接口也必须说明接口用途和入参含义。
 
 ```java
 package com.szt.supplychain.bms.web.controller;
@@ -1526,6 +1859,12 @@ public class ApBillController implements ApBillRemoteService {
     @Resource
     private ApBillService apBillService;
 
+    /**
+     * 分页查询应付账单。
+     *
+     * @param reqDTO 查询条件
+     * @return 应付账单分页数据
+     */
     @Override
     @PostMapping("/page")
     public ApBillPageRespDTO page(@RequestBody(required = false) ApBillQueryReqDTO reqDTO) {
@@ -1591,11 +1930,20 @@ private ArBill requireBillForUpdate(String billNo) {
 对应 Mapper：
 
 ```java
-/** 根据账单编号查询并锁定（行锁） */
+/**
+ * 根据账单编号查询应收账单并加行锁。
+ *
+ * @param billNo 账单编号
+ * @return 已锁定的应收账单；不存在时返回 {@code null}
+ */
 @SelectProvider(type = ArBillSqlProvider.class, method = "selectByBillNoForUpdate")
 ArBill selectByBillNoForUpdate(@Param("billNo") String billNo);
 
-// SqlProvider 中：
+/**
+ * 构建根据账单编号查询并加行锁的 SQL。
+ *
+ * @return 行锁查询 SQL
+ */
 public String selectByBillNoForUpdate() {
     return "SELECT " + baseColumns() + " FROM ar_bill WHERE bill_no = #{billNo} AND is_deleted = 0 FOR UPDATE";
 }
@@ -1688,21 +2036,46 @@ if (!"PAID".equals(bill.getBillStatus())) { ... }
 // GENERATED → CONFIRMED → PART_PAID / PAID
 ```
 
-**注意**：现有代码中状态值使用字符串常量而非枚举引用。新开发推荐将状态提取为枚举常量类：
+**注意**：现有代码中状态值使用字符串常量而非枚举引用。新开发推荐将状态提取为枚举常量类；每个常量必须使用标准多行 JavaDoc 说明其业务含义和适用状态：
 
 ```java
+/**
+ * BMS 业务状态与币种常量。
+ */
 public class BmsConstants {
-    /** 账单状态 */
+    /**
+     * 已生成的账单状态，账单尚未确认。
+     */
     public static final String BILL_STATUS_GENERATED = "GENERATED";
+
+    /**
+     * 已确认的账单状态，允许后续收款或核销处理。
+     */
     public static final String BILL_STATUS_CONFIRMED = "CONFIRMED";
+
+    /**
+     * 已全额支付的账单状态。
+     */
     public static final String BILL_STATUS_PAID = "PAID";
+
+    /**
+     * 已部分支付的账单状态。
+     */
     public static final String BILL_STATUS_PART_PAID = "PART_PAID";
 
-    /** 核销状态 */
+    /**
+     * 正常有效的核销状态。
+     */
     public static final String WRITEOFF_STATUS_NORMAL = "NORMAL";
+
+    /**
+     * 已冲销的核销状态。
+     */
     public static final String WRITEOFF_STATUS_REVERSED = "REVERSED";
 
-    /** 币种 */
+    /**
+     * 人民币币种代码。
+     */
     public static final String CURRENCY_CNY = "CNY";
 }
 ```
@@ -1713,9 +2086,17 @@ public class BmsConstants {
 
 #### 6.8.1 定义契约（client 模块）
 
+Client 契约中的每个 API 方法必须使用标准多行 JavaDoc，说明接口用途、`@param` 参数含义与 `@return` 返回内容。
+
 ```java
 @FeignClient(name = "tmall-bms-service", path = "/api/bms/ar-bill")
 public interface ArBillRemoteService {
+    /**
+     * 分页查询应收账单。
+     *
+     * @param reqDTO 查询条件
+     * @return 应收账单分页数据
+     */
     @PostMapping("/page")
     ArBillPageRespDTO page(@RequestBody(required = false) ArBillQueryReqDTO reqDTO);
 }

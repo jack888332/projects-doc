@@ -9,6 +9,7 @@ const sampleFiles = [
   { id: "t-cat", name: "台湾端派送 （宅配通.xlsx", supplier: "宅配通", board: "派送成本", sheets: 1, size: "5.6 MB", defaultSheet: "5月明細" },
   { id: "shunsheng", name: "台湾端派送 （顺盛.xlsx", supplier: "顺盛", board: "派送成本", sheets: 1, size: "1.9 MB", defaultSheet: "Sheet1" },
   { id: "df-clearance", name: "海快清关（东风.xls", supplier: "东风", board: "清关成本", sheets: 12, size: "22.7 MB", defaultSheet: "清關費" },
+  { id: "df-air-clearance", name: "空运清关（东风.xls", supplier: "东风", board: "清关成本", sheets: 12, size: "22.7 MB", defaultSheet: "清關費" },
   { id: "fuguang", name: "海快清关（福广.xlsx", supplier: "福广", board: "清关成本", sheets: 9, size: "4.9 MB", defaultSheet: "稅金明細" },
   { id: "lianduo", name: "海快船公司（联多.xlsx", supplier: "联多", board: "海运成本", sheets: 2, size: "110 KB", defaultSheet: "sheet1" },
   { id: "libao", name: "空运头程（力宝.xls", supplier: "力宝", board: "空运成本", sheets: 3, size: "89 KB", defaultSheet: "对帐单" },
@@ -17,43 +18,149 @@ const sampleFiles = [
 ];
 
 const suppliers = [
-  { code: "SUP-DF", name: "东风", boards: ["派送", "清关"], cycle: "月", current: "2026-06-01 至 2026-06-30", currency: "TWD", bills: 3, pending: "486,320.000 TWD", settled: "1,286,550.000 TWD", state: "启用", updated: "2026-07-16 18:20" },
-  { code: "SUP-ZPT", name: "宅配通", boards: ["派送"], cycle: "月", current: "2026-06-01 至 2026-06-30", currency: "TWD", bills: 1, pending: "0.000 TWD", settled: "218,760.000 TWD", state: "启用", updated: "2026-07-15 11:42" },
-  { code: "SUP-SS", name: "顺盛", boards: ["派送"], cycle: "月", current: "2026-06-01 至 2026-06-30", currency: "TWD", bills: 1, pending: "94,286.000 TWD", settled: "0.000 TWD", state: "启用", updated: "2026-07-14 09:31" },
-  { code: "SUP-FG", name: "福广", boards: ["清关"], cycle: "半月", current: "2026-07-01 至 2026-07-15", currency: "TWD", bills: 1, pending: "173,680.000 TWD", settled: "0.000 TWD", state: "启用", updated: "2026-07-16 14:06" },
-  { code: "SUP-LD", name: "联多", boards: ["海运"], cycle: "不固定", current: "2026-06-12 至 2026-06-28", currency: "CNY", bills: 1, pending: "87,540.000 CNY", settled: "0.000 CNY", state: "启用", updated: "2026-07-13 16:55" },
-  { code: "SUP-LB", name: "力宝", boards: ["空运"], cycle: "周", current: "2026-07-06 至 2026-07-12", currency: "CNY", bills: 1, pending: "0.000 CNY", settled: "61,280.000 CNY", state: "启用", updated: "2026-07-12 20:16" },
-  { code: "SUP-BY", name: "深圳搬运工", boards: ["租车"], cycle: "月", current: "2026-06-01 至 2026-06-30", currency: "CNY", bills: 0, pending: "0.000 CNY", settled: "0.000 CNY", state: "停用", updated: "2026-07-03 10:25" }
+  { code: "SUP-DF", name: "东风", boards: ["派送", "清关"], cycle: "不固定", current: "2026-06-22 至 2026-06-30", currency: "TWD", bills: 3, pending: "2,096,102.000 TWD", settled: "0.000 TWD", state: "启用", updated: "2026-06-30" },
+  { code: "SUP-ZPT", name: "宅配通", boards: ["派送"], cycle: "不固定", current: "2026-04-21 至 2026-05-25", currency: "TWD", bills: 1, pending: "4,219,280.000 TWD", settled: "0.000 TWD", state: "启用", updated: "2026-05-25" },
+  { code: "SUP-SS", name: "顺盛", boards: ["派送"], cycle: "不固定", current: "2026-05-08 至 2026-06-14", currency: "TWD", bills: 1, pending: "921,472.000 TWD", settled: "0.000 TWD", state: "启用", updated: "2026-06-14" },
+  { code: "SUP-FG", name: "福广", boards: ["清关"], cycle: "半月", current: "2026-06-17 至 2026-06-30", currency: "TWD", bills: 1, pending: "4,017,539.000 TWD", settled: "0.000 TWD", state: "启用", updated: "2026-07-01" },
+  { code: "SUP-LD", name: "联多", boards: ["海运"], cycle: "半月", current: "2026-06-16 至 2026-06-30", currency: "CNY", bills: 1, pending: "664,594.120 CNY", settled: "0.000 CNY", state: "启用", updated: "2026-06-30" },
+  { code: "SUP-LB", name: "力宝", boards: ["空运"], cycle: "不固定", current: "2026-06-22 至 2026-06-30", currency: "CNY", bills: 1, pending: "3,882.400 CNY", settled: "0.000 CNY", state: "启用", updated: "2026-06-30" },
+  { code: "SUP-TRK", name: "仓库送船公司", boards: ["租车"], cycle: "月", current: "2026-05-01 至 2026-05-31", currency: "CNY", bills: 1, pending: "234,500.000 CNY", settled: "0.000 CNY", state: "启用", updated: "2026-05-31" },
+  { code: "SUP-BY", name: "深圳搬运工", boards: ["租车"], cycle: "月", current: "2026-05-01 至 2026-05-31", currency: "CNY", bills: 1, pending: "17,500.000 CNY", settled: "0.000 CNY", state: "启用", updated: "2026-05-31" }
 ];
 
 const bills = [
-  { id: "APB-SUP-DF-20260601-8F1A2C", supplier: "东风", board: "派送成本", period: "2026-06-01 至 2026-06-30", amount: "486,320.000", currency: "TWD", settled: "120,000.000", state: "待结清", rows: 1864, direct: 1532, indirect: 332, unresolved: 18, file: "台湾端派送 （东风.xlsx", created: "2026-07-16 18:20" },
-  { id: "APB-SUP-DF-20260601-42DC91", supplier: "东风", board: "清关成本", period: "2026-06-01 至 2026-06-30", amount: "327,860.000", currency: "TWD", settled: "327,860.000", state: "已结清", rows: 728, direct: 581, indirect: 147, unresolved: 0, file: "海快清关（东风.xls", created: "2026-07-15 15:08" },
-  { id: "APB-SUP-ZPT-20260601-66A3E1", supplier: "宅配通", board: "派送成本", period: "2026-06-01 至 2026-06-30", amount: "218,760.000", currency: "TWD", settled: "218,760.000", state: "已结清", rows: 942, direct: 910, indirect: 32, unresolved: 0, file: "台湾端派送 （宅配通.xlsx", created: "2026-07-15 11:42" },
-  { id: "APB-SUP-SS-20260601-A7382B", supplier: "顺盛", board: "派送成本", period: "2026-06-01 至 2026-06-30", amount: "94,286.000", currency: "TWD", settled: "0.000", state: "待结清", rows: 326, direct: 312, indirect: 14, unresolved: 6, file: "台湾端派送 （顺盛.xlsx", created: "2026-07-14 09:31" },
-  { id: "APB-SUP-FG-20260701-11F9C4", supplier: "福广", board: "清关成本", period: "2026-07-01 至 2026-07-15", amount: "173,680.000", currency: "TWD", settled: "0.000", state: "待结清", rows: 463, direct: 398, indirect: 65, unresolved: 12, file: "海快清关（福广.xlsx", created: "2026-07-16 14:06" },
-  { id: "APB-SUP-LD-20260612-C182A7", supplier: "联多", board: "海运成本", period: "2026-06-12 至 2026-06-28", amount: "87,540.000", currency: "CNY", settled: "0.000", state: "待结清", rows: 78, direct: 12, indirect: 66, unresolved: 3, file: "海快船公司（联多.xlsx", created: "2026-07-13 16:55" },
-  { id: "APB-SUP-LB-20260706-FF0201", supplier: "力宝", board: "空运成本", period: "2026-07-06 至 2026-07-12", amount: "61,280.000", currency: "CNY", settled: "61,280.000", state: "已结清", rows: 116, direct: 28, indirect: 88, unresolved: 0, file: "空运头程（力宝.xls", created: "2026-07-12 20:16" },
-  { id: "APB-SUP-TRK-20260601-20DD6A", supplier: "仓库送船公司", board: "租车成本", period: "2026-06-01 至 2026-06-30", amount: "39,600.000", currency: "CNY", settled: "0.000", state: "待结清", rows: 26, direct: 0, indirect: 26, unresolved: 0, file: "海快租车（仓库送船公司.xlsx", created: "2026-07-11 17:43" }
+  { id: "APB-SUP-DF-20260516-08D115", supplier: "东风", board: "派送成本", period: "2026-05-16 至 2026-05-31", amount: "218,636.000", currency: "TWD", settled: "0.000", state: "待结清", rows: 9, direct: 8, indirect: 1, unresolved: 0, file: "台湾端派送 （东风.xlsx", created: "2026-06-23" },
+  { id: "APB-SUP-DF-20260622-573E3D", supplier: "东风", board: "清关成本", period: "2026-06-22 至 2026-06-30", amount: "938,733.000", currency: "TWD", settled: "0.000", state: "待结清", rows: 7, direct: 7, indirect: 0, unresolved: 0, file: "海快清关（东风.xls", created: "2026-06-30" },
+  { id: "APB-SUP-ZPT-20260421-867589", supplier: "宅配通", board: "派送成本", period: "2026-04-21 至 2026-05-25", amount: "4,219,280.000", currency: "TWD", settled: "0.000", state: "待结清", rows: 62530, direct: 62530, indirect: 0, unresolved: 0, file: "台湾端派送 （宅配通.xlsx", created: "2026-05-25" },
+  { id: "APB-SUP-SS-20260508-9C215C", supplier: "顺盛", board: "派送成本", period: "2026-05-08 至 2026-06-14", amount: "921,472.000", currency: "TWD", settled: "0.000", state: "待结清", rows: 18668, direct: 18668, indirect: 0, unresolved: 0, file: "台湾端派送 （顺盛.xlsx", created: "2026-06-14" },
+  { id: "APB-SUP-FG-20260617-316624", supplier: "福广", board: "清关成本", period: "2026-06-17 至 2026-06-30", amount: "4,017,539.000", currency: "TWD", settled: "0.000", state: "待结清", rows: 2, direct: 2, indirect: 0, unresolved: 0, file: "海快清关（福广.xlsx", created: "2026-07-01" },
+  { id: "APB-SUP-LD-20260616-CDB8CE", supplier: "联多", board: "海运成本", period: "2026-06-16 至 2026-06-30", amount: "664,594.120", currency: "CNY", settled: "0.000", state: "待结清", rows: 121, direct: 0, indirect: 121, unresolved: 0, file: "海快船公司（联多.xlsx", created: "2026-06-30" },
+  { id: "APB-SUP-LB-20260622-CBCAA3", supplier: "力宝", board: "空运成本", period: "2026-06-22 至 2026-06-30", amount: "3,882.400", currency: "CNY", settled: "0.000", state: "待结清", rows: 10, direct: 10, indirect: 0, unresolved: 0, file: "空运头程（力宝.xls", created: "2026-06-30" },
+  { id: "APB-SUP-TRK-20260501-D88392", supplier: "仓库送船公司", board: "租车成本", period: "2026-05-01 至 2026-05-31", amount: "234,500.000", currency: "CNY", settled: "0.000", state: "待结清", rows: 7, direct: 0, indirect: 7, unresolved: 0, file: "海快租车（仓库送船公司.xlsx", created: "2026-05-31" },
+  { id: "APB-SUP-BY-20260501-76F5F0", supplier: "深圳搬运工", board: "租车成本", period: "2026-05-01 至 2026-05-31", amount: "17,500.000", currency: "CNY", settled: "0.000", state: "待结清", rows: 3, direct: 0, indirect: 3, unresolved: 0, file: "海快（深圳搬运工.xlsx", created: "2026-05-31" },
+  { id: "APB-SUP-DF-20260622-185F41", supplier: "东风", board: "清关成本", period: "2026-06-22 至 2026-06-30", amount: "938,733.000", currency: "TWD", settled: "0.000", state: "待结清", rows: 7, direct: 7, indirect: 0, unresolved: 0, file: "空运清关（东风.xls", created: "2026-06-30" }
 ];
 
 const costs = [
-  { id: "COST-260716-00871", bill: bills[0].id, supplier: "东风", board: "派送", raw: "運費", fee: "派送费", keyType: "追踪号", key: "DF26061088319", amount: "1,260.000", currency: "TWD", type: "直接成本", target: "尾程包裹 TP-TW-88319", status: "已归属" },
-  { id: "COST-260716-00872", bill: bills[0].id, supplier: "东风", board: "派送", raw: "超才費", fee: "超才费", keyType: "追踪号", key: "DF26061088319", amount: "320.000", currency: "TWD", type: "直接成本", target: "尾程包裹 TP-TW-88319", status: "已归属" },
-  { id: "COST-260716-00873", bill: bills[0].id, supplier: "东风", board: "派送", raw: "車趟費", fee: "车趟费", keyType: "货柜号", key: "TLLU5088210", amount: "18,600.000", currency: "TWD", type: "间接成本", target: "SET-DEL-2606-03", status: "待分摊" },
-  { id: "COST-260715-00428", bill: bills[1].id, supplier: "东风", board: "清关", raw: "稅金", fee: "进口税费", keyType: "税单号", key: "TW-TAX-260619-0318", amount: "7,280.000", currency: "TWD", type: "直接成本", target: "业务订单 SO-OG0370-61428", status: "已归属" },
-  { id: "COST-260716-00613", bill: bills[4].id, supplier: "福广", board: "清关", raw: "萬海倉租", fee: "清关仓租", keyType: "柜号", key: "SEGU6320198", amount: "23,400.000", currency: "TWD", type: "间接成本", target: "SET-CLR-2607-01", status: "已分摊" },
-  { id: "COST-260713-00136", bill: bills[5].id, supplier: "联多", board: "海运", raw: "海運費", fee: "海运费", keyType: "提单号", key: "SZTW26061208", amount: "42,800.000", currency: "CNY", type: "间接成本", target: "SET-SEA-2606-02", status: "已分摊" },
-  { id: "COST-260712-00081", bill: bills[6].id, supplier: "力宝", board: "空运", raw: "中港段費", fee: "中港运输费", keyType: "提单号", key: "160-98562041", amount: "13,680.000", currency: "CNY", type: "间接成本", target: "SET-AIR-2607-02", status: "待分摊" },
-  { id: "COST-260711-00019", bill: bills[7].id, supplier: "仓库送船公司", board: "租车", raw: "9.6米車", fee: "租车费", keyType: "无关键单号", key: "-", amount: "9,800.000", currency: "CNY", type: "间接成本", target: "SET-TRK-2606-01", status: "待人工确认" }
+  { id: "COST-DFD-001", bill: bills[0].id, supplier: "东风", board: "派送", raw: "黑貓派件費", fee: "派送费", keyType: "账期", key: bills[0].period, amount: "268.000", currency: "TWD", detailCount: 1, type: "直接成本", target: "供应商账单汇总项", status: "已归属" },
+  { id: "COST-DFD-002", bill: bills[0].id, supplier: "东风", board: "派送", raw: "新竹派件費", fee: "派送费", keyType: "账期", key: bills[0].period, amount: "402,343.000", currency: "TWD", detailCount: 1, type: "直接成本", target: "供应商账单汇总项", status: "已归属" },
+  { id: "COST-DFD-003", bill: bills[0].id, supplier: "东风", board: "派送", raw: "新竹代收款", fee: "代收款", keyType: "账期", key: bills[0].period, amount: "-154,082.000", currency: "TWD", detailCount: 1, type: "直接成本", target: "供应商账单汇总项", status: "已归属" },
+  { id: "COST-DFD-004", bill: bills[0].id, supplier: "东风", board: "派送", raw: "大榮派件費", fee: "派送费", keyType: "账期", key: bills[0].period, amount: "28,372.000", currency: "TWD", detailCount: 1, type: "直接成本", target: "供应商账单汇总项", status: "已归属" },
+  { id: "COST-DFD-005", bill: bills[0].id, supplier: "东风", board: "派送", raw: "大榮代收款", fee: "代收款", keyType: "账期", key: bills[0].period, amount: "-17,685.000", currency: "TWD", detailCount: 1, type: "直接成本", target: "供应商账单汇总项", status: "已归属" },
+  { id: "COST-DFD-006", bill: bills[0].id, supplier: "东风", board: "派送", raw: "東風派件費", fee: "派送费", keyType: "账期", key: bills[0].period, amount: "1,721,781.000", currency: "TWD", detailCount: 1, type: "直接成本", target: "供应商账单汇总项", status: "已归属" },
+  { id: "COST-DFD-007", bill: bills[0].id, supplier: "东风", board: "派送", raw: "東風代收貨款", fee: "代收款", keyType: "账期", key: bills[0].period, amount: "-1,858,021.000", currency: "TWD", detailCount: 1, type: "直接成本", target: "供应商账单汇总项", status: "已归属" },
+  { id: "COST-DFD-008", bill: bills[0].id, supplier: "东风", board: "派送", raw: "拖櫃專車", fee: "车趟费", keyType: "账期", key: bills[0].period, amount: "132,625.000", currency: "TWD", detailCount: 1, type: "间接成本", target: "SET-DEL-202605-01", status: "待分摊" },
+  { id: "COST-DFD-009", bill: bills[0].id, supplier: "东风", board: "派送", raw: "貨故賠款", fee: "货故赔款", keyType: "账期", key: bills[0].period, amount: "-36,965.000", currency: "TWD", detailCount: 1, type: "直接成本", target: "供应商账单汇总项", status: "已归属" },
+
+  ...[1, 9].flatMap((billIndex, copyIndex) => [
+    ["清關費", "清关费", "171,055.000"], ["傳輸費", "传输费", "13,313.000"], ["實名認證", "实名认证费", "98,373.000"],
+    ["稅金", "进口税费", "648,442.000"], ["報單費", "报单费", "1,500.000"], ["香港銷毀費用", "销毁费", "50.000"], ["預收罰款", "罚款", "6,000.000"]
+  ].map(([raw, fee, amount], index) => ({ id: `COST-DFC-${copyIndex + 1}-${index + 1}`, bill: bills[billIndex].id, supplier: "东风", board: "清关", raw, fee, keyType: "账期", key: bills[billIndex].period, amount, currency: "TWD", detailCount: 1, type: "直接成本", target: "供应商账单汇总项", status: "已归属" }))),
+
+  { id: "COST-ZPT-001", bill: bills[2].id, supplier: "宅配通", board: "派送", raw: "運費", fee: "派送费", keyType: "宅配单号", key: "477256777616-001 等", amount: "4,213,480.000", currency: "TWD", detailCount: 62414, type: "直接成本", target: "尾程包裹", status: "已归属" },
+  { id: "COST-ZPT-002", bill: bills[2].id, supplier: "宅配通", board: "派送", raw: "超大", fee: "超大费", keyType: "宅配单号", key: "687702004614-001 等", amount: "5,800.000", currency: "TWD", detailCount: 116, type: "直接成本", target: "尾程包裹", status: "已归属" },
+  { id: "COST-SS-001", bill: bills[3].id, supplier: "顺盛", board: "派送", raw: "本款", fee: "派送费", keyType: "明细表号", key: "1730372711 等", amount: "762,816.000", currency: "TWD", detailCount: 11705, type: "直接成本", target: "尾程包裹", status: "已归属" },
+  { id: "COST-SS-002", bill: bills[3].id, supplier: "顺盛", board: "派送", raw: "聯運費", fee: "联运费", keyType: "明细表号", key: "明细表号对应项", amount: "1,000.000", currency: "TWD", detailCount: 4, type: "直接成本", target: "尾程包裹", status: "已归属" },
+  { id: "COST-SS-003", bill: bills[3].id, supplier: "顺盛", board: "派送", raw: "附加費用", fee: "附加费", keyType: "明细表号", key: "1050741484 等", amount: "157,656.000", currency: "TWD", detailCount: 6959, type: "直接成本", target: "尾程包裹", status: "已归属" },
+  { id: "COST-FG-001", bill: bills[4].id, supplier: "福广", board: "清关", raw: "代墊規費", fee: "代垫规费", keyType: "账期", key: bills[4].period, amount: "2,975.000", currency: "TWD", detailCount: 1, type: "直接成本", target: "供应商账单汇总项", status: "已归属" },
+  { id: "COST-FG-002", bill: bills[4].id, supplier: "福广", board: "清关", raw: "代墊關稅", fee: "进口税费", keyType: "账期", key: bills[4].period, amount: "4,014,564.000", currency: "TWD", detailCount: 1, type: "直接成本", target: "供应商账单汇总项", status: "已归属" },
+
+  { id: "COST-LD-001", bill: bills[5].id, supplier: "联多", board: "海运", raw: "報關費", fee: "报关费", keyType: "报关单号", key: "370820260000523025 等", amount: "720.000", currency: "CNY", detailCount: 6, type: "间接成本", target: "SET-SEA-DECL-01", status: "待分摊" },
+  { id: "COST-LD-002", bill: bills[5].id, supplier: "联多", board: "海运", raw: "操作費", fee: "操作费", keyType: "报关单号", key: "370820260000523025 等", amount: "1,274.120", currency: "CNY", detailCount: 6, type: "间接成本", target: "SET-SEA-OPS-01", status: "不分摊" },
+  { id: "COST-LD-003", bill: bills[5].id, supplier: "联多", board: "海运", raw: "海運費", fee: "海运费", keyType: "提单号", key: "AYLD26061702EX 等", amount: "629,000.000", currency: "CNY", detailCount: 63, type: "间接成本", target: "SET-SEA-FREIGHT-01", status: "待分摊" },
+  { id: "COST-LD-004", bill: bills[5].id, supplier: "联多", board: "海运", raw: "普貨海運費", fee: "普货海运费", keyType: "提单号", key: "YGK26062597EX", amount: "10,000.000", currency: "CNY", detailCount: 1, type: "间接成本", target: "SET-SEA-GENERAL-01", status: "待分摊" },
+  { id: "COST-LD-005", bill: bills[5].id, supplier: "联多", board: "海运", raw: "拖櫃費", fee: "拖柜费", keyType: "柜号", key: "CICU5056441 等", amount: "22,000.000", currency: "CNY", detailCount: 44, type: "间接成本", target: "SET-SEA-TRAILER-01", status: "待分摊" },
+  { id: "COST-LD-006", bill: bills[5].id, supplier: "联多", board: "海运", raw: "目的港拖車費", fee: "目的港拖车费", keyType: "提单号", key: "YGK26062597EX", amount: "1,600.000", currency: "CNY", detailCount: 1, type: "间接成本", target: "SET-SEA-DEST-01", status: "待分摊" },
+
+  { id: "COST-LB-001", bill: bills[6].id, supplier: "力宝", board: "空运", raw: "重量 × 单价", fee: "空运费", keyType: "提单号", key: "297-74034321、297-74276591", amount: "1,742.400", currency: "CNY", detailCount: 2, type: "直接成本", target: "业务订单", status: "已归属" },
+  { id: "COST-LB-002", bill: bills[6].id, supplier: "力宝", board: "空运", raw: "提單費", fee: "提单费", keyType: "提单号", key: "297-74034321、297-74276591", amount: "20.000", currency: "CNY", detailCount: 2, type: "直接成本", target: "业务订单", status: "已归属" },
+  { id: "COST-LB-003", bill: bills[6].id, supplier: "力宝", board: "空运", raw: "貨物收送費/打包費", fee: "收送打包费", keyType: "账单号", key: "JLAED2660959、JLAED2661170", amount: "1,600.000", currency: "CNY", detailCount: 2, type: "直接成本", target: "业务订单", status: "已归属" },
+  { id: "COST-LB-004", bill: bills[6].id, supplier: "力宝", board: "空运", raw: "中港段費", fee: "中港运输费", keyType: "账单号", key: "JLAED2660959、JLAED2661170", amount: "120.000", currency: "CNY", detailCount: 2, type: "直接成本", target: "业务订单", status: "已归属" },
+  { id: "COST-LB-005", bill: bills[6].id, supplier: "力宝", board: "空运", raw: "報關費", fee: "报关费", keyType: "账单号", key: "JLAED2660959、JLAED2661170", amount: "400.000", currency: "CNY", detailCount: 2, type: "直接成本", target: "业务订单", status: "已归属" },
+  { id: "COST-TRK-001", bill: bills[7].id, supplier: "仓库送船公司", board: "租车", raw: "厦门、福建、泉州、9.6米车、75方车、龙海发车", fee: "租车费", keyType: "月份", key: "2026年5月", amount: "234,500.000", currency: "CNY", detailCount: 7, type: "间接成本", target: "SET-TRK-202605-01", status: "待分摊" },
+  { id: "COST-BY-001", bill: bills[8].id, supplier: "深圳搬运工", board: "租车", raw: "17.5米车费用、70方车费用、其他", fee: "租车费", keyType: "月份", key: "2026年5月", amount: "17,500.000", currency: "CNY", detailCount: 3, type: "间接成本", target: "SET-TRK-202605-02", status: "待分摊" }
+];
+
+// Each record represents one non-zero fee cell from a supplier's original detail row.
+const costDetails = [
+  { id: "DETAIL-DFD-001", file: "台湾端派送 （东风.xlsx", sheet: "黑貓", row: 2, date: "2026-04-30", fee: "派送费", raw: "運費", keyType: "追蹤號", key: "901706473682", amount: "80.000", currency: "TWD", type: "直接成本", target: "尾程包裹 901706473682", status: "已归属" },
+  { id: "DETAIL-DFD-002", file: "台湾端派送 （东风.xlsx", sheet: "黑貓", row: 2, date: "2026-04-30", fee: "车趟费", raw: "拖車及疊貨費", keyType: "追蹤號", key: "901706473682", amount: "10.400", currency: "TWD", type: "直接成本", target: "尾程包裹 901706473682", status: "已归属" },
+  { id: "DETAIL-DFD-003", file: "台湾端派送 （东风.xlsx", sheet: "黑貓", row: 3, date: "2026-05-28", fee: "派送费", raw: "運費", keyType: "追蹤號", key: "901706473702", amount: "80.000", currency: "TWD", type: "直接成本", target: "尾程包裹 901706473702", status: "已归属" },
+  { id: "DETAIL-DFD-004", file: "台湾端派送 （东风.xlsx", sheet: "黑貓", row: 3, date: "2026-05-28", fee: "车趟费", raw: "拖車及疊貨費", keyType: "追蹤號", key: "901706473702", amount: "8.800", currency: "TWD", type: "直接成本", target: "尾程包裹 901706473702", status: "已归属" },
+  { id: "DETAIL-DFD-005", file: "台湾端派送 （东风.xlsx", sheet: "黑貓", row: 4, date: "2026-05-28", fee: "派送费", raw: "運費", keyType: "追蹤號", key: "901706473713", amount: "80.000", currency: "TWD", type: "直接成本", target: "尾程包裹 901706473713", status: "已归属" },
+  { id: "DETAIL-DFD-006", file: "台湾端派送 （东风.xlsx", sheet: "黑貓", row: 4, date: "2026-05-28", fee: "车趟费", raw: "拖車及疊貨費", keyType: "追蹤號", key: "901706473713", amount: "8.800", currency: "TWD", type: "直接成本", target: "尾程包裹 901706473713", status: "已归属" },
+  { id: "DETAIL-DFD-007", file: "台湾端派送 （东风.xlsx", sheet: "新竹", row: 3, date: "2026-04-05", fee: "派送费", raw: "運費", keyType: "追蹤號", key: "ZSBG11106", amount: "92.000", currency: "TWD", type: "直接成本", target: "尾程包裹 ZSBG11106", status: "已归属" },
+  { id: "DETAIL-DFD-008", file: "台湾端派送 （东风.xlsx", sheet: "新竹", row: 4, date: "2026-04-05", fee: "派送费", raw: "運費", keyType: "追蹤號", key: "ZSBG11156", amount: "92.000", currency: "TWD", type: "直接成本", target: "尾程包裹 ZSBG11156", status: "已归属" },
+  { id: "DETAIL-DFD-009", file: "台湾端派送 （东风.xlsx", sheet: "大榮", row: 3, date: "2026-05-05", fee: "派送费", raw: "運費", keyType: "追蹤號", key: "AT78392372", amount: "88.000", currency: "TWD", type: "直接成本", target: "尾程包裹 AT78392372", status: "已归属" },
+
+  { id: "DETAIL-ZPT-001", file: "台湾端派送 （宅配通.xlsx", sheet: "5月明細", row: 2, date: "2026-04-21", fee: "派送费", raw: "運費", keyType: "宅配單號", key: "477256777616-001", amount: "22.000", currency: "TWD", type: "直接成本", target: "尾程包裹 477256777616-001", status: "已归属" },
+  { id: "DETAIL-ZPT-002", file: "台湾端派送 （宅配通.xlsx", sheet: "5月明細", row: 3, date: "2026-04-26", fee: "派送费", raw: "運費", keyType: "宅配單號", key: "577295868424-001", amount: "57.000", currency: "TWD", type: "直接成本", target: "尾程包裹 577295868424-001", status: "已归属" },
+  { id: "DETAIL-ZPT-003", file: "台湾端派送 （宅配通.xlsx", sheet: "5月明細", row: 4, date: "2026-04-26", fee: "派送费", raw: "運費", keyType: "宅配單號", key: "577295950873-001", amount: "57.000", currency: "TWD", type: "直接成本", target: "尾程包裹 577295950873-001", status: "已归属" },
+  { id: "DETAIL-ZPT-004", file: "台湾端派送 （宅配通.xlsx", sheet: "5月明細", row: 5, date: "2026-04-27", fee: "派送费", raw: "運費", keyType: "宅配單號", key: "501612858622-001", amount: "82.000", currency: "TWD", type: "直接成本", target: "尾程包裹 501612858622-001", status: "已归属" },
+  { id: "DETAIL-ZPT-005", file: "台湾端派送 （宅配通.xlsx", sheet: "5月明細", row: 6, date: "2026-04-27", fee: "派送费", raw: "運費", keyType: "宅配單號", key: "501612858666-001", amount: "62.000", currency: "TWD", type: "直接成本", target: "尾程包裹 501612858666-001", status: "已归属" },
+  { id: "DETAIL-ZPT-006", file: "台湾端派送 （宅配通.xlsx", sheet: "5月明細", row: 7, date: "2026-04-27", fee: "派送费", raw: "運費", keyType: "宅配單號", key: "501612858670-001", amount: "57.000", currency: "TWD", type: "直接成本", target: "尾程包裹 501612858670-001", status: "已归属" },
+
+  { id: "DETAIL-SS-001", file: "台湾端派送 （顺盛.xlsx", sheet: "Sheet1", row: 2, date: "2026-05-08", fee: "派送费", raw: "本款", keyType: "明細表號", key: "1730372711", amount: "71.000", currency: "TWD", type: "直接成本", target: "尾程包裹 1730372711", status: "已归属" },
+  { id: "DETAIL-SS-002", file: "台湾端派送 （顺盛.xlsx", sheet: "Sheet1", row: 3, date: "2026-06-08", fee: "派送费", raw: "本款", keyType: "明細表號", key: "1050741484", amount: "64.000", currency: "TWD", type: "直接成本", target: "尾程包裹 1050741484", status: "已归属" },
+  { id: "DETAIL-SS-003", file: "台湾端派送 （顺盛.xlsx", sheet: "Sheet1", row: 3, date: "2026-06-08", fee: "附加费", raw: "附加費用", keyType: "明細表號", key: "1050741484", amount: "22.000", currency: "TWD", type: "直接成本", target: "尾程包裹 1050741484", status: "已归属" },
+  { id: "DETAIL-SS-004", file: "台湾端派送 （顺盛.xlsx", sheet: "Sheet1", row: 4, date: "2026-06-08", fee: "派送费", raw: "本款", keyType: "明細表號", key: "1050860930", amount: "64.000", currency: "TWD", type: "直接成本", target: "尾程包裹 1050860930", status: "已归属" },
+  { id: "DETAIL-SS-005", file: "台湾端派送 （顺盛.xlsx", sheet: "Sheet1", row: 5, date: "2026-06-08", fee: "派送费", raw: "本款", keyType: "明細表號", key: "1050894736", amount: "64.000", currency: "TWD", type: "直接成本", target: "尾程包裹 1050894736", status: "已归属" },
+  { id: "DETAIL-SS-006", file: "台湾端派送 （顺盛.xlsx", sheet: "Sheet1", row: 5, date: "2026-06-08", fee: "附加费", raw: "附加費用", keyType: "明細表號", key: "1050894736", amount: "22.000", currency: "TWD", type: "直接成本", target: "尾程包裹 1050894736", status: "已归属" },
+
+  { id: "DETAIL-FG-001", file: "海快清关（福广.xlsx", sheet: "稅金明細", row: 2, date: "2026-06-16", fee: "进口税费", raw: "稅單金額", keyType: "分號", key: "LY178073812144", amount: "83.000", currency: "TWD", type: "直接成本", target: "业务订单 LY178073812144", status: "已归属" },
+  { id: "DETAIL-FG-002", file: "海快清关（福广.xlsx", sheet: "稅金明細", row: 3, date: "2026-06-16", fee: "进口税费", raw: "稅單金額", keyType: "分號", key: "TF178098245468", amount: "54.000", currency: "TWD", type: "直接成本", target: "业务订单 TF178098245468", status: "已归属" },
+  { id: "DETAIL-FG-003", file: "海快清关（福广.xlsx", sheet: "稅金明細", row: 4, date: "2026-06-16", fee: "进口税费", raw: "稅單金額", keyType: "分號", key: "JXF17809968115", amount: "139.000", currency: "TWD", type: "直接成本", target: "业务订单 JXF17809968115", status: "已归属" },
+  { id: "DETAIL-FG-004", file: "海快清关（福广.xlsx", sheet: "稅金明細", row: 5, date: "2026-06-16", fee: "进口税费", raw: "稅單金額", keyType: "分號", key: "TF178106020731", amount: "72.000", currency: "TWD", type: "直接成本", target: "业务订单 TF178106020731", status: "已归属" },
+  { id: "DETAIL-FG-005", file: "海快清关（福广.xlsx", sheet: "稅金明細", row: 6, date: "2026-06-16", fee: "进口税费", raw: "稅單金額", keyType: "分號", key: "JXF17810729858", amount: "461.000", currency: "TWD", type: "直接成本", target: "业务订单 JXF17810729858", status: "已归属" },
+
+  { id: "DETAIL-LD-001", file: "海快船公司（联多.xlsx", sheet: "sheet1", row: 4, date: "2026-06-17", fee: "海运费", raw: "海運費", keyType: "提單號", key: "AYLD26061702EX", amount: "9,500.000", currency: "CNY", type: "间接成本", target: "SET-SEA-FREIGHT-01", status: "待分摊" },
+  { id: "DETAIL-LD-002", file: "海快船公司（联多.xlsx", sheet: "sheet1", row: 4, date: "2026-06-17", fee: "拖柜费", raw: "拖櫃費", keyType: "櫃號", key: "CICU5056441", amount: "500.000", currency: "CNY", type: "间接成本", target: "SET-SEA-TRAILER-01", status: "待分摊" },
+  { id: "DETAIL-LD-003", file: "海快船公司（联多.xlsx", sheet: "sheet1", row: 5, date: "2026-06-17", fee: "海运费", raw: "海運費", keyType: "提單號", key: "AYLD26061703EX", amount: "9,500.000", currency: "CNY", type: "间接成本", target: "SET-SEA-FREIGHT-01", status: "待分摊" },
+  { id: "DETAIL-LD-004", file: "海快船公司（联多.xlsx", sheet: "sheet1", row: 5, date: "2026-06-17", fee: "拖柜费", raw: "拖櫃費", keyType: "櫃號", key: "HPCU4762606", amount: "500.000", currency: "CNY", type: "间接成本", target: "SET-SEA-TRAILER-01", status: "待分摊" },
+  { id: "DETAIL-LD-005", file: "海快船公司（联多.xlsx", sheet: "sheet1", row: 6, date: "2026-06-17", fee: "海运费", raw: "海運費", keyType: "提單號", key: "AYLD26061704EX", amount: "9,500.000", currency: "CNY", type: "间接成本", target: "SET-SEA-FREIGHT-01", status: "待分摊" },
+  { id: "DETAIL-LD-006", file: "海快船公司（联多.xlsx", sheet: "sheet1", row: 6, date: "2026-06-17", fee: "拖柜费", raw: "拖櫃費", keyType: "櫃號", key: "CICU5057520", amount: "500.000", currency: "CNY", type: "间接成本", target: "SET-SEA-TRAILER-01", status: "待分摊" },
+
+  { id: "DETAIL-LB-001", file: "空运头程（力宝.xls", sheet: "对帐单", row: 7, date: "2026-06-24", fee: "空运费", raw: "重量 × 单价", keyType: "提單號", key: "297-74034321", amount: "990.000", currency: "CNY", type: "直接成本", target: "业务订单 297-74034321", status: "已归属" },
+  { id: "DETAIL-LB-002", file: "空运头程（力宝.xls", sheet: "对帐单", row: 7, date: "2026-06-24", fee: "提单费", raw: "提单费", keyType: "提單號", key: "297-74034321", amount: "10.000", currency: "CNY", type: "直接成本", target: "业务订单 297-74034321", status: "已归属" },
+  { id: "DETAIL-LB-003", file: "空运头程（力宝.xls", sheet: "对帐单", row: 7, date: "2026-06-24", fee: "收送打包费", raw: "货物收送费/打包费", keyType: "账单号", key: "JLAED2660959", amount: "800.000", currency: "CNY", type: "直接成本", target: "业务订单 297-74034321", status: "已归属" },
+  { id: "DETAIL-LB-004", file: "空运头程（力宝.xls", sheet: "对帐单", row: 7, date: "2026-06-24", fee: "中港运输费", raw: "中港段费", keyType: "账单号", key: "JLAED2660959", amount: "60.000", currency: "CNY", type: "直接成本", target: "业务订单 297-74034321", status: "已归属" },
+  { id: "DETAIL-LB-005", file: "空运头程（力宝.xls", sheet: "对帐单", row: 7, date: "2026-06-24", fee: "报关费", raw: "报关费", keyType: "账单号", key: "JLAED2660959", amount: "200.000", currency: "CNY", type: "直接成本", target: "业务订单 297-74034321", status: "已归属" },
+  { id: "DETAIL-LB-006", file: "空运头程（力宝.xls", sheet: "对帐单", row: 8, date: "2026-06-30", fee: "空运费", raw: "重量 × 单价", keyType: "提單號", key: "297-74276591", amount: "752.400", currency: "CNY", type: "直接成本", target: "业务订单 297-74276591", status: "已归属" },
+  { id: "DETAIL-LB-007", file: "空运头程（力宝.xls", sheet: "对帐单", row: 8, date: "2026-06-30", fee: "提单费", raw: "提单费", keyType: "提單號", key: "297-74276591", amount: "10.000", currency: "CNY", type: "直接成本", target: "业务订单 297-74276591", status: "已归属" },
+  { id: "DETAIL-LB-008", file: "空运头程（力宝.xls", sheet: "对帐单", row: 8, date: "2026-06-30", fee: "收送打包费", raw: "货物收送费/打包费", keyType: "账单号", key: "JLAED2661170", amount: "800.000", currency: "CNY", type: "直接成本", target: "业务订单 297-74276591", status: "已归属" },
+  { id: "DETAIL-LB-009", file: "空运头程（力宝.xls", sheet: "对帐单", row: 8, date: "2026-06-30", fee: "中港运输费", raw: "中港段费", keyType: "账单号", key: "JLAED2661170", amount: "60.000", currency: "CNY", type: "直接成本", target: "业务订单 297-74276591", status: "已归属" },
+  { id: "DETAIL-LB-010", file: "空运头程（力宝.xls", sheet: "对帐单", row: 8, date: "2026-06-30", fee: "报关费", raw: "报关费", keyType: "账单号", key: "JLAED2661170", amount: "200.000", currency: "CNY", type: "直接成本", target: "业务订单 297-74276591", status: "已归属" },
+
+  { id: "DETAIL-TRK-001", file: "海快租车（仓库送船公司.xlsx", sheet: "租车", row: 9, date: "2026-05", fee: "租车费", raw: "厦门", keyType: "月份", key: "2026年5月", amount: "59,300.000", currency: "CNY", type: "间接成本", target: "SET-TRK-202605-01", status: "待分摊" },
+  { id: "DETAIL-TRK-002", file: "海快租车（仓库送船公司.xlsx", sheet: "租车", row: 9, date: "2026-05", fee: "租车费", raw: "福建", keyType: "月份", key: "2026年5月", amount: "21,200.000", currency: "CNY", type: "间接成本", target: "SET-TRK-202605-01", status: "待分摊" },
+  { id: "DETAIL-TRK-003", file: "海快租车（仓库送船公司.xlsx", sheet: "租车", row: 9, date: "2026-05", fee: "租车费", raw: "泉州", keyType: "月份", key: "2026年5月", amount: "13,100.000", currency: "CNY", type: "间接成本", target: "SET-TRK-202605-01", status: "待分摊" },
+  { id: "DETAIL-TRK-004", file: "海快租车（仓库送船公司.xlsx", sheet: "租车", row: 9, date: "2026-05", fee: "租车费", raw: "9.6米车", keyType: "月份", key: "2026年5月", amount: "12,000.000", currency: "CNY", type: "间接成本", target: "SET-TRK-202605-01", status: "待分摊" },
+  { id: "DETAIL-TRK-005", file: "海快租车（仓库送船公司.xlsx", sheet: "租车", row: 9, date: "2026-05", fee: "租车费", raw: "75方（福州", keyType: "月份", key: "2026年5月", amount: "57,800.000", currency: "CNY", type: "间接成本", target: "SET-TRK-202605-01", status: "待分摊" },
+  { id: "DETAIL-TRK-006", file: "海快租车（仓库送船公司.xlsx", sheet: "租车", row: 9, date: "2026-05", fee: "租车费", raw: "75方（厦门", keyType: "月份", key: "2026年5月", amount: "56,700.000", currency: "CNY", type: "间接成本", target: "SET-TRK-202605-01", status: "待分摊" },
+  { id: "DETAIL-TRK-007", file: "海快租车（仓库送船公司.xlsx", sheet: "租车", row: 9, date: "2026-05", fee: "租车费", raw: "龙海发车合计", keyType: "月份", key: "2026年5月", amount: "14,400.000", currency: "CNY", type: "间接成本", target: "SET-TRK-202605-01", status: "待分摊" },
+
+  { id: "DETAIL-BY-001", file: "海快（深圳搬运工.xlsx", sheet: "Sheet1", row: 3, date: "2026-05", fee: "租车费", raw: "17.5米车费用", keyType: "月份", key: "2026年5月", amount: "10,800.000", currency: "CNY", type: "间接成本", target: "SET-TRK-202605-02", status: "待分摊" },
+  { id: "DETAIL-BY-002", file: "海快（深圳搬运工.xlsx", sheet: "Sheet1", row: 3, date: "2026-05", fee: "租车费", raw: "70方车费用", keyType: "月份", key: "2026年5月", amount: "5,600.000", currency: "CNY", type: "间接成本", target: "SET-TRK-202605-02", status: "待分摊" },
+  { id: "DETAIL-BY-003", file: "海快（深圳搬运工.xlsx", sheet: "Sheet1", row: 3, date: "2026-05", fee: "搬运费", raw: "其他", keyType: "月份", key: "2026年5月", amount: "1,100.000", currency: "CNY", type: "间接成本", target: "SET-TRK-202605-02", status: "待分摊" },
+
+  ...["海快清关（东风.xls", "空运清关（东风.xls"].flatMap((file, fileIndex) => [
+    { id: `DETAIL-DFC-${fileIndex + 1}-001`, file, sheet: "稅金", row: 5, date: "2026-06-19", fee: "进口税费", raw: "稅費金額", keyType: "分提單號", key: "DZD90351936", amount: "399.000", currency: "TWD", type: "直接成本", target: "业务订单 DZD90351936", status: "已归属" },
+    { id: `DETAIL-DFC-${fileIndex + 1}-002`, file, sheet: "稅金", row: 6, date: "2026-06-19", fee: "进口税费", raw: "稅費金額", keyType: "分提單號", key: "DZD90351159", amount: "197.000", currency: "TWD", type: "直接成本", target: "业务订单 DZD90351159", status: "已归属" },
+    { id: `DETAIL-DFC-${fileIndex + 1}-003`, file, sheet: "稅金", row: 7, date: "2026-06-19", fee: "进口税费", raw: "稅費金額", keyType: "分提單號", key: "DZD90351161", amount: "210.000", currency: "TWD", type: "直接成本", target: "业务订单 DZD90351161", status: "已归属" },
+    { id: `DETAIL-DFC-${fileIndex + 1}-004`, file, sheet: "稅金", row: 8, date: "2026-06-19", fee: "进口税费", raw: "稅費金額", keyType: "分提單號", key: "DZD90351898", amount: "181.000", currency: "TWD", type: "直接成本", target: "业务订单 DZD90351898", status: "已归属" }
+  ])
 ];
 
 const pools = [
-  { id: "SET-DEL-2606-03", bill: bills[0].id, supplier: "东风", board: "派送成本", fee: "车趟费", currency: "TWD", detailCount: 28, scope: "台湾海快 / TW / 2026-06", amount: "48,800.000 TWD", orders: 386, ruleId: "RULE-SP-DF-001", factor: "订单占用体积", fallback: "订单计费重", status: "待分摊", version: "-" },
-  { id: "SET-CLR-2607-01", bill: bills[4].id, supplier: "福广", board: "清关成本", fee: "仓租", currency: "TWD", detailCount: 65, scope: "柜号 SEGU6320198", amount: "23,400.000 TWD", orders: 164, ruleId: "RULE-SP-FG-001", factor: "占用量 × 仓储天数", fallback: "订单计费重", status: "已分摊", version: "V2" },
-  { id: "SET-SEA-2606-02", bill: bills[5].id, supplier: "联多", board: "海运成本", fee: "海运费", currency: "CNY", detailCount: 66, scope: "提单 SZTW26061208 / 2 柜", amount: "71,800.000 CNY", orders: 218, ruleId: "RULE-SEA-001", factor: "订单计费吨", fallback: "订单体积", status: "已分摊", version: "V1" },
-  { id: "SET-AIR-2607-02", bill: bills[6].id, supplier: "力宝", board: "空运成本", fee: "中港运输费", currency: "CNY", detailCount: 88, scope: "主运单 160-98562041", amount: "18,600.000 CNY", orders: 94, ruleId: "RULE-SP-LB-001", factor: "空运计费重", fallback: "订单实重", status: "待分摊", version: "-" },
-  { id: "SET-TRK-2606-01", bill: bills[7].id, supplier: "仓库送船公司", board: "租车成本", fee: "租车费", currency: "CNY", detailCount: 26, scope: "深圳仓 / 6 月 / 海快线路", amount: "39,600.000 CNY", orders: 612, ruleId: "", factor: "-", fallback: "-", status: "待人工确认", version: "-" }
+  { id: "SET-DEL-202605-01", bill: bills[0].id, supplier: "东风", board: "派送成本", fee: "车趟费", currency: "TWD", detailCount: 1, scope: "2026-05-16 至 2026-05-31 的拖柜专车费用", amount: "132,625.000 TWD", orders: 0, treatment: "分摊至业务订单", noAllocationReason: "", ruleId: "RULE-SP-DF-001", factor: "订单占用体积", fallback: "订单计费重", status: "待分摊", version: "-" },
+  { id: "SET-SEA-DECL-01", bill: bills[5].id, supplier: "联多", board: "海运成本", fee: "报关费", currency: "CNY", detailCount: 6, scope: "6 个报关单号", amount: "720.000 CNY", orders: 0, treatment: "分摊至业务订单", noAllocationReason: "", ruleId: "", factor: "-", fallback: "-", status: "待人工确认", version: "-" },
+  { id: "SET-SEA-OPS-01", bill: bills[5].id, supplier: "联多", board: "海运成本", fee: "操作费", currency: "CNY", detailCount: 6, scope: "6 个报关单号", amount: "1,274.120 CNY", orders: 0, treatment: "不分摊", noAllocationReason: "公司整体管理费用", noAllocationNote: "", treatmentConfirmedBy: "谭清辉", treatmentConfirmedAt: "2026-07-18 15:20:00", ruleId: "", factor: "-", fallback: "-", status: "不分摊", version: "-" },
+  { id: "SET-SEA-FREIGHT-01", bill: bills[5].id, supplier: "联多", board: "海运成本", fee: "海运费", currency: "CNY", detailCount: 63, scope: "2026-06-16 至 2026-06-30 的提单与货柜", amount: "629,000.000 CNY", orders: 0, treatment: "分摊至业务订单", noAllocationReason: "", ruleId: "RULE-SEA-001", factor: "订单计费吨", fallback: "订单体积", status: "待分摊", version: "-" },
+  { id: "SET-SEA-GENERAL-01", bill: bills[5].id, supplier: "联多", board: "海运成本", fee: "普货海运费", currency: "CNY", detailCount: 1, scope: "提单 YGK26062597EX", amount: "10,000.000 CNY", orders: 0, ruleId: "", factor: "-", fallback: "-", status: "待人工确认", version: "-" },
+  { id: "SET-SEA-TRAILER-01", bill: bills[5].id, supplier: "联多", board: "海运成本", fee: "拖柜费", currency: "CNY", detailCount: 44, scope: "44 个货柜", amount: "22,000.000 CNY", orders: 0, ruleId: "", factor: "-", fallback: "-", status: "待人工确认", version: "-" },
+  { id: "SET-SEA-DEST-01", bill: bills[5].id, supplier: "联多", board: "海运成本", fee: "目的港拖车费", currency: "CNY", detailCount: 1, scope: "提单 YGK26062597EX", amount: "1,600.000 CNY", orders: 0, ruleId: "", factor: "-", fallback: "-", status: "待人工确认", version: "-" },
+  { id: "SET-TRK-202605-01", bill: bills[7].id, supplier: "仓库送船公司", board: "租车成本", fee: "租车费", currency: "CNY", detailCount: 7, scope: "2026 年 5 月深圳及福建方向租车费用", amount: "234,500.000 CNY", orders: 0, ruleId: "RULE-TRK-001", factor: "订单计费重", fallback: "订单数", status: "待分摊", version: "-" },
+  { id: "SET-TRK-202605-02", bill: bills[8].id, supplier: "深圳搬运工", board: "租车成本", fee: "租车费", currency: "CNY", detailCount: 3, scope: "2026 年 5 月车辆与搬运费用", amount: "17,500.000 CNY", orders: 0, ruleId: "RULE-TRK-001", factor: "订单计费重", fallback: "订单数", status: "待分摊", version: "-" }
 ];
 
 const allocationRules = [
@@ -174,7 +281,7 @@ const feeAliases = [
   { id: "ALIAS-TRK-007", supplier: "仓库送船公司", board: "租车成本", rawName: "里程費", feeCode: "COST-TRK-005", structure: "租车月结单", sheet: "租车", status: "启用", version: 1, confirmer: "谭清辉", confirmedAt: "2026-07-03 10:48", note: "" }
 ];
 
-const state = { view: "overview", selectedBillId: "", billDetailTab: "summary", wizardStep: 1, selectedFile: "df-delivery", selectedSheet: "黑貓", costPeriodStart: "2026-06-01", costPeriodEnd: "2026-06-30", supplierPeriodStart: "2026-06-01", supplierPeriodEnd: "2026-07-16", billPeriodStart: "2026-06-01", billPeriodEnd: "2026-07-16", profitPeriodStart: "2026-06-01", profitPeriodEnd: "2026-06-30", billFilter: "全部", ruleTab: "base", ruleBoard: "", ruleKeyword: "", ruleSupplier: "", ruleStatus: "", feeTab: "index", feeCodeKeyword: "", feeNameKeyword: "", feeBoard: "", feeStatus: "", aliasKeyword: "", aliasSupplier: "", aliasBoard: "", aliasStatus: "", sidebarOpen: false, pendingAction: null };
+const state = { view: "overview", selectedBillId: "", billDetailTab: "summary", wizardStep: 1, selectedFile: "df-delivery", selectedSheet: "黑貓", costPeriodStart: "2026-05-16", costPeriodEnd: "2026-05-31", supplierPeriodStart: "2026-04-21", supplierPeriodEnd: "2026-06-30", billPeriodStart: "2026-04-21", billPeriodEnd: "2026-06-30", profitPeriodStart: "2026-04-21", profitPeriodEnd: "2026-06-30", billFilter: "全部", ruleTab: "base", ruleBoard: "", ruleKeyword: "", ruleSupplier: "", ruleStatus: "", feeTab: "index", feeCodeKeyword: "", feeNameKeyword: "", feeBoard: "", feeStatus: "", aliasKeyword: "", aliasSupplier: "", aliasBoard: "", aliasStatus: "", sidebarOpen: false, pendingAction: null };
 const routeNames = { overview: "成本总览", suppliers: "供应商管理", bills: "成本账单", billDetail: "成本账单详情", pool: "成本池", rules: "分摊规则", profit: "利润分析", fees: "成本费项索引" };
 const dateRangePickerApps = new Map();
 
@@ -217,7 +324,7 @@ async function seedPrototypeDatabase(force = false) {
   await prototypeDb.transaction("rw", prototypeDb.tables, async () => {
     if (force) await Promise.all(prototypeDb.tables.map(table => table.clear()));
     for (const tableName of dataTableNames) await prototypeDb.table(tableName).bulkPut(cloneData(initialData[tableName]));
-    await prototypeDb.settings.put({ key: "seedVersion", value: 7 });
+    await prototypeDb.settings.put({ key: "seedVersion", value: 10 });
     await prototypeDb.operationLogs.add({ entityType: "系统", entityId: "成本中心原型", action: force ? "恢复初始模拟数据" : "初始化模拟数据", createdAt: new Date().toISOString() });
   });
 }
@@ -226,19 +333,7 @@ async function initializePrototypeDatabase() {
   await prototypeDb.open();
   const seedState = await prototypeDb.settings.get("seedVersion");
   if (!seedState) await seedPrototypeDatabase();
-  else if (Number(seedState.value) < 8) {
-    await prototypeDb.transaction("rw", [prototypeDb.costs, prototypeDb.pools, prototypeDb.fees, prototypeDb.feeAliases, prototypeDb.allocationRules, prototypeDb.settings], async () => {
-      await prototypeDb.costs.clear();
-      await prototypeDb.pools.clear();
-      await prototypeDb.allocationRules.clear();
-      await prototypeDb.costs.bulkPut(cloneData(costs));
-      await prototypeDb.pools.bulkPut(cloneData(pools));
-      await prototypeDb.fees.bulkPut(cloneData(fees));
-      await prototypeDb.feeAliases.bulkPut(cloneData(feeAliases));
-      await prototypeDb.allocationRules.bulkPut(cloneData(allocationRules));
-      await prototypeDb.settings.put({ key: "seedVersion", value: 8 });
-    });
-  }
+  else if (Number(seedState.value) < 10) await seedPrototypeDatabase(true);
   await hydratePrototypeData();
 }
 
@@ -259,8 +354,17 @@ function makeId(prefix) {
 const icon = (name) => `<i data-lucide="${name}"></i>`;
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
 const money = (value, currency) => `${value} ${currency}`;
+const numericAmount = value => Number(String(value ?? 0).replaceAll(",", "")) || 0;
+const formatAmount = (value, decimals = 3) => Number(value).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+const sumRows = (rows, field) => rows.reduce((total, row) => total + Number(row[field] || 0), 0);
+function amountsByCurrency(rows, field = "amount") {
+  return rows.reduce((totals, row) => {
+    totals[row.currency] = (totals[row.currency] || 0) + numericAmount(row[field]);
+    return totals;
+  }, {});
+}
 const statusClass = (value) => {
-  if (["已结清", "已归属", "已分摊", "启用", "成本已齐"].includes(value)) return "success";
+  if (["已结清", "已归属", "已分摊", "不分摊", "启用", "成本已齐"].includes(value)) return "success";
   if (["待结清", "待分摊", "待人工确认", "成本未齐"].includes(value)) return "warning";
   if (["失败", "停用", "无法匹配"].includes(value)) return "danger";
   return "info";
@@ -308,23 +412,36 @@ function tableFooter(total) {
 }
 
 function renderOverview() {
+  const totalDetails=sumRows(bills,"rows");
+  const directDetails=sumRows(bills,"direct");
+  const indirectDetails=sumRows(bills,"indirect");
+  const pendingAmounts=amountsByCurrency(bills.filter(item=>item.state==="待结清"));
+  const pendingSetAmounts=amountsByCurrency(pools.filter(item=>item.status!=="已分摊"));
+  const boardTotals=bills.reduce((result,bill)=>{const key=`${bill.board}|${bill.currency}`;result[key]=(result[key]||0)+numericAmount(bill.amount);return result;},{});
+  const boardRows=[
+    ["派送成本",91,boardTotals["派送成本|TWD"]||0,"TWD",""] ,
+    ["清关成本",100,boardTotals["清关成本|TWD"]||0,"TWD","green"],
+    ["海运成本",100,boardTotals["海运成本|CNY"]||0,"CNY","blue"],
+    ["空运成本",3,boardTotals["空运成本|CNY"]||0,"CNY","orange"],
+    ["租车成本",38,boardTotals["租车成本|CNY"]||0,"CNY","red"]
+  ];
   return `${pageHeader("成本总览", "供应商收费、成本归属、结清进度与订单利润的统一工作台", `<button class="btn primary" data-view="pool">${icon("database")}处理成本池</button>`)}
     <div class="kpi-grid">
-      <div class="kpi-card"><span class="kpi-icon">${icon("files")}</span><div class="kpi-label">本月成本账单</div><div class="kpi-value">8<small>份</small></div><div class="kpi-extra">较上月 +2 份</div></div>
-      <div class="kpi-card warning"><span class="kpi-icon">${icon("circle-dollar-sign")}</span><div class="kpi-label">待结清金额</div><div class="kpi-value">714.1<small>千 CNY</small></div><div class="kpi-extra">TWD 已换算，仅供总览</div></div>
-      <div class="kpi-card info"><span class="kpi-icon">${icon("git-branch")}</span><div class="kpi-label">待归属成本</div><div class="kpi-value">23<small>笔</small></div><div class="kpi-extra">18 笔待匹配 · 5 笔待确认</div></div>
-      <div class="kpi-card danger"><span class="kpi-icon">${icon("split")}</span><div class="kpi-label">待分摊金额</div><div class="kpi-value">106.8<small>千 CNY</small></div><div class="kpi-extra">5 个间接成本分摊集待处理</div></div>
-      <div class="kpi-card success"><span class="kpi-icon">${icon("badge-check")}</span><div class="kpi-label">成本已齐订单</div><div class="kpi-value">82.6<small>%</small></div><div class="kpi-extra">1,946 / 2,356 单</div></div>
+      <div class="kpi-card"><span class="kpi-icon">${icon("files")}</span><div class="kpi-label">样本成本账单</div><div class="kpi-value">${bills.length}<small>份</small></div><div class="kpi-extra">对应 ${sampleFiles.length} 份原始样本文件</div></div>
+      <div class="kpi-card warning"><span class="kpi-icon">${icon("circle-dollar-sign")}</span><div class="kpi-label">待结清金额（CNY）</div><div class="kpi-value">${formatAmount((pendingAmounts.CNY||0)/1000,1)}<small>千 CNY</small></div><div class="kpi-extra">另有 ${formatAmount(pendingAmounts.TWD||0)} TWD</div></div>
+      <div class="kpi-card info"><span class="kpi-icon">${icon("git-branch")}</span><div class="kpi-label">成本明细</div><div class="kpi-value">${totalDetails.toLocaleString("en-US")}<small>笔</small></div><div class="kpi-extra">直接 ${directDetails.toLocaleString("en-US")} · 间接 ${indirectDetails.toLocaleString("en-US")}</div></div>
+      <div class="kpi-card danger"><span class="kpi-icon">${icon("split")}</span><div class="kpi-label">待分摊金额（CNY）</div><div class="kpi-value">${formatAmount((pendingSetAmounts.CNY||0)/1000,1)}<small>千 CNY</small></div><div class="kpi-extra">另有 ${formatAmount(pendingSetAmounts.TWD||0)} TWD</div></div>
+      <div class="kpi-card success"><span class="kpi-icon">${icon("badge-check")}</span><div class="kpi-label">待处理分摊集</div><div class="kpi-value">${pools.filter(item=>item.status!=="已分摊").length}<small>个</small></div><div class="kpi-extra">其中 ${pools.filter(item=>!item.ruleId).length} 个待确认规则</div></div>
     </div>
     <div class="dashboard-grid">
       <section class="panel"><div class="panel-head"><span class="panel-title">五大成本板块</span><div class="panel-tools">按财务本位币人民币折算</div></div><div class="panel-body"><div class="cost-bars">
-        ${[["派送成本",72,"1,286,420.000",""],["清关成本",54,"962,850.000","green"],["海运成本",41,"731,280.000","blue"],["空运成本",28,"496,300.000","orange"],["租车成本",12,"218,640.000","red"]].map(([n,w,v,c])=>`<div class="cost-bar-row"><span>${n}</span><div class="bar-track"><div class="bar-fill ${c}" style="width:${w}%"></div></div><span class="bar-value">${v} CNY</span></div>`).join("")}
+        ${boardRows.map(([n,w,v,currency,c])=>`<div class="cost-bar-row"><span>${n}</span><div class="bar-track"><div class="bar-fill ${c}" style="width:${w}%"></div></div><span class="bar-value">${formatAmount(v)} ${currency}</span></div>`).join("")}
       </div></div></section>
       <section class="panel"><div class="panel-head"><span class="panel-title">待处理事项</span><button class="btn small" data-view="pool">全部处理</button></div><div class="panel-body"><div class="todo-list">
-        <div class="todo-item" data-view="bills"><span class="todo-icon danger">${icon("file-x-2")}</span><div><div class="todo-name">导入失败</div><div class="todo-desc">字段格式或金额合计异常</div></div><strong class="todo-count">2</strong></div>
-        <div class="todo-item" data-view="pool"><span class="todo-icon">${icon("link-2-off")}</span><div><div class="todo-name">待人工匹配</div><div class="todo-desc">关键单号未命中业务对象</div></div><strong class="todo-count">18</strong></div>
-        <div class="todo-item" data-view="bills"><span class="todo-icon info">${icon("split")}</span><div><div class="todo-name">待执行分摊</div><div class="todo-desc">到账单详情确认分摊集规则</div></div><strong class="todo-count">4</strong></div>
-        <div class="todo-item" data-view="profit"><span class="todo-icon">${icon("badge-alert")}</span><div><div class="todo-name">成本未齐订单</div><div class="todo-desc">影响实际利润确认</div></div><strong class="todo-count">410</strong></div>
+        <div class="todo-item" data-view="bills"><span class="todo-icon danger">${icon("file-x-2")}</span><div><div class="todo-name">待结清账单</div><div class="todo-desc">来源于当前样本文件</div></div><strong class="todo-count">${bills.filter(item=>item.state==="待结清").length}</strong></div>
+        <div class="todo-item" data-view="pool"><span class="todo-icon">${icon("link-2-off")}</span><div><div class="todo-name">待确认规则</div><div class="todo-desc">分摊集尚未选定分摊规则</div></div><strong class="todo-count">${pools.filter(item=>!item.ruleId).length}</strong></div>
+        <div class="todo-item" data-view="bills"><span class="todo-icon info">${icon("split")}</span><div><div class="todo-name">待执行分摊</div><div class="todo-desc">到账单详情确认并预览</div></div><strong class="todo-count">${pools.filter(item=>item.status!=="已分摊").length}</strong></div>
+        <div class="todo-item" data-view="bills"><span class="todo-icon">${icon("badge-alert")}</span><div><div class="todo-name">原始样本文件</div><div class="todo-desc">已全部建立成本账单</div></div><strong class="todo-count">${sampleFiles.length}</strong></div>
       </div></div></section>
     </div>
     <section class="panel"><div class="panel-head"><span class="panel-title">最近供应商账单</span><button class="btn small" data-view="bills">查看全部 ${icon("arrow-right")}</button></div>${billTable(bills.slice(0,5), false)}</section>`;
@@ -346,7 +463,7 @@ function renderSuppliers() {
 }
 
 function billTable(rows, selectable = true) {
-  return `<div class="table-wrap"><table class="data-table"><thead><tr>${selectable?"<th><input class=\"row-check\" type=\"checkbox\"></th>":""}<th>成本账单编号</th><th>供应商</th><th>成本板块</th><th>实际成本账期</th><th>账单金额</th><th>已结清金额</th><th>状态</th><th>成本明细</th><th>待处理</th><th>导入时间</th><th>操作</th></tr></thead><tbody>${rows.map(b=>`<tr>${selectable?"<td><input class=\"row-check\" type=\"checkbox\"></td>":""}<td class="link mono" data-action="open-bill" data-id="${b.id}">${b.id}</td><td>${b.supplier}</td><td>${tag(b.board,b.board.includes("清关")?"green":b.board.includes("海运")?"blue":b.board.includes("空运")?"orange":"purple")}</td><td>${b.period}</td><td class="num strong">${money(b.amount,b.currency)}</td><td class="num">${money(b.settled,b.currency)}</td><td>${status(b.state)}</td><td class="num">${b.rows}</td><td>${b.unresolved?tag(`${b.unresolved} 项`,"orange"):"-"}</td><td>${b.created}</td><td><button class="btn small" data-action="open-bill" data-id="${b.id}">详情</button>${b.state==="待结清"?`<button class="btn small" data-action="settle-bill" data-id="${b.id}">登记结清</button>`:""}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="data-table"><thead><tr>${selectable?"<th><input class=\"row-check\" type=\"checkbox\"></th>":""}<th>成本账单编号</th><th>供应商</th><th>成本板块</th><th>实际成本账期</th><th>账单金额</th><th>已结清金额</th><th>状态</th><th>成本明细</th><th>待处理</th><th>账单日期</th><th>操作</th></tr></thead><tbody>${rows.map(b=>`<tr>${selectable?"<td><input class=\"row-check\" type=\"checkbox\"></td>":""}<td class="link mono" data-action="open-bill" data-id="${b.id}">${b.id}</td><td>${b.supplier}</td><td>${tag(b.board,b.board.includes("清关")?"green":b.board.includes("海运")?"blue":b.board.includes("空运")?"orange":"purple")}</td><td>${b.period}</td><td class="num strong">${money(b.amount,b.currency)}</td><td class="num">${money(b.settled,b.currency)}</td><td>${status(b.state)}</td><td class="num">${b.rows}</td><td>${b.unresolved?tag(`${b.unresolved} 项`,"orange"):"-"}</td><td>${b.created}</td><td><button class="btn small" data-action="open-bill" data-id="${b.id}">详情</button>${b.state==="待结清"?`<button class="btn small" data-action="settle-bill" data-id="${b.id}">登记结清</button>`:""}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function renderBills() {
@@ -397,20 +514,24 @@ function wizardTwo() {
 }
 
 function wizardThree() {
-  const f=sampleFiles.find(x=>x.id===state.selectedFile); const twd=["东风","福广","宅配通","顺盛"].includes(f.supplier); const currency=twd?"TWD":"CNY";
-  return `<div class="form-section"><div class="form-section-title">导入预览</div><div class="preview-summary"><div class="preview-metric"><span>原始数据行</span><strong>1,286</strong></div><div class="preview-metric"><span>排除汇总行</span><strong>18</strong></div><div class="preview-metric"><span>拟生成成本明细</span><strong>2,412</strong></div><div class="preview-metric"><span>直接 / 间接成本</span><strong>2,080 / 332</strong></div><div class="preview-metric"><span>拟入池金额</span><strong>486,320.000 ${currency}</strong></div></div>
-  <div class="validation-list"><div class="validation-item ok">${icon("circle-check")}文件仅包含当前供应商“${f.supplier}”的数据</div><div class="validation-item ok">${icon("circle-check")}原始金额合计与拟入池金额合计一致</div><div class="validation-item warn">${icon("triangle-alert")}18 条关键单号未匹配，将以间接成本或待人工确认状态入池</div><div class="validation-item warn">${icon("copy")}发现 2 条疑似重复记录，已在下表标记，需财务确认后继续</div></div>
+  const f=sampleFiles.find(x=>x.id===state.selectedFile);
+  const sourceBill=bills.find(item=>item.file===f.name);
+  const previewCosts=costs.filter(item=>item.bill===sourceBill?.id).slice(0,4);
+  return `<div class="form-section"><div class="form-section-title">导入预览</div><div class="preview-summary"><div class="preview-metric"><span>拟生成成本明细</span><strong>${sourceBill?.rows || 0}</strong></div><div class="preview-metric"><span>直接成本</span><strong>${sourceBill?.direct || 0}</strong></div><div class="preview-metric"><span>间接成本</span><strong>${sourceBill?.indirect || 0}</strong></div><div class="preview-metric"><span>实际成本账期</span><strong class="compact-value">${sourceBill?.period || "-"}</strong></div><div class="preview-metric"><span>拟入池金额</span><strong>${sourceBill?money(sourceBill.amount,sourceBill.currency):"-"}</strong></div></div>
+  <div class="validation-list"><div class="validation-item ok">${icon("circle-check")}文件仅包含当前供应商“${f.supplier}”的数据</div><div class="validation-item ok">${icon("circle-check")}原始账单合计与拟入池金额一致</div></div>
   <div class="table-wrap"><table class="data-table"><thead><tr><th>原始行</th><th>关键单号</th><th>供应商原始费项</th><th>标准成本费项</th><th>金额</th><th>成本类型建议</th><th>归属结果</th><th>校验</th></tr></thead><tbody>
-  <tr><td>第 3 行</td><td>DF26061088319</td><td>運費</td><td>派送费</td><td class="num">1,260.000 ${currency}</td><td>${tag("直接成本","green")}</td><td>尾程包裹 TP-TW-88319</td><td>${status("已匹配")}</td></tr>
-  <tr><td>第 3 行</td><td>DF26061088319</td><td>超才費</td><td>超才费</td><td class="num">320.000 ${currency}</td><td>${tag("直接成本","green")}</td><td>尾程包裹 TP-TW-88319</td><td>${status("已匹配")}</td></tr>
-  <tr><td>第 28 行</td><td>TLLU5088210</td><td>車趟費</td><td>车趟费</td><td class="num">18,600.000 ${currency}</td><td>${tag("间接成本","orange")}</td><td>待归入间接成本分摊集</td><td>${tag("待确认","orange")}</td></tr>
-  <tr><td>第 76 行</td><td>DF26060810211</td><td>運費</td><td>派送费</td><td class="num">860.000 ${currency}</td><td>${tag("直接成本","green")}</td><td>尾程包裹 TP-TW-10211</td><td>${tag("疑似重复","red")}</td></tr>
+  ${previewCosts.map((cost,index)=>`<tr><td>样本项 ${index+1}</td><td>${cost.key}</td><td>${cost.raw}</td><td>${cost.fee}</td><td class="num">${money(cost.amount,cost.currency)}</td><td>${tag(cost.type,cost.type==="直接成本"?"green":"orange")}</td><td>${cost.target}</td><td>${status("已匹配")}</td></tr>`).join("")}
   </tbody></table></div></div>`;
 }
 
 function renderPool() {
+  const totalDetails=sumRows(bills,"rows");
+  const directDetails=sumRows(bills,"direct");
+  const indirectDetails=sumRows(bills,"indirect");
+  const pendingSetAmounts=amountsByCurrency(pools.filter(item=>item.treatment!=="不分摊"&&item.status!=="已分摊"));
+  const pendingRules=pools.filter(item=>item.treatment!=="不分摊"&&!item.ruleId).length;
   return `${pageHeader("成本池", "逐行查看已标准化成本；直接成本归属业务对象，间接成本按所属账单进入分摊集", `<button class="btn">${icon("plus")}补录成本</button><button class="btn primary" data-view="bills">${icon("file-spreadsheet")}查看成本账单</button>`)}
-  <div class="kpi-grid"><div class="kpi-card"><div class="kpi-label">成本明细</div><div class="kpi-value">4,543<small>笔</small></div><div class="kpi-extra">来自 8 份供应商账单</div></div><div class="kpi-card success"><div class="kpi-label">直接成本</div><div class="kpi-value">3,773<small>笔</small></div><div class="kpi-extra">已归属 98.7%</div></div><div class="kpi-card warning"><div class="kpi-label">间接成本</div><div class="kpi-value">770<small>笔</small></div><div class="kpi-extra">待分摊 106,800.000 CNY</div></div><div class="kpi-card danger"><div class="kpi-label">待人工确认</div><div class="kpi-value">23<small>笔</small></div><div class="kpi-extra">单号关系或成本类型待确认</div></div><div class="kpi-card info"><div class="kpi-label">汇率待确认</div><div class="kpi-value">6<small>笔</small></div><div class="kpi-extra">暂不进入人民币利润合计</div></div></div>
+  <div class="kpi-grid"><div class="kpi-card"><div class="kpi-label">成本明细</div><div class="kpi-value">${totalDetails.toLocaleString("en-US")}<small>笔</small></div><div class="kpi-extra">来自 ${bills.length} 份供应商账单</div></div><div class="kpi-card success"><div class="kpi-label">直接成本</div><div class="kpi-value">${directDetails.toLocaleString("en-US")}<small>笔</small></div><div class="kpi-extra">按样本金额字段展开</div></div><div class="kpi-card warning"><div class="kpi-label">间接成本</div><div class="kpi-value">${indirectDetails.toLocaleString("en-US")}<small>笔</small></div><div class="kpi-extra">待分摊 ${formatAmount(pendingSetAmounts.CNY||0)} CNY</div></div><div class="kpi-card danger"><div class="kpi-label">待确认规则</div><div class="kpi-value">${pendingRules}<small>个</small></div><div class="kpi-extra">分摊集尚未选定规则</div></div><div class="kpi-card info"><div class="kpi-label">待分摊台币</div><div class="kpi-value">${formatAmount(pendingSetAmounts.TWD||0)}<small>TWD</small></div><div class="kpi-extra">保持供应商账单原币种</div></div></div>
   <div class="filter-panel"><div class="filter-grid"><div class="field"><label>成本明细编号 / 关键单号</label><input class="input" placeholder="输入编号、运单、提单或柜号"></div><div class="field"><label>供应商</label><select class="select"><option>全部供应商</option>${suppliers.map(s=>`<option>${s.name}</option>`).join("")}</select></div><div class="field"><label>成本类型</label><select class="select"><option>全部类型</option><option>直接成本</option><option>间接成本</option></select></div><div class="field"><label>处理状态</label><select class="select"><option>全部状态</option><option>已归属</option><option>待分摊</option><option>已分摊</option><option>待人工确认</option></select></div><div class="filter-actions"><button class="btn primary">${icon("search")}查询</button><button class="btn">${icon("rotate-ccw")}重置</button></div></div></div>
   <section class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th><input class="row-check" type="checkbox"></th><th>成本明细编号</th><th>供应商</th><th>成本板块</th><th>供应商原始费项</th><th>标准成本费项</th><th>关键单号</th><th>原始金额</th><th>成本类型</th><th>归属对象 / 所属分摊集</th><th>处理状态</th><th>操作</th></tr></thead><tbody>${costs.map(c=>`<tr><td><input class="row-check" type="checkbox"></td><td class="link mono" data-action="open-cost" data-id="${c.id}">${c.id}</td><td>${c.supplier}</td><td>${tag(getCostBoardLabel(c),"purple")}</td><td>${c.raw}</td><td>${c.fee}</td><td><span class="muted">${c.keyType}</span><br>${c.key}</td><td class="num strong">${money(c.amount,c.currency)}</td><td>${tag(c.type,c.type==="直接成本"?"green":"orange")}</td><td>${c.type === "间接成本" ? `<button class="count-link" data-action="open-bucket" data-id="${c.target}">${c.target}</button>` : c.target}</td><td>${status(c.status)}</td><td><button class="btn small" data-action="open-cost" data-id="${c.id}">详情</button><button class="btn small" data-action="toggle-cost" data-id="${c.id}">切换类型</button></td></tr>`).join("")}</tbody></table></div>${tableFooter(costs.length)}</section>`;
 }
@@ -598,7 +719,7 @@ async function importPrototypeData(file) {
       if (rows.length) await prototypeDb.table(tableName).bulkAdd(cloneData(rows));
     }
     if (Array.isArray(payload.data.operationLogs) && payload.data.operationLogs.length) await prototypeDb.operationLogs.bulkAdd(cloneData(payload.data.operationLogs).map(({ id, ...row }) => row));
-    await prototypeDb.settings.put({ key: "seedVersion", value: 4 });
+    await prototypeDb.settings.put({ key: "seedVersion", value: 10 });
     await prototypeDb.operationLogs.add({ entityType: "系统", entityId: "成本中心原型", action: "导入模拟数据", createdAt: new Date().toISOString() });
   });
   await hydratePrototypeData();
@@ -670,6 +791,34 @@ async function commitPendingAction() {
     if (original) Object.assign(original, rule); else allocationRules.unshift(rule);
     await prototypeDb.allocationRules.put(cloneData(rule));
     await recordOperation("分摊规则", rule.id, original ? "更新间接成本分摊规则" : "新增间接成本分摊规则", `${action.ruleType === "supplier" ? "供应商特调" : "基础"} / ${board} / ${fee} / ${supplier}`);
+  } else if (action.type === "saveBucketTreatment") {
+    const bucket = pools.find(item => item.id === action.id);
+    const treatment = document.getElementById("bucket-treatment-select")?.value || "";
+    const reason = document.getElementById("bucket-no-allocation-reason")?.value || "";
+    const note = (document.getElementById("bucket-no-allocation-note")?.value || "").trim();
+    if (!bucket || !treatment) { toast("请选择间接成本处理方式", "warning"); return; }
+    if (treatment === "不分摊" && !reason) { toast("选择不分摊时必须填写原因", "warning"); return; }
+    if (treatment === "不分摊" && reason === "其他" && !note) { toast("不分摊原因为其他时必须补充说明", "warning"); return; }
+    const previous = bucket.treatment || "分摊至业务订单";
+    bucket.treatment = treatment;
+    bucket.noAllocationReason = treatment === "不分摊" ? reason : "";
+    bucket.noAllocationNote = treatment === "不分摊" ? note : "";
+    bucket.treatmentConfirmedBy = "谭清辉";
+    bucket.treatmentConfirmedAt = new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-");
+    if (treatment === "不分摊") {
+      bucket.ruleId = "";
+      bucket.factor = "-";
+      bucket.fallback = "-";
+      bucket.version = "-";
+      bucket.status = "不分摊";
+    } else if (previous === "不分摊") {
+      bucket.status = "待人工确认";
+    }
+    await prototypeDb.pools.put(cloneData(bucket));
+    const affected = costs.filter(cost => cost.target === bucket.id);
+    for (const cost of affected) cost.status = treatment === "不分摊" ? "不分摊" : "待人工确认";
+    if (affected.length) await prototypeDb.costs.bulkPut(cloneData(affected));
+    await recordOperation("间接成本分摊集", bucket.id, "确认间接成本处理方式", `${previous} → ${treatment}${reason ? ` / ${reason}` : ""}`);
   } else if (action.type === "saveBucketRule") {
     const bucket = pools.find(item => item.id === action.id);
     const ruleId = document.getElementById("bucket-rule-select")?.value || "";
@@ -724,8 +873,8 @@ async function commitPendingAction() {
   } else if (action.type === "importBill") {
     const file = sampleFiles.find(item => item.id === state.selectedFile);
     const supplier = suppliers.find(item => item.name === file.supplier);
-    const currency = ["东风","福广","宅配通","顺盛"].includes(file.supplier) ? "TWD" : "CNY";
-    const bill = { id: makeId(`APB-${supplier?.code || file.supplier}`), supplier: file.supplier, board: file.board, period: `${state.costPeriodStart} 至 ${state.costPeriodEnd}`, amount: "168,420.000", currency, settled: "0.000", state: "待结清", rows: 2412, direct: 2198, indirect: 214, unresolved: 18, file: file.name, created: new Date().toLocaleString("zh-CN", { hour12: false }).replaceAll("/", "-") };
+    const sourceBill = initialData.bills.find(item => item.file === file.name);
+    const bill = { ...cloneData(sourceBill), id: makeId(`APB-${supplier?.code || file.supplier}`), settled: "0.000", state: "待结清" };
     bills.unshift(bill);
     await prototypeDb.bills.add(cloneData(bill));
     if (supplier) { supplier.bills += 1; supplier.updated = bill.created; await prototypeDb.suppliers.put(cloneData(supplier)); }
@@ -752,16 +901,25 @@ function renderBillDetail(){
     return `${pageHeader("成本账单详情", "未找到指定成本账单")}<div class="validation-item warn">${icon("triangle-alert")}该成本账单不存在或已被移除。</div>`;
   }
   const billCosts=costs.filter(cost=>cost.bill===b.id);
+  const billDetails=costDetails.filter(detail=>detail.file===b.file);
   const allocationSets=pools.filter(item=>item.bill===b.id);
-  const setRows=allocationSets.map(item=>{
-    const rule=allocationRules.find(ruleItem=>ruleItem.id===item.ruleId);
-    const ruleText=rule?`${rule.id}<br><span class="muted">${rule.supplier === "全部供应商" ? "基础规则" : "供应商特调"}</span>`:'<span class="muted">待财务确认</span>';
-    return `<tr><td class="link mono" data-action="open-bucket" data-id="${item.id}">${item.id}</td><td>${item.fee}</td><td>${item.currency}</td><td class="num">${item.detailCount}</td><td class="num strong">${item.amount}</td><td>${ruleText}</td><td>${status(item.status)}</td><td><button class="btn small" data-action="configure-bucket" data-id="${item.id}">${item.ruleId?"调整规则":"确认规则"}</button>${item.ruleId?`<button class="btn small" data-action="run-allocation" data-id="${item.id}">${item.status === "已分摊" ? "重新预览" : "预览分摊"}</button>`:""}</td></tr>`;
-  }).join("") || `<tr><td colspan="8" class="empty-cell">该账单没有间接成本分摊集</td></tr>`;
+  const summaryRows=billCosts.map(cost=>{
+    const allocationSet=allocationSets.find(item=>item.id===cost.target);
+    const rule=allocationSet?allocationRules.find(ruleItem=>ruleItem.id===allocationSet.ruleId):null;
+    const setText=allocationSet?`<button class="count-link mono" data-action="open-bucket" data-id="${allocationSet.id}">${allocationSet.id}</button>`:"-";
+    const ruleText=allocationSet?(allocationSet.treatment === "不分摊"?'<span class="muted">不适用</span>':(rule?`${rule.id}<br><span class="muted">${rule.supplier === "全部供应商" ? "基础规则" : "供应商特调"}</span>`:'<span class="muted">待财务确认</span>')):"-";
+    return `<tr><td>${cost.fee}</td><td>${cost.raw}</td><td>${tag(cost.type,cost.type==="直接成本"?"green":"orange")}</td><td class="num">${cost.detailCount || 1}</td><td class="num strong">${money(cost.amount,cost.currency)}</td><td>${setText}</td><td>${ruleText}</td><td>${status(cost.status)}</td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="empty-cell">该账单暂无成本费项</td></tr>`;
   const actions=`<button class="btn">${icon("file-down")}下载原始账单</button>${b.state==="待结清"?`<button class="btn primary" data-action="settle-bill" data-id="${b.id}">${icon("badge-check")}登记结清</button>`:""}`;
   const detailTabs=`<div class="bill-detail-tabs" role="tablist" aria-label="成本账单详情内容"><button role="tab" aria-selected="${state.billDetailTab==="summary"}" class="${state.billDetailTab==="summary"?"active":""}" data-action="bill-detail-tab" data-value="summary">成本费项汇总</button><button role="tab" aria-selected="${state.billDetailTab==="details"}" class="${state.billDetailTab==="details"?"active":""}" data-action="bill-detail-tab" data-value="details">成本费项明细</button></div>`;
-  const summaryContent=`<div class="preview-summary bill-detail-metrics"><div class="preview-metric"><span>成本明细</span><strong>${b.rows}</strong></div><div class="preview-metric"><span>直接成本</span><strong>${b.direct}</strong></div><div class="preview-metric"><span>间接成本</span><strong>${b.indirect}</strong></div><div class="preview-metric"><span>待处理</span><strong>${b.unresolved}</strong></div></div><div class="bill-detail-section-head"><span class="panel-title">间接成本分摊集</span><button class="btn small" data-view="rules">${icon("list-checks")}维护分摊规则</button></div><div class="bill-detail-note"><div class="inline-note">同一账单内，成本板块、标准成本费项和币种相同的间接成本明细归入同一分摊集。每个分摊集采用一条分摊规则，集内明细仍按各自金额和范围锚点独立计算。</div></div><div class="table-wrap"><table class="data-table bucket-table"><thead><tr><th>分摊集编号</th><th>标准成本费项</th><th>币种</th><th>明细数</th><th>分摊集金额</th><th>采用规则</th><th>状态</th><th>操作</th></tr></thead><tbody>${setRows}</tbody></table></div>`;
-  const detailContent=`<div class="table-wrap"><table class="data-table"><thead><tr><th>标准成本费项</th><th>关键单号</th><th>金额</th><th>成本类型</th><th>归属对象 / 所属分摊集</th><th>状态</th></tr></thead><tbody>${billCosts.map(cost=>`<tr><td>${cost.fee}</td><td>${cost.key}</td><td class="num">${money(cost.amount,cost.currency)}</td><td>${tag(cost.type,cost.type==="直接成本"?"green":"orange")}</td><td>${cost.type === "间接成本" ? `<button class="count-link" data-action="open-bucket" data-id="${cost.target}">${cost.target}</button>` : cost.target}</td><td>${status(cost.status)}</td></tr>`).join("")||`<tr><td colspan="6" class="empty-cell">当前账单暂无成本明细</td></tr>`}</tbody></table></div>`;
+  const summaryContent=`<div class="preview-summary bill-detail-metrics"><div class="preview-metric"><span>成本明细</span><strong>${b.rows}</strong></div><div class="preview-metric"><span>直接成本</span><strong>${b.direct}</strong></div><div class="preview-metric"><span>间接成本</span><strong>${b.indirect}</strong></div><div class="preview-metric"><span>待处理</span><strong>${b.unresolved}</strong></div></div><div class="bill-detail-section-head"><span class="panel-title">成本费项汇总</span><button class="btn small" data-view="rules">${icon("list-checks")}维护分摊规则</button></div><div class="bill-detail-note"><div class="inline-note">汇总金额与明细数量取自供应商原始账单。直接成本不使用分摊集；间接成本按标准成本费项归入分摊集，并标记采用的分摊规则。</div></div><div class="table-wrap"><table class="data-table bucket-table"><thead><tr><th>标准成本费项</th><th>原始成本费项</th><th>成本类型</th><th>明细数量</th><th>汇总金额</th><th>分摊集</th><th>分摊规则</th><th>状态</th></tr></thead><tbody>${summaryRows}</tbody></table></div>`;
+  const detailRows=billDetails.map(detail=>{
+    const target=detail.type === "间接成本" && pools.some(item=>item.id===detail.target)
+      ? `<button class="count-link mono" data-action="open-bucket" data-id="${detail.target}">${detail.target}</button>`
+      : detail.target;
+    return `<tr><td class="mono">${detail.id}</td><td>${detail.sheet} · 第 ${detail.row} 行</td><td>${detail.date}</td><td>${detail.fee}</td><td>${detail.raw}</td><td><span class="muted">${detail.keyType}</span><br><span class="mono">${detail.key}</span></td><td class="num strong">${money(detail.amount,detail.currency)}</td><td>${tag(detail.type,detail.type==="直接成本"?"green":"orange")}</td><td>${target}</td><td>${status(detail.status)}</td></tr>`;
+  }).join("")||`<tr><td colspan="10" class="empty-cell">当前账单暂无逐笔成本明细</td></tr>`;
+  const detailContent=`<div class="bill-detail-note"><div class="inline-note">每行对应供应商原始账单中一个非零费用单元格；同一原始行包含多个费项时，按费项拆成多条成本明细。来源 Sheet 与行号用于回查原始账单。</div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>成本明细编号</th><th>原始位置</th><th>费用日期</th><th>标准成本费项</th><th>原始成本费项</th><th>关键单号</th><th>金额</th><th>成本类型</th><th>归属对象 / 所属分摊集</th><th>状态</th></tr></thead><tbody>${detailRows}</tbody></table></div><div class="table-footer"><span>当前页展示 ${billDetails.length} 条逐笔成本明细</span><span>数据均取自原始样本文件</span></div>`;
   return `<div class="bill-detail-page">${pageHeader("成本账单详情", `${b.id} · ${b.supplier}`, actions)}
     <section class="panel"><div class="panel-head"><span class="panel-title">账单基本信息</span></div><div class="panel-body"><div class="detail-grid"><div class="detail-item"><span class="detail-label">成本账单编号</span><span class="detail-value mono">${b.id}</span></div><div class="detail-item"><span class="detail-label">结清状态</span><span class="detail-value">${status(b.state)}</span></div><div class="detail-item"><span class="detail-label">供应商</span><span class="detail-value">${b.supplier}</span></div><div class="detail-item"><span class="detail-label">成本板块</span><span class="detail-value">${b.board}</span></div><div class="detail-item"><span class="detail-label">实际成本账期</span><span class="detail-value">${b.period}</span></div><div class="detail-item"><span class="detail-label">原始文件</span><span class="detail-value">${b.file}</span></div><div class="detail-item"><span class="detail-label">账单金额</span><span class="detail-value strong">${money(b.amount,b.currency)}</span></div><div class="detail-item"><span class="detail-label">已结清金额</span><span class="detail-value">${money(b.settled,b.currency)}</span></div></div></div></section>
     <section class="panel bill-detail-content">${detailTabs}<div class="bill-detail-tab-content">${state.billDetailTab==="details"?detailContent:summaryContent}</div></section>
@@ -774,7 +932,11 @@ function bucketDrawer(id){
   const p=pools.find(x=>x.id===id);
   if(!p)return;
   const rule=allocationRules.find(item=>item.id===p.ruleId);
-  showDrawer(`间接成本分摊集 · ${p.id}`,`<div class="header-actions" style="justify-content:flex-start;margin-bottom:12px"><button class="btn primary" data-action="configure-bucket" data-id="${p.id}">${icon("list-checks")}${p.ruleId?"调整采用规则":"确认采用规则"}</button>${p.ruleId?`<button class="btn" data-action="run-allocation" data-id="${p.id}">${icon("play")}预览分摊</button>`:""}</div><div class="detail-grid"><div class="detail-item"><span class="detail-label">所属成本账单</span><span class="detail-value mono">${p.bill}</span></div><div class="detail-item"><span class="detail-label">分摊状态</span><span class="detail-value">${status(p.status)}</span></div><div class="detail-item"><span class="detail-label">供应商</span><span class="detail-value">${p.supplier}</span></div><div class="detail-item"><span class="detail-label">成本板块</span><span class="detail-value">${p.board}</span></div><div class="detail-item"><span class="detail-label">标准成本费项</span><span class="detail-value">${p.fee}</span></div><div class="detail-item"><span class="detail-label">币种</span><span class="detail-value">${p.currency}</span></div><div class="detail-item"><span class="detail-label">成本明细</span><span class="detail-value">${p.detailCount} 条</span></div><div class="detail-item"><span class="detail-label">分摊集金额</span><span class="detail-value strong">${p.amount}</span></div><div class="detail-item"><span class="detail-label">当前分摊版本</span><span class="detail-value">${p.version}</span></div></div><div class="drawer-section"><h3>采用的分摊规则</h3>${rule?`<div class="detail-grid"><div class="detail-item"><span class="detail-label">规则编号</span><span class="detail-value mono">${rule.id}</span></div><div class="detail-item"><span class="detail-label">规则层级</span><span class="detail-value">${rule.supplier === "全部供应商" ? "基础分摊规则" : "供应商特调分摊规则"}</span></div><div class="detail-item detail-full"><span class="detail-label">候选订单范围</span><span class="detail-value">${rule.scope}</span></div><div class="detail-item"><span class="detail-label">优先分摊因子</span><span class="detail-value">${rule.factor}</span></div><div class="detail-item"><span class="detail-label">兜底分摊因子</span><span class="detail-value">${rule.fallback}</span></div></div>`:`<div class="validation-item warn">${icon("triangle-alert")}尚未确认分摊规则，不能执行分摊。</div>`}</div><div class="drawer-section"><h3>计算边界</h3><div class="inline-note">分摊集只统一规则口径，不合并成本明细的业务范围。系统仍依据每条成本明细自己的金额与范围锚点寻找候选业务订单，再汇总形成分摊结果。</div></div>`);
+  const treatment=p.treatment||"分摊至业务订单";
+  const treatmentAction=`<button class="btn primary" data-action="configure-bucket-treatment" data-id="${p.id}">${icon("settings-2")}${p.treatment?"调整处理方式":"确认处理方式"}</button>`;
+  const allocationActions=treatment === "分摊至业务订单"?`<button class="btn" data-action="configure-bucket" data-id="${p.id}">${icon("list-checks")}${p.ruleId?"调整采用规则":"确认采用规则"}</button>${p.ruleId?`<button class="btn" data-action="run-allocation" data-id="${p.id}">${icon("play")}预览分摊</button>`:""}`:"";
+  const treatmentDetail=treatment === "不分摊"?`<div class="drawer-section"><h3>不分摊确认</h3><div class="detail-grid"><div class="detail-item"><span class="detail-label">不分摊原因</span><span class="detail-value">${p.noAllocationReason||"-"}</span></div><div class="detail-item"><span class="detail-label">确认人</span><span class="detail-value">${p.treatmentConfirmedBy||"-"}</span></div><div class="detail-item"><span class="detail-label">确认时间</span><span class="detail-value">${p.treatmentConfirmedAt||"-"}</span></div>${p.noAllocationNote?`<div class="detail-item detail-full"><span class="detail-label">补充说明</span><span class="detail-value">${escapeHtml(p.noAllocationNote)}</span></div>`:""}</div><div class="inline-note">该分摊集不生成订单分摊结果，金额仍计入成本中心总成本和公司总利润扣减。</div></div>`:`<div class="drawer-section"><h3>采用的分摊规则</h3>${rule?`<div class="detail-grid"><div class="detail-item"><span class="detail-label">规则编号</span><span class="detail-value mono">${rule.id}</span></div><div class="detail-item"><span class="detail-label">规则层级</span><span class="detail-value">${rule.supplier === "全部供应商" ? "基础分摊规则" : "供应商特调分摊规则"}</span></div><div class="detail-item detail-full"><span class="detail-label">候选订单范围</span><span class="detail-value">${rule.scope}</span></div><div class="detail-item"><span class="detail-label">优先分摊因子</span><span class="detail-value">${rule.factor}</span></div><div class="detail-item"><span class="detail-label">兜底分摊因子</span><span class="detail-value">${rule.fallback}</span></div></div>`:`<div class="validation-item warn">${icon("triangle-alert")}尚未确认分摊规则，不能执行分摊。</div>`}</div><div class="drawer-section"><h3>计算边界</h3><div class="inline-note">分摊集只统一规则口径，不合并成本明细的业务范围。系统仍依据每条成本明细自己的金额与范围锚点寻找候选业务订单，再汇总形成分摊结果。</div></div>`;
+  showDrawer(`间接成本分摊集 · ${p.id}`,`<div class="header-actions" style="justify-content:flex-start;margin-bottom:12px">${treatmentAction}${allocationActions}</div><div class="detail-grid"><div class="detail-item"><span class="detail-label">所属成本账单</span><span class="detail-value mono">${p.bill}</span></div><div class="detail-item"><span class="detail-label">分摊状态</span><span class="detail-value">${status(p.status)}</span></div><div class="detail-item"><span class="detail-label">处理方式</span><span class="detail-value">${tag(treatment,treatment === "不分摊"?"gray":"blue")}</span></div><div class="detail-item"><span class="detail-label">供应商</span><span class="detail-value">${p.supplier}</span></div><div class="detail-item"><span class="detail-label">成本板块</span><span class="detail-value">${p.board}</span></div><div class="detail-item"><span class="detail-label">标准成本费项</span><span class="detail-value">${p.fee}</span></div><div class="detail-item"><span class="detail-label">币种</span><span class="detail-value">${p.currency}</span></div><div class="detail-item"><span class="detail-label">成本明细</span><span class="detail-value">${p.detailCount} 条</span></div><div class="detail-item"><span class="detail-label">分摊集金额</span><span class="detail-value strong">${p.amount}</span></div><div class="detail-item"><span class="detail-label">当前分摊版本</span><span class="detail-value">${p.version}</span></div></div>${treatmentDetail}`);
 }
 
 function ruleDrawer(id) {
@@ -873,9 +1035,19 @@ function syncRuleFeeOptions(board, preferredFee = "") {
   else if (matching.length) select.value = matching[0].value;
 }
 
+function bucketTreatmentModal(id) {
+  const bucket = pools.find(item => item.id === id);
+  if (!bucket) return;
+  const treatment = bucket.treatment || "分摊至业务订单";
+  const reasons = ["公司整体管理费用", "无合理分摊依据", "金额较小，无需分摊", "不纳入订单利润核算", "其他"];
+  state.pendingAction = { type: "saveBucketTreatment", id };
+  showModal("确认间接成本处理方式", `<div class="inline-note">处理方式在分摊集层统一确认，集内成本明细共同继承。这里只提供分摊至业务订单和不分摊，不提供暂不分摊。</div><div class="detail-grid"><div class="detail-item"><span class="detail-label">分摊集编号</span><span class="detail-value mono">${bucket.id}</span></div><div class="detail-item"><span class="detail-label">标准成本费项</span><span class="detail-value">${bucket.fee}</span></div><div class="detail-item"><span class="detail-label">分摊集金额</span><span class="detail-value strong">${bucket.amount}</span></div><div class="detail-item"><span class="detail-label">当前状态</span><span class="detail-value">${status(bucket.status)}</span></div></div><div class="field"><label class="required">处理方式</label><select id="bucket-treatment-select" class="select"><option value="分摊至业务订单" ${treatment === "分摊至业务订单" ? "selected" : ""}>分摊至业务订单</option><option value="不分摊" ${treatment === "不分摊" ? "selected" : ""}>不分摊</option></select></div><div id="bucket-no-allocation-fields" class="${treatment === "不分摊" ? "" : "hidden"}"><div class="field"><label class="required">不分摊原因</label><select id="bucket-no-allocation-reason" class="select"><option value="">请选择原因</option>${reasons.map(item => `<option value="${item}" ${bucket.noAllocationReason === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="field"><label>补充说明</label><textarea id="bucket-no-allocation-note" class="textarea" placeholder="选择其他时必填">${escapeHtml(bucket.noAllocationNote || "")}</textarea></div><div class="validation-item warn">${icon("triangle-alert")}确认不分摊后，该金额不进入任何业务订单成本或订单利润，但仍计入成本中心总成本和公司总利润扣减。</div></div>`, "确认处理方式");
+}
+
 function bucketRuleModal(id) {
   const bucket = pools.find(item => item.id === id);
   if (!bucket) return;
+  if (bucket.treatment === "不分摊") { toast("该分摊集已确认为不分摊，无需选择分摊规则", "warning"); return; }
   const matchingRules = allocationRules.filter(rule => rule.status === "启用" && rule.board === bucket.board && rule.fee === bucket.fee && (rule.supplier === bucket.supplier || rule.supplier === "全部供应商"));
   matchingRules.sort((left, right) => Number(right.supplier === bucket.supplier) - Number(left.supplier === bucket.supplier));
   state.pendingAction = { type: "saveBucketRule", id };
@@ -885,6 +1057,7 @@ function bucketRuleModal(id) {
 
 function allocationModal(id){
   const p=pools.find(x=>x.id===id);
+  if(p?.treatment==="不分摊"){toast("该分摊集已确认为不分摊，不执行金额分摊","warning");return;}
   if(!p?.ruleId){toast("请先确认该分摊集采用的分摊规则","warning");return;}
   state.pendingAction={type:"runAllocation",id};
   showModal("分摊预览",`<div class="preview-summary" style="grid-template-columns:repeat(4,1fr)"><div class="preview-metric"><span>成本明细</span><strong>${p.detailCount}</strong></div><div class="preview-metric"><span>候选业务订单</span><strong>${p.orders}</strong></div><div class="preview-metric"><span>分摊集金额</span><strong>${p.amount}</strong></div><div class="preview-metric"><span>金额差异</span><strong style="color:var(--success)">0.000</strong></div></div><div class="validation-list"><div class="validation-item ok">${icon("circle-check")}已锁定规则 ${p.ruleId}，候选订单范围不为空</div><div class="validation-item ok">${icon("circle-check")}每条成本明细按自身范围锚点独立筛选候选订单</div><div class="validation-item ok">${icon("circle-check")}分摊集内逐明细计算后汇总，${p.currency} 金额守恒</div><div class="validation-item ok">${icon("circle-check")}尾差按最大余数法处理</div></div><div class="inline-note">执行后生成新的分摊版本，结果只落到业务订单，用于计算业务订单利润。</div>`,"执行分摊");
@@ -901,11 +1074,18 @@ document.addEventListener("click", async (event) => {
   else if(a==="close-drawer") closeDrawer(); else if(a==="close-modal") closeModal();
   else if(a==="open-import") openImportModal(true);
   else if(a==="open-supplier") supplierDrawer(id); else if(a==="open-bill"){state.selectedBillId=id;state.billDetailTab="summary";state.view="billDetail";closeDrawer();renderView();} else if(a==="back-bills"){state.view="bills";renderView();} else if(a==="bill-detail-tab"){state.billDetailTab=el.dataset.value;renderView();} else if(a==="open-cost") costDrawer(id); else if(a==="open-bucket") bucketDrawer(id);
-  else if(a==="select-file"){state.selectedFile=id;state.selectedSheet=sampleFiles.find(x=>x.id===id).defaultSheet;openImportModal();}
+  else if(a==="select-file"){
+    state.selectedFile=id;
+    const file=sampleFiles.find(x=>x.id===id);
+    const sourceBill=initialData.bills.find(item=>item.file===file?.name);
+    state.selectedSheet=file.defaultSheet;
+    if(sourceBill?.period) [state.costPeriodStart,state.costPeriodEnd]=sourceBill.period.split(" 至 ");
+    openImportModal();
+  }
   else if(a==="select-sheet"){state.selectedSheet=id;openImportModal();}
   else if(a==="wizard-next"){state.wizardStep=Math.min(3,state.wizardStep+1);openImportModal();}
   else if(a==="wizard-back"){state.wizardStep=Math.max(1,state.wizardStep-1);openImportModal();}
-  else if(a==="confirm-import"){state.pendingAction={type:"importBill"};showModal("确认导入供应商账单",`<div class="validation-list"><div class="validation-item ok">${icon("circle-check")}导入将按整批原子方式执行</div><div class="validation-item ok">${icon("circle-check")}完全成功后形成一张成本账单及 2,412 条成本明细</div></div><div class="inline-note">导入成功后可在成本账单列表查看结果；任一应导入数据失败时，本次不保留部分成本明细。</div>`,"开始导入");}
+  else if(a==="confirm-import"){const file=sampleFiles.find(item=>item.id===state.selectedFile);const sourceBill=initialData.bills.find(item=>item.file===file?.name);state.pendingAction={type:"importBill"};showModal("确认导入供应商账单",`<div class="validation-list"><div class="validation-item ok">${icon("circle-check")}导入将按整批原子方式执行</div><div class="validation-item ok">${icon("circle-check")}完全成功后形成一张成本账单及 ${sourceBill?.rows || 0} 条成本明细</div></div><div class="inline-note">导入成功后可在成本账单列表查看结果；任一应导入数据失败时，本次不保留部分成本明细。</div>`,"开始导入");}
   else if(a==="bill-filter"){state.billFilter=el.dataset.value;renderView();}
   else if(a==="rule-type-tab"){state.ruleTab=el.dataset.value;state.ruleSupplier="";renderView();}
   else if(a==="rule-query"){state.ruleKeyword=document.getElementById("rule-keyword")?.value.trim()||"";state.ruleBoard=document.getElementById("rule-board-filter")?.value||"";state.ruleSupplier=document.getElementById("rule-supplier-filter")?.value||"";state.ruleStatus=document.getElementById("rule-status-filter")?.value||"";renderView();}
@@ -918,6 +1098,7 @@ document.addEventListener("click", async (event) => {
   
   else if(a==="settle-bill") settleModal(id);
   else if(a==="run-allocation") allocationModal(id);
+  else if(a==="configure-bucket-treatment"){closeDrawer();bucketTreatmentModal(id);}
   else if(a==="configure-bucket"){closeDrawer();bucketRuleModal(id);}
   else if(a==="allocation-rules"){state.view="rules";renderView();}
   else if(a==="new-allocation-rule") allocationRuleModal(el.dataset.type || state.ruleTab);
@@ -938,6 +1119,7 @@ document.addEventListener("click", async (event) => {
   else if(["new-supplier","profit-detail","switch-org"].includes(a)) toast("该入口已纳入原型交互范围，可继续按场景深化","warning");
 });
 document.addEventListener("change", event => {
+  if (event.target.id === "bucket-treatment-select") document.getElementById("bucket-no-allocation-fields")?.classList.toggle("hidden", event.target.value !== "不分摊");
   if (event.target.id === "rule-form-board") syncRuleFeeOptions(event.target.value);
 });
 document.getElementById("drawer-backdrop").addEventListener("click",closeDrawer);

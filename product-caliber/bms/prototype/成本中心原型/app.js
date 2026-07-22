@@ -529,15 +529,16 @@ function wizardOne() {
 }
 
 const sheetSets = {
-  "df-delivery": [{n:"2026",r:"汇总核对"},{n:"帳單總表",r:"付款跟踪"},{n:"黑貓",r:"成本明细"},{n:"新竹",r:"成本明细"},{n:"大榮",r:"成本明细"},{n:"貼單拖袋費",r:"成本明细"},{n:"車趟費",r:"成本明细"},{n:"問題件",r:"异常凭证"}],
-  "fuguang": [{n:"請款單(總)",r:"汇总核对"},{n:"稅金明細",r:"成本明细"},{n:"規費請款單",r:"成本明细"},{n:"EZ Way 明細",r:"辅助数据"},{n:"罰單",r:"异常费用"}],
-  "lianduo": [{n:"sheet1",r:"成本明细"},{n:"sheet1 (2)",r:"成本明细"}],
-  "libao": [{n:"对帐单",r:"成本明细"},{n:"核销报关货价格",r:"报价参考"},{n:"付款进度表",r:"付款跟踪"}]
+  "df-delivery": [{n:"2026",r:"汇总核对",c:0,s:1,e:24},{n:"帳單總表",r:"付款跟踪",c:0,s:2,e:146},{n:"黑貓",r:"成本明细",c:3,s:2,e:1250},{n:"新竹",r:"成本明细",c:3,s:2,e:782},{n:"大榮",r:"成本明细",c:3,s:2,e:654},{n:"貼單拖袋費",r:"成本明细",c:3,s:2,e:431},{n:"車趟費",r:"成本明细",c:1,s:2,e:121},{n:"問題件",r:"异常凭证",c:0,s:2,e:86}],
+  "fuguang": [{n:"請款單(總)",r:"汇总核对",c:0,s:1,e:32},{n:"稅金明細",r:"成本明细",c:2,s:3,e:388},{n:"規費請款單",r:"成本明细",c:2,s:2,e:204},{n:"EZ Way 明細",r:"辅助数据",c:0,s:2,e:179},{n:"罰單",r:"异常费用",c:1,s:2,e:25}],
+  "lianduo": [{n:"sheet1",r:"成本明细",c:2,s:2,e:64},{n:"sheet1 (2)",r:"成本明细",c:2,s:2,e:28}],
+  "libao": [{n:"对帐单",r:"成本明细",c:2,s:2,e:2139},{n:"核销报关货价格",r:"报价参考",c:0,s:1,e:18},{n:"付款进度表",r:"付款跟踪",c:0,s:2,e:38}]
 };
-function currentSheets() { const f=sampleFiles.find(x=>x.id===state.selectedFile); return sheetSets[state.selectedFile] || [{n:f.defaultSheet,r:"成本明细"}]; }
+function currentSheets() { const f=sampleFiles.find(x=>x.id===state.selectedFile); return sheetSets[state.selectedFile] || [{n:f.defaultSheet,r:"成本明细",c:0,s:1,e:1}]; }
 
 function wizardTwo() {
   const f=sampleFiles.find(x=>x.id===state.selectedFile); const sheets=currentSheets(); if(!sheets.some(s=>s.n===state.selectedSheet)) state.selectedSheet=sheets.find(s=>s.r==="成本明细")?.n||sheets[0].n;
+  const selectedSheet = sheets.find(s=>s.n===state.selectedSheet) || sheets[0];
   const profiles = {
     "派送成本": {
       key: { raw: "追踪号", type: "尾程运单号", result: "历史快照", match: "预计匹配 1,248 条" },
@@ -578,8 +579,8 @@ function wizardTwo() {
   };
   const profile = profiles[f.board] || profiles["派送成本"];
   const keyStatusClass = profile.key.result === "待确认" ? "warning" : "info";
-  return `<div class="form-section"><div class="form-section-title">选择参与导入的工作表</div><div class="sheet-layout"><div class="sheet-list">${sheets.map(s=>`<button class="sheet-item ${s.n===state.selectedSheet?"active":""}" data-action="select-sheet" data-id="${s.n}">${icon(s.r==="成本明细"?"table-2":s.r.includes("汇总")?"sigma":"file-text")}<span>${s.n}</span><span class="sheet-role">${s.r}</span></button>`).join("")}</div><div class="mapping-area">
-    <div class="mapping-note">系统已引用该供应商最近一次导入设置，并重新检查当前文件结构。当前 sheet 识别为“成本明细”，表头位于第 2 行，数据从第 3 行开始。</div>
+  return `<div class="form-section"><div class="form-section-title">Excel工作表</div><div class="sheet-layout"><div class="sheet-list">${sheets.map(s=>`<button class="sheet-item ${s.n===state.selectedSheet?"active":""}" data-action="select-sheet" data-id="${s.n}">${icon(s.r==="成本明细"?"table-2":s.r.includes("汇总")?"sigma":"file-text")}<span class="sheet-name"><span>${s.n}</span><small>第 ${s.s} - ${s.e} 行</small></span><span class="sheet-count ${s.c>0?"has-value":""}" title="已选 ${s.c} 个成本金额">${s.c}</span></button>`).join("")}</div><div class="mapping-area">
+    <div class="mapping-toolbar"><div class="mapping-note">系统已引用该供应商最近一次导入设置，并重新检查当前文件结构。请核对当前工作表的二维表范围与字段识别结果。</div><div class="sheet-range-editor"><div class="sheet-range-title"><span>二维表范围</span><small>系统识别，可修正</small></div><div class="sheet-range-fields"><label>起始行<input id="sheet-range-start" class="input" type="number" min="1" step="1" value="${selectedSheet.s}"></label><span>至</span><label>结束行<input id="sheet-range-end" class="input" type="number" min="1" step="1" value="${selectedSheet.e}"></label></div></div></div>
     <section class="mapping-block key-mapping-block">
       <div class="mapping-block-head"><div><strong>关键单号识别</strong><span class="mapping-limit">最多 1 个</span></div><p>仅选定字段进入财务标准字段并用于匹配业务对象；其它单号随原始行完整保存在账单快照。</p></div>
       <div class="key-mapping-grid header"><span>原始单号字段</span><span></span><span>关键单号类型</span><span>匹配预估</span><span>识别结果</span></div>
@@ -1332,6 +1333,25 @@ document.addEventListener("change", event => {
   if (event.target.id === "bucket-treatment-select") document.getElementById("bucket-no-allocation-fields")?.classList.toggle("hidden", event.target.value !== "不分摊");
   if (event.target.id === "rule-form-board") syncRuleFeeOptions(event.target.value);
   if (event.target.id === "supplier-form-cycle") syncSupplierCycleFields();
+  if (["sheet-range-start", "sheet-range-end"].includes(event.target.id)) {
+    const sheet = currentSheets().find(item => item.n === state.selectedSheet);
+    const value = Number(event.target.value);
+    const field = event.target.id === "sheet-range-start" ? "s" : "e";
+    if (!sheet || !Number.isInteger(value) || value < 1) {
+      toast("二维表起始行和结束行必须是大于 0 的整数", "warning");
+      openImportModal();
+      return;
+    }
+    const nextStart = field === "s" ? value : sheet.s;
+    const nextEnd = field === "e" ? value : sheet.e;
+    if (nextEnd < nextStart) {
+      toast("二维表结束行不得早于起始行", "warning");
+      openImportModal();
+      return;
+    }
+    sheet[field] = value;
+    toast(`已更新“${sheet.n}”的二维表范围`);
+  }
 });
 document.getElementById("drawer-backdrop").addEventListener("click",closeDrawer);
 document.getElementById("modal-backdrop").addEventListener("click",closeModal);

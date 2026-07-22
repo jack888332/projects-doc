@@ -132,6 +132,7 @@ button { letter-spacing: 0; }
 .field { min-width: 0; margin-bottom: 9px; }
 .field label { display: block; color: #4c5260; font-size: 12px; margin-bottom: 5px; }
 .field .required::before { content: "*"; color: var(--danger); margin-right: 3px; }
+.field-hint { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .input, .select, .textarea { width: 100%; border: 1px solid var(--border); border-radius: 2px; background: #fff; color: var(--ink); outline: none; }
 .input, .select { height: 30px; padding: 0 9px; }
 .textarea { min-height: 76px; padding: 8px 9px; resize: vertical; }
@@ -182,14 +183,41 @@ button { letter-spacing: 0; }
 .form-section-title { font-size: 14px; font-weight: 600; padding-left: 9px; border-left: 3px solid var(--primary); margin-bottom: 12px; }
 .form-grid { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 12px; }
 .form-grid > .form-span-2 { grid-column: span 2; }
-.date-range-control { width: 100%; height: 30px; }
-.date-range-control .el-date-editor { width: 100%; height: 30px; border-radius: 2px; box-shadow: 0 0 0 1px var(--border) inset; }
-.date-range-control .el-date-editor:hover { box-shadow: 0 0 0 1px #8d93a0 inset; }
-.date-range-control .el-date-editor.is-active { box-shadow: 0 0 0 1px var(--primary) inset, 0 0 0 2px rgba(33,31,162,.08); }
-.date-range-control .el-range-input { color: var(--ink); font-size: 12px; }
-.date-range-control .el-range-separator, .date-range-control .el-range__icon { color: var(--muted); }
+.date-range-control, .single-date-control { width: 100%; height: 30px; }
+.date-range-control .el-date-editor, .single-date-control .el-date-editor { width: 100%; height: 30px; }
+.date-range-control .el-date-editor, .single-date-control .el-input__wrapper { padding: 0 10px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1px var(--border) inset; transition: box-shadow .16s ease; }
+.date-range-control .el-date-editor:hover, .single-date-control .el-date-editor:hover .el-input__wrapper { box-shadow: 0 0 0 1px #8d93a0 inset; }
+.date-range-control .el-date-editor.is-active, .single-date-control .el-date-editor.is-focus .el-input__wrapper { box-shadow: 0 0 0 1px var(--primary) inset, 0 0 0 2px rgba(33,31,162,.08); }
+.date-range-control .el-range-input, .single-date-control .el-input__inner { height: 28px; color: var(--ink); font-size: 12px; line-height: 28px; }
+.single-date-control .el-input__inner { word-spacing: 8px; }
+.date-range-control .el-range-separator, .date-range-control .el-range__icon, .single-date-control .el-input__prefix, .single-date-control .el-input__suffix { color: var(--muted); }
+.date-range-control .el-range__icon, .single-date-control .el-input__icon { font-size: 14px; }
+.cost-period-picker-popper {
+  --el-color-primary: var(--primary);
+  --el-datepicker-active-color: var(--primary);
+  --el-datepicker-hover-text-color: var(--primary);
+  --el-datepicker-text-color: #4a505c;
+  --el-datepicker-header-text-color: #353b47;
+  --el-datepicker-icon-color: #6f7683;
+  --el-datepicker-off-text-color: #adb3bd;
+  --el-datepicker-border-color: #dfe2e8;
+  --el-datepicker-inner-border-color: #eceef2;
+  --el-datepicker-inrange-bg-color: #f1f2fa;
+  --el-datepicker-inrange-hover-bg-color: #e8e9f7;
+  border-color: #dfe2e8 !important;
+  border-radius: 3px !important;
+  box-shadow: 0 8px 24px rgba(18,23,38,.16) !important;
+}
+.cost-period-picker-popper .el-picker-panel { border-radius: 3px; }
+.cost-period-picker-popper .el-date-picker__header-label { color: #353b47; font-size: 14px; font-weight: 500; }
+.cost-period-picker-popper .el-picker-panel__icon-btn { color: #6f7683; }
+.cost-period-picker-popper .el-picker-panel__icon-btn:hover { color: var(--primary); }
+.cost-period-picker-popper .el-date-table th { color: #666d79; font-weight: 500; }
+.cost-period-picker-popper .el-date-table td.available:hover .el-date-table-cell__text { color: var(--primary); background: var(--primary-soft); }
+.cost-period-picker-popper .el-date-table td.today .el-date-table-cell__text { color: var(--primary); font-weight: 600; }
+.cost-period-picker-popper .el-date-table td.current:not(.disabled) .el-date-table-cell__text,
 .cost-period-picker-popper .el-date-table td.start-date .el-date-table-cell__text,
-.cost-period-picker-popper .el-date-table td.end-date .el-date-table-cell__text { background: var(--primary); }
+.cost-period-picker-popper .el-date-table td.end-date .el-date-table-cell__text { color: #fff; background: var(--primary); }
 .sample-files { display: grid; grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 8px; }
 .sample-file { min-height: 55px; border: 1px solid var(--border); display: grid; grid-template-columns: 34px 1fr auto; gap: 9px; align-items: center; padding: 8px 10px; cursor: pointer; }
 .sample-file:hover, .sample-file.selected { border-color: var(--primary); background: #fafafe; }
@@ -210,6 +238,23 @@ button { letter-spacing: 0; }
 .mapping-grid { display: grid; grid-template-columns: 1fr 34px 1fr 90px; gap: 7px; align-items: center; margin-bottom: 7px; }
 .mapping-grid.header { color: var(--muted); font-size: 11px; }
 .mapping-arrow { color: #9299a6; display: grid; place-items: center; }.mapping-arrow svg { width: 15px; }
+.mapping-block { margin-top: 10px; overflow-x: auto; border: 1px solid var(--border); background: #fff; }
+.mapping-block-head { min-height: 52px; padding: 10px 12px; display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--border); }
+.mapping-block-head > div { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.mapping-block-head strong { font-size: 13px; }
+.mapping-block-head p { max-width: 620px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; text-align: right; }
+.mapping-limit, .mapping-count { display: inline-flex; align-items: center; min-height: 22px; padding: 0 7px; font-size: 10px; font-weight: 600; }
+.mapping-limit { color: var(--primary); background: var(--primary-soft); }
+.mapping-count { color: var(--success); background: var(--success-soft); }
+.key-mapping-block { border-left: 3px solid var(--primary); }
+.fee-mapping-block { border-left: 3px solid var(--success); }
+.key-mapping-grid, .fee-mapping-grid { display: grid; gap: 7px; align-items: center; min-width: 720px; padding: 0 11px 8px; }
+.key-mapping-grid { grid-template-columns: minmax(135px,.9fr) 28px minmax(165px,1fr) minmax(145px,.9fr) 86px; }
+.fee-mapping-grid { grid-template-columns: minmax(130px,.8fr) 28px minmax(170px,1fr) minmax(210px,1.2fr) 86px; }
+.key-mapping-grid.header, .fee-mapping-grid.header { padding-top: 9px; color: var(--muted); font-size: 11px; }
+.mapping-match { min-height: 30px; padding: 0 9px; display: flex; align-items: center; background: #f7f8fa; color: #565d69; font-size: 11px; }
+.cost-type-inference { min-height: 38px; padding: 4px 8px; display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 8px; background: #fafbfc; }
+.cost-type-inference small { color: var(--muted); line-height: 1.35; }
 
 .preview-summary { display: grid; grid-template-columns: repeat(5, minmax(120px,1fr)); gap: 8px; margin-bottom: 12px; }
 .preview-metric { border: 1px solid var(--border); padding: 10px; }
@@ -227,6 +272,7 @@ button { letter-spacing: 0; }
 .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
 .detail-item { min-height: 43px; display: grid; grid-template-columns: 115px 1fr; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .detail-label { padding: 10px; background: #f7f7f8; color: var(--muted); }.detail-value { padding: 10px; min-width: 0; overflow-wrap: anywhere; }
+.detail-hint { display: block; grid-column: 2; margin: -7px 10px 9px; color: var(--muted); font-size: 11px; }
 .drawer-section { margin-top: 18px; }.drawer-section h3 { font-size: 14px; margin: 0 0 9px; }
 .bill-detail-page .panel-body { padding: 13px; }
 .bill-detail-page .detail-grid { grid-template-columns: repeat(2, minmax(280px, 1fr)); }
@@ -286,6 +332,7 @@ button { letter-spacing: 0; }
 .modal-backdrop { z-index: 120; }
 .modal { position: fixed; z-index: 130; left: 50%; top: 50%; transform: translate(-50%,-50%); width: min(620px, calc(100vw - 30px)); max-height: 88vh; overflow: auto; background: #fff; box-shadow: 0 8px 30px rgba(18,23,38,.22); }
 .modal.allocation-config-modal { width: min(920px, calc(100vw - 32px)); }
+.modal.supplier-config-modal { width: min(820px, calc(100vw - 32px)); }
 .modal-head { min-height: 50px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
 .modal-title { font-size: 15px; font-weight: 600; }.modal-body { padding: 15px; }.modal-foot { min-height: 50px; padding: 9px 14px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
 .modal.import-wizard-modal { width: min(1180px, calc(100vw - 32px)); max-height: 94vh; }
@@ -296,6 +343,17 @@ button { letter-spacing: 0; }
 .import-modal-body .wizard-body { background: #fff; }
 .allocation-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .allocation-form-grid > .form-span-2 { grid-column: 1 / -1; }
+.supplier-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.supplier-form-grid > .form-span-2 { grid-column: 1 / -1; }
+.supplier-board-options { min-height: 36px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.check-option { min-height: 30px; padding: 0 10px; display: inline-flex !important; align-items: center; gap: 6px; margin: 0 !important; border: 1px solid var(--border); background: #fff; color: #3f4653 !important; cursor: pointer; }
+.check-option:has(input:checked) { border-color: #aaa8e8; background: var(--primary-soft); color: var(--primary) !important; }
+.check-option input { width: 14px; height: 14px; margin: 0; accent-color: var(--primary); }
+.supplier-cycle-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.supplier-cycle-fields.hidden { display: none; }
+.input-suffix { position: relative; }
+.input-suffix .input { padding-right: 62px; }
+.input-suffix span { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 11px; pointer-events: none; }
 .allocation-existing-title { margin-top: 7px; }
 .allocation-rules-table { min-width: 840px; }
 .allocation-rules-table .wrap-cell { min-width: 250px; white-space: normal; line-height: 1.5; }

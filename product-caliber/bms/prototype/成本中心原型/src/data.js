@@ -18,10 +18,10 @@ export const bills = [
 ]
 
 export const costRows = [
-  { id: 'COST-260716-00128', bill: 'APB-DF-20260701-7D32A1', module: '派送成本', supplier: '东风速运有限公司', rawItem: '派件費', item: '派送费', keyType: '尾程运单号', key: '40524779466', amount: 88, currency: 'TWD', type: '直接成本', target: '尾程包裹 AG099649-1', status: '已归属' },
-  { id: 'COST-260716-00129', bill: 'APB-DF-20260701-7D32A1', module: '派送成本', supplier: '东风速运有限公司', rawItem: '拖車及疊貨費', item: '派送附加费', keyType: '尾程运单号', key: 'EAST00004637', amount: 18.4, currency: 'TWD', type: '直接成本', target: '尾程包裹 LWD032402', status: '已归属' },
-  { id: 'COST-260714-00316', bill: 'APB-FG-20260706-0EC9B8', module: '清关成本', supplier: '福广国际报关有限公司', rawItem: '稅費金額', item: '进口税金', keyType: '分提单号', key: 'DZD90351936', amount: 399, currency: 'TWD', type: '直接成本', target: '业务订单 SO260619036', status: '已归属' },
-  { id: 'COST-260714-00317', bill: 'APB-FG-20260706-0EC9B8', module: '清关成本', supplier: '福广国际报关有限公司', rawItem: '倉租', item: '仓租费', keyType: '清关条码', key: '0A41M686', amount: 30, currency: 'TWD', type: '直接成本', target: '业务订单 SO260623686', status: '已归属' },
+  { id: 'COST-260716-00128', bill: 'APB-DF-20260701-7D32A1', module: '派送成本', supplier: '东风速运有限公司', rawItem: '派件費', item: '派送费', keyType: '供应商追踪号', key: '40524779466', amount: 88, currency: 'TWD', type: '直接成本', target: '尾程运单号 AG099649-1', status: '已归属' },
+  { id: 'COST-260716-00129', bill: 'APB-DF-20260701-7D32A1', module: '派送成本', supplier: '东风速运有限公司', rawItem: '拖車及疊貨費', item: '派送附加费', keyType: '供应商追踪号', key: 'EAST00004637', amount: 18.4, currency: 'TWD', type: '直接成本', target: '尾程运单号 LWD032402', status: '已归属' },
+  { id: 'COST-260714-00316', bill: 'APB-FG-20260706-0EC9B8', module: '清关成本', supplier: '福广国际报关有限公司', rawItem: '稅費金額', item: '进口税金', keyType: '分提单号', key: 'DZD90351936', amount: 399, currency: 'TWD', type: '直接成本', target: '业务订单号 SO260619036', status: '已归属' },
+  { id: 'COST-260714-00317', bill: 'APB-FG-20260706-0EC9B8', module: '清关成本', supplier: '福广国际报关有限公司', rawItem: '倉租', item: '仓租费', keyType: '清关条码', key: '0A41M686', amount: 30, currency: 'TWD', type: '直接成本', target: '业务订单号 SO260623686', status: '已归属' },
   { id: 'COST-260712-00201', bill: 'APB-LD-20260701-51E764', module: '海运成本', supplier: '联多国际货运', rawItem: 'DOC FEE', item: '文件费', keyType: '提单号', key: 'OOLU4108271', amount: 320, currency: 'USD', type: '间接成本', target: '海运文件费分摊池 07月', status: '待分摊' },
   { id: 'COST-260703-00015', bill: 'APB-ZC-20260601-9A4C10', module: '租车成本', supplier: '桃园仓配车队', rawItem: '車趟費', item: '租车费', keyType: '柜号', key: 'HPCU4883085', amount: 10500, currency: 'TWD', type: '间接成本', target: '桃园仓租车分摊池 06月', status: '已分摊' },
   { id: 'COST-260703-00016', bill: 'APB-ZC-20260601-9A4C10', module: '租车成本', supplier: '桃园仓配车队', rawItem: '超時費', item: '车辆超时费', keyType: '柜号', key: 'XYLU8150662', amount: 2000, currency: 'TWD', type: '间接成本', target: '尚未选择分摊池', status: '待处理' },

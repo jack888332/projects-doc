@@ -20,21 +20,19 @@ const form = reactive({
 })
 
 const mappings = reactive([
-  { role: '关键单号', source: '追蹤號', meaning: '尾程运单号', confidence: 98, required: true },
-  { role: '成本费项', source: '運費', meaning: '派送费', confidence: 96, required: true },
-  { role: '成本费项', source: '拖車及疊貨費', meaning: '派送附加费', confidence: 91, required: false },
+  { role: '关键单号', source: '追蹤號', meaning: '供应商追踪号', confidence: 98, required: true },
+  { role: '成本费项', source: '運費', meaning: '派送费', confidence: 96, required: true, inference: '混合', basis: '直接 2,010 / 间接 127' },
+  { role: '成本费项', source: '拖車及疊貨費', meaning: '派送附加费', confidence: 91, required: false, inference: '混合', basis: '直接 124 / 间接 553' },
   { role: '币种', source: '未提供', meaning: '使用供应商默认币种 TWD', confidence: 100, required: true },
-  { role: '业务辅助字段', source: '重量', meaning: '重量', confidence: 89, required: false },
-  { role: '业务辅助字段', source: '司機', meaning: '承运商', confidence: 82, required: false },
 ])
 
 const previewRows = ref([
-  { row: 2, key: 'LWD032402', rawItem: '運費', item: '派送费', amount: '1,050.000', currency: 'TWD', type: '直接成本', match: '尾程包裹 LWD032402', issue: '' },
-  { row: 2, key: 'LWD032402', rawItem: '拖車及疊貨費', item: '派送附加费', amount: '18.400', currency: 'TWD', type: '直接成本', match: '尾程包裹 LWD032402', issue: '' },
-  { row: 3, key: 'DH53419', rawItem: '運費', item: '派送费', amount: '100.000', currency: 'TWD', type: '直接成本', match: '业务订单 SO260504419', issue: '' },
-  { row: 7, key: 'JC10121467-1', rawItem: '拖車及疊貨費', item: '派送附加费', amount: '43.200', currency: 'TWD', type: '直接成本', match: '尾程包裹 JC10121467-1', issue: '' },
-  { row: 11, key: 'AT78237951', rawItem: '運費', item: '派送费', amount: '145.000', currency: 'TWD', type: '直接成本', match: '匹配到 4 个尾程包裹', issue: '单号关系需确认' },
-  { row: 16, key: '', rawItem: '續倉費', item: '续仓费', amount: '484.000', currency: 'TWD', type: '间接成本', match: '待选择分摊池', issue: '无关键单号' },
+  { row: 2, key: 'LWD032402', rawItem: '運費', item: '派送费', amount: '1,050.000', currency: 'TWD', type: '直接成本', match: '尾程运单号 TP-TW-LWD032402', issue: '' },
+  { row: 2, key: 'LWD032402', rawItem: '拖車及疊貨費', item: '派送附加费', amount: '18.400', currency: 'TWD', type: '直接成本', match: '尾程运单号 TP-TW-LWD032402', issue: '' },
+  { row: 3, key: 'DH53419', rawItem: '運費', item: '派送费', amount: '100.000', currency: 'TWD', type: '直接成本', match: '业务订单号 SO260504419', issue: '' },
+  { row: 7, key: 'JC10121467-1', rawItem: '拖車及疊貨費', item: '派送附加费', amount: '43.200', currency: 'TWD', type: '直接成本', match: '尾程运单号 TP-TW-JC10121467-1', issue: '' },
+  { row: 11, key: 'AT78237951', rawItem: '運費', item: '派送费', amount: '145.000', currency: 'TWD', type: '间接成本', match: '追溯到 4 个业务对象，金额未拆分', issue: '无法形成唯一直接归属' },
+  { row: 16, key: '', rawItem: '續倉費', item: '续仓费', amount: '484.000', currency: 'TWD', type: '间接成本', match: '关键单号为空', issue: '无关键单号' },
 ])
 
 const sampleFiles = {
@@ -49,6 +47,8 @@ const selectedSupplier = computed(() => suppliers.value.find((item) => item.code
 const sheets = computed(() => sampleFiles[form.supplier]?.sheets || ['Sheet1'])
 const visiblePreview = computed(() => showIssuesOnly.value ? previewRows.value.filter((row) => row.issue) : previewRows.value)
 const totalAmount = computed(() => previewRows.value.reduce((sum, row) => sum + Number(row.amount.replaceAll(',', '')), 0))
+const keyMappings = computed(() => mappings.filter((item) => item.role === '关键单号'))
+const feeMappings = computed(() => mappings.filter((item) => item.role === '成本费项'))
 
 watch(() => form.supplier, (value) => {
   const sample = sampleFiles[value]
@@ -144,7 +144,13 @@ async function submit() {
 }
 function resolveIssue(row) {
   row.issue = ''
-  row.match = row.key ? '业务订单 SO260715951' : '租车费用分摊池 07月'
+  if (row.key) {
+    row.type = '直接成本'
+    row.match = '业务订单号 SO260715951'
+  } else {
+    row.type = '间接成本'
+    row.match = '未追溯到业务订单号或尾程运单号'
+  }
   ElMessage.success('异常已处理')
 }
 </script>
@@ -188,12 +194,20 @@ function resolveIssue(row) {
       </div>
       <div class="mapping-layout">
         <section class="mapping-table-wrap">
-          <div class="subsection-heading"><div><h3>核心字段配对</h3><p>系统先给出建议，财务确认后才会用于导入</p></div><span>识别完成度 100%</span></div>
-          <el-table :data="mappings" class="mapping-table">
-            <el-table-column label="财务字段" width="140"><template #default="scope"><strong>{{ scope.row.role }}<i v-if="scope.row.required">*</i></strong></template></el-table-column>
-            <el-table-column label="原始文件字段" min-width="180"><template #default="scope"><el-select v-model="scope.row.source" filterable><el-option v-for="item in ['追蹤號','提單號碼','運費','拖車及疊貨費','重量','司機','未提供','不导入']" :key="item" :label="item" :value="item" /></el-select></template></el-table-column>
-            <el-table-column label="业务含义 / 映射结果" min-width="210"><template #default="scope"><el-input v-model="scope.row.meaning" /></template></el-table-column>
-            <el-table-column label="识别可信度" width="128"><template #default="scope"><div class="confidence"><el-progress :percentage="scope.row.confidence" :show-text="false" :stroke-width="6" /><span>{{ scope.row.confidence }}%</span></div></template></el-table-column>
+          <div class="subsection-heading"><div><h3>关键单号识别</h3><p>最多采用一个关键单号。只有该单号可直接追溯到业务订单号或尾程运单号时，对应成本费项才可判为直接成本。</p></div><span>最多 1 个</span></div>
+          <el-table :data="keyMappings" class="mapping-table">
+            <el-table-column label="原始单号字段" min-width="180"><template #default="scope"><el-select v-model="scope.row.source" filterable><el-option v-for="item in ['追蹤號','提單號碼','轉單號','報單號','稅單號','櫃號','无关键单号']" :key="item" :label="item" :value="item" /></el-select></template></el-table-column>
+            <el-table-column label="关键单号类型" min-width="190"><template #default="scope"><el-input v-model="scope.row.meaning" /></template></el-table-column>
+            <el-table-column label="追溯检查" min-width="190"><template #default><span class="check-ok"><el-icon><CircleCheck /></el-icon>将逐行追溯我方单号</span></template></el-table-column>
+            <el-table-column label="识别结果" width="110"><template #default="scope"><span class="status-tag info">{{ scope.row.confidence }}% 可信</span></template></el-table-column>
+          </el-table>
+          <div class="rule-note compact"><el-icon><Warning /></el-icon><span>提单号、柜号、账单号、批次号等仅用于定位范围时，不构成直接成本依据；未选中的其它单号只保留在原始账单快照中。</span></div>
+          <div class="subsection-heading mapping-subheading"><div><h3>成本费项识别</h3><p>每个金额字段独立映射标准成本费项，成本类型在展开为明细后逐条推导。</p></div><span>{{ feeMappings.length }} 个金额字段</span></div>
+          <el-table :data="feeMappings" class="mapping-table">
+            <el-table-column label="原始成本费项" min-width="170"><template #default="scope"><el-select v-model="scope.row.source" filterable><el-option v-for="item in ['運費','拖車及疊貨費','續倉費','偏遠費','不导入']" :key="item" :label="item" :value="item" /></el-select></template></el-table-column>
+            <el-table-column label="标准成本费项" min-width="180"><template #default="scope"><el-input v-model="scope.row.meaning" /></template></el-table-column>
+            <el-table-column label="成本类型推导" min-width="190"><template #default="scope"><div class="key-cell"><span class="status-tag warning">{{ scope.row.inference }}</span><small>{{ scope.row.basis }}</small></div></template></el-table-column>
+            <el-table-column label="识别结果" width="110"><template #default="scope"><span class="status-tag success">{{ scope.row.confidence }}% 可信</span></template></el-table-column>
           </el-table>
         </section>
         <aside class="raw-preview">
@@ -202,7 +216,7 @@ function resolveIssue(row) {
           <div class="preview-legend"><span><i class="blue" />成本金额列</span><span><i class="amber" />第二费用列，将展开为独立成本明细</span></div>
         </aside>
       </div>
-      <div class="alias-callout"><el-icon><MagicStick /></el-icon><div><strong>发现 2 个供应商原始费项名称</strong><span>`運費`已映射为派送成本 / 派送费，`拖車及疊貨費`已映射为派送成本 / 派送附加费；确认导入后会更新当前供应商的费项别名。</span></div><el-button link type="primary">查看映射</el-button></div>
+      <div class="alias-callout"><el-icon><MagicStick /></el-icon><div><strong>原始字段快照</strong><span>未选为关键单号或成本费项的字段仍会原样保留，用于后续核对，但不会参与直接成本自动判定。</span></div></div>
     </div>
 
     <div v-else-if="active === 2" class="wizard-page preview-page">

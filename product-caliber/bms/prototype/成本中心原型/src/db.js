@@ -2,7 +2,7 @@ import Dexie from 'dexie'
 import { allocationPools, bills, costRows, suppliers } from './data'
 
 const DATABASE_NAME = 'BmsCostCenterPrototype'
-const SEED_VERSION = 1
+const SEED_VERSION = 2
 
 export const db = new Dexie(DATABASE_NAME)
 
@@ -80,7 +80,20 @@ async function writeSeedData() {
 export async function initializeDatabase() {
   await db.open()
   const seedState = await db.appSettings.get('seedVersion')
-  if (seedState) return
+  if (seedState?.value === SEED_VERSION) return
+  if (seedState) {
+    await db.transaction('rw', [db.costItems, db.appSettings], async () => {
+      const targetUpdates = {
+        'COST-260716-00128': { keyType: '供应商追踪号', target: '尾程运单号 AG099649-1' },
+        'COST-260716-00129': { keyType: '供应商追踪号', target: '尾程运单号 LWD032402' },
+        'COST-260714-00316': { target: '业务订单号 SO260619036' },
+        'COST-260714-00317': { target: '业务订单号 SO260623686' },
+      }
+      for (const [id, changes] of Object.entries(targetUpdates)) await db.costItems.update(id, changes)
+      await db.appSettings.put({ key: 'seedVersion', value: SEED_VERSION })
+    })
+    return
+  }
   await db.transaction('rw', db.tables, writeSeedData)
 }
 

@@ -11,7 +11,7 @@ const query = reactive({ keyword: '', module: '', status: '' })
 const selected = ref({ id: '', amount: 0, currency: '', module: '' })
 const drawerVisible = ref(false)
 const supplementVisible = ref(false)
-const supplement = reactive({ supplier: '', module: '', item: '', amount: '', currency: 'TWD', keyType: '', key: '', type: '直接成本' })
+const supplement = reactive({ supplier: '', module: '', item: '', amount: '', currency: 'TWD', keyType: '', key: '', type: '间接成本', targetType: '', targetNo: '' })
 const { data: costRows } = useLiveData(() => db.costItems.orderBy('id').reverse().toArray())
 
 const stats = [
@@ -26,6 +26,9 @@ const filtered = computed(() => costRows.value.filter((item) => (tab.value === '
 function view(row) { selected.value = row; drawerVisible.value = true }
 async function toggleType(row) {
   const next = row.type === '直接成本' ? '间接成本' : '直接成本'
+  if (next === '直接成本' && !/^(业务订单号|尾程运单号)\s+\S+/.test(row.target || '')) {
+    return ElMessage.warning('当前关键单号尚未直接追溯到业务订单号或尾程运单号，不能标记为直接成本')
+  }
   await ElMessageBox.confirm(`将该明细切换为${next}？系统会重新校验关键单号与业务对象关系。`, '切换成本类型', { confirmButtonText: '确认切换', cancelButtonText: '取消', type: 'warning' })
   await db.costItems.update(row.id, {
     type: next,
@@ -37,6 +40,7 @@ async function toggleType(row) {
 }
 async function submitSupplement() {
   if (!supplement.supplier || !supplement.module || !supplement.item || !supplement.amount) return ElMessage.warning('请补充必填字段')
+  if (supplement.type === '直接成本' && (!supplement.key || !supplement.targetType || !supplement.targetNo)) return ElMessage.warning('直接成本必须填写关键单号，并确认其追溯到的业务订单号或尾程运单号')
   const id = createBusinessId('COST-MANUAL')
   await db.costItems.add({
     id,
@@ -50,8 +54,8 @@ async function submitSupplement() {
     amount: Number(supplement.amount),
     currency: supplement.currency,
     type: supplement.type,
-    target: supplement.type === '间接成本' ? '尚未选择分摊池' : '待匹配业务对象',
-    status: supplement.type === '间接成本' ? '待处理' : '待人工匹配',
+    target: supplement.type === '间接成本' ? '尚未选择分摊集' : `${supplement.targetType} ${supplement.targetNo}`,
+    status: supplement.type === '间接成本' ? '待处理' : '已归属',
   })
   await recordOperation('成本明细', id, '手工补录成本')
   supplementVisible.value = false
@@ -89,8 +93,8 @@ async function submitSupplement() {
       <h4 class="section-title">标准成本字段</h4>
       <dl class="detail-grid"><div><dt>供应商</dt><dd>{{ selected.supplier }}</dd></div><div><dt>成本账单编号</dt><dd>{{ selected.bill }}</dd></div><div><dt>供应商原始费项</dt><dd>{{ selected.rawItem }}</dd></div><div><dt>标准成本费项</dt><dd>{{ selected.item }}</dd></div><div><dt>关键单号类型</dt><dd>{{ selected.keyType }}</dd></div><div><dt>关键单号</dt><dd>{{ selected.key }}</dd></div></dl>
       <h4 class="section-title">成本识别与归属</h4>
-      <div class="relation-path"><span>供应商侧单号<br><strong>{{ selected.key }}</strong></span><el-icon><Link /></el-icon><span>成本类型<br><strong>{{ selected.type }}</strong></span><el-icon><Link /></el-icon><span>当前归属<br><strong>{{ selected.target }}</strong></span></div>
-      <div class="notice-box">系统依据供应商侧单号与尾程运单号、我方业务订单号的关系建议成本类型。人工切换后仍会保留判断依据与操作记录。</div>
+      <div class="relation-path"><span>关键单号<br><strong>{{ selected.key || '无' }}</strong></span><el-icon><Link /></el-icon><span>追溯结果<br><strong>{{ selected.target }}</strong></span><el-icon><Link /></el-icon><span>成本类型<br><strong>{{ selected.type }}</strong></span></div>
+      <div class="notice-box">只有当前关键单号可直接追溯到业务订单号或尾程运单号时，成本费项才可标记为直接成本；其它单号、范围信息或人工标签不能替代该关系。</div>
     </el-drawer>
 
     <el-dialog v-model="supplementVisible" title="补录成本明细" width="680px">
@@ -100,8 +104,10 @@ async function submitSupplement() {
         <el-form-item label="标准成本费项" required><el-input v-model="supplement.item" placeholder="选择或搜索费项" /></el-form-item>
         <el-form-item label="成本类型" required><el-radio-group v-model="supplement.type"><el-radio-button value="直接成本">直接成本</el-radio-button><el-radio-button value="间接成本">间接成本</el-radio-button></el-radio-group></el-form-item>
         <el-form-item label="成本金额" required><el-input v-model="supplement.amount" placeholder="0.000"><template #append><el-select v-model="supplement.currency" style="width: 82px"><el-option label="CNY" value="CNY" /><el-option label="TWD" value="TWD" /><el-option label="USD" value="USD" /></el-select></template></el-input></el-form-item>
-        <el-form-item label="关键单号类型"><el-select v-model="supplement.keyType" clearable><el-option v-for="item in ['业务订单号','尾程运单号','提单号','柜号','无关键单号']" :key="item" :label="item" :value="item" /></el-select></el-form-item>
+        <el-form-item label="关键单号类型"><el-select v-model="supplement.keyType" clearable><el-option v-for="item in ['供应商追踪号','提单号','分提单号','柜号','报单号','税单号','无关键单号']" :key="item" :label="item" :value="item" /></el-select></el-form-item>
         <el-form-item label="关键单号" class="span-2"><el-input v-model="supplement.key" placeholder="直接成本须提供可追溯的关键单号" /></el-form-item>
+        <el-form-item v-if="supplement.type === '直接成本'" label="追溯对象类型" required><el-select v-model="supplement.targetType"><el-option label="业务订单号" value="业务订单号" /><el-option label="尾程运单号" value="尾程运单号" /></el-select></el-form-item>
+        <el-form-item v-if="supplement.type === '直接成本'" label="追溯对象编号" required><el-input v-model="supplement.targetNo" placeholder="输入已确认的我方单号" /></el-form-item>
       </el-form>
       <template #footer><el-button @click="supplementVisible = false">取消</el-button><el-button type="primary" @click="submitSupplement">确认补录</el-button></template>
     </el-dialog>

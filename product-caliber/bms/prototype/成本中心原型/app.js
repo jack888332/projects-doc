@@ -598,7 +598,7 @@ function wizardTwo() {
     const canEnter = validCell && item.standard !== "仅用于账单核对" && item.standard !== "选择标准成本费项";
     return { ...item, resolvedRow, cell: validCell ? `${item.column}${resolvedRow}` : "位置无效", value, validCell, canEnter };
   });
-  const selectionGuide = `<div class="inline-note">系统已引用上次导入设置；二维表由系统识别，零散字段由财务维护；未选中或无法标准化的数据仅保留在账单快照中。</div>`;
+  const selectionGuide = `<div class="inline-note">系统已引用上次导入设置，并按当前文件重新识别二维表结束行；零散字段由财务维护，未选中或无法标准化的数据仅保留在账单快照中。</div>`;
   const tablePanel = `<div class="mapping-toolbar recognition-toolbar"><button class="btn" data-action="reanalyze">${icon("scan-search")}自动识别</button><div class="sheet-range-editor"><div class="sheet-range-fields"><label>起始行<input id="sheet-range-start" class="input" type="number" min="1" step="1" value="${selectedSheet.s}"></label><label>结束行<input id="sheet-range-end" class="input" type="number" min="1" step="1" value="${selectedSheet.e}"></label></div></div></div>
     <section class="mapping-block key-mapping-block">
       <div class="mapping-block-head"><div><strong>关键单号识别</strong><span class="mapping-limit">最多 1 个</span></div><p>仅选定字段进入财务标准字段并用于匹配业务对象；其它单号随原始行完整保存在账单快照。</p></div>
@@ -623,13 +623,39 @@ function wizardTwo() {
 
 function wizardThree() {
   const f=sampleFiles.find(x=>x.id===state.selectedFile);
+  const sheets=currentSheets();
+  if(!sheets.some(s=>s.n===state.selectedSheet)) state.selectedSheet=sheets.find(s=>s.r==="成本明细")?.n||sheets[0].n;
+  const selectedSheet=sheets.find(s=>s.n===state.selectedSheet)||sheets[0];
   const sourceBill=bills.find(item=>item.file===f.name);
-  const previewCosts=costs.filter(item=>item.bill===sourceBill?.id).slice(0,4);
-  return `<div class="form-section"><div class="form-section-title">导入预览</div><div class="preview-summary"><div class="preview-metric"><span>拟生成成本明细</span><strong>${sourceBill?.rows || 0}</strong></div><div class="preview-metric"><span>直接成本</span><strong>${sourceBill?.direct || 0}</strong></div><div class="preview-metric"><span>间接成本</span><strong>${sourceBill?.indirect || 0}</strong></div><div class="preview-metric"><span>实际成本账期</span><strong class="compact-value">${state.costPeriodStart} 至 ${state.costPeriodEnd}</strong><small>${state.costPeriodAdjusted ? "财务已调整" : "采用系统推导值"}</small></div><div class="preview-metric"><span>拟入池金额</span><strong>${sourceBill?money(sourceBill.amount,sourceBill.currency):"-"}</strong></div></div>
-  <div class="validation-list"><div class="validation-item ok">${icon("circle-check")}文件仅包含当前供应商“${f.supplier}”的数据</div><div class="validation-item ok">${icon("circle-check")}原始账单合计与拟入池金额一致</div></div>
-  <div class="table-wrap"><table class="data-table"><thead><tr><th>原始行</th><th>关键单号</th><th>供应商原始费项</th><th>标准成本费项</th><th>金额</th><th>成本类型建议</th><th>归属结果</th><th>校验</th></tr></thead><tbody>
-  ${previewCosts.map((cost,index)=>`<tr><td>样本项 ${index+1}</td><td>${cost.key}</td><td>${cost.raw}</td><td>${cost.fee}</td><td class="num">${money(cost.amount,cost.currency)}</td><td>${tag(cost.type,cost.type==="直接成本"?"green":"orange")}</td><td>${cost.target}</td><td>${status("已匹配")}</td></tr>`).join("")}
-  </tbody></table></div></div>`;
+  const detailRows=costDetails.filter(item=>item.file===f.name&&item.sheet===selectedSheet.n);
+  const looseFields=state.looseFieldConfigs
+    .filter(item=>item.fileId===state.selectedFile&&item.sheet===selectedSheet.n)
+    .map(item=>{
+      const resolvedRow=item.rowMode==="relative"?selectedSheet.e+Number(item.rowValue):Number(item.rowValue);
+      const validCell=/^[A-Z]{1,3}$/.test(item.column)&&Number.isInteger(resolvedRow)&&resolvedRow>0&&(resolvedRow<selectedSheet.s||resolvedRow>selectedSheet.e);
+      const value=item.id==="loose-total"&&sourceBill
+        ? money(sourceBill.amount,sourceBill.currency)
+        : item.id==="loose-adjustment"
+          ? money(Math.max(320,Math.round((sourceBill?.amount||10000)*0.004)),item.currency||sourceBill?.currency||f.currency)
+          : "待读取";
+      const canEnter=validCell&&item.standard!=="仅用于账单核对"&&item.standard!=="选择标准成本费项";
+      return {...item,resolvedRow,cell:validCell?`${item.column}${resolvedRow}`:"位置无效",value,validCell,canEnter};
+    })
+    .filter(item=>item.selected&&item.canEnter);
+  const detailFieldCount=new Set(detailRows.map(item=>item.raw)).size;
+  const sheetList=sheets.map(sheet=>{
+    const sheetDetails=costDetails.filter(item=>item.file===f.name&&item.sheet===sheet.n);
+    const tableCount=new Set(sheetDetails.map(item=>item.raw)).size;
+    const sheetLooseCount=state.looseFieldConfigs.filter(item=>item.fileId===state.selectedFile&&item.sheet===sheet.n&&item.selected).length;
+    return `<button class="sheet-item ${sheet.n===state.selectedSheet?"active":""}" data-action="select-sheet" data-id="${sheet.n}">${icon("table-2")}<span class="sheet-name">${sheet.n}</span><span class="sheet-count-group" aria-label="实际采集到二维表成本费项 ${tableCount} 个，零散数值字段 ${sheetLooseCount} 个"><span class="sheet-count table-count ${tableCount>0?"has-value":""}" title="实际采集到的二维表成本费项数量：${tableCount}">${tableCount}</span><span class="sheet-count loose-count ${sheetLooseCount>0?"has-value":""}" title="已选中的零散数值字段数量：${sheetLooseCount}">${sheetLooseCount}</span></span></button>`;
+  }).join("");
+  const tablePanel=detailRows.length
+    ? `<div class="table-wrap import-preview-table"><table class="data-table"><thead><tr><th>工作表行</th><th>关键单号类型</th><th>关键单号</th><th>原始成本费项</th><th>标准成本费项</th><th>成本金额</th><th>成本类型</th><th>归属结果</th><th>状态</th></tr></thead><tbody>${detailRows.map(item=>`<tr><td class="mono">第 ${item.row} 行</td><td>${escapeHtml(item.keyType)}</td><td class="mono">${escapeHtml(item.key)}</td><td>${escapeHtml(item.raw)}</td><td>${escapeHtml(item.fee)}</td><td class="num strong">${money(item.amount,item.currency)}</td><td>${tag(item.type,item.type==="直接成本"?"green":"orange")}</td><td>${escapeHtml(item.target)}</td><td>${status(item.status)}</td></tr>`).join("")}</tbody></table></div>`
+    : `<div class="empty-state import-preview-empty"><div><strong>当前工作表没有拟入池的二维表数据</strong><span>返回第二步检查二维表范围、关键单号和成本费项映射。</span></div></div>`;
+  const loosePanel=looseFields.length
+    ? `<div class="table-wrap import-preview-table loose-preview-table"><table class="data-table"><thead><tr><th>字段名称</th><th>读取单元格</th><th>实际采集值</th><th>标准成本费项</th><th>币种</th><th>成本类型</th><th>入池结果</th></tr></thead><tbody>${looseFields.map(item=>`<tr><td>${escapeHtml(item.name)}</td><td class="mono">${item.cell}</td><td class="num strong">${item.value}</td><td>${escapeHtml(item.standard)}</td><td>${escapeHtml(item.currency||sourceBill?.currency||f.currency)}</td><td>${tag("间接成本","orange")}</td><td>${status("待分摊")}</td></tr>`).join("")}</tbody></table></div>`
+    : `<div class="empty-state import-preview-empty"><div><strong>当前工作表没有拟入池的零散数值字段</strong><span>只有第二步中已选中、位置有效且已完成标准化的字段才会出现在这里。</span></div></div>`;
+  return `<div class="form-section"><div class="inline-note">以下为当前工作表按照已确认设置实际采集、即将落入成本池的数据；如需调整，请返回第二步。</div><div class="sheet-layout"><div class="sheet-list" title="Excel 工作表" aria-label="Excel 工作表">${sheetList}</div><div class="mapping-area"><div class="import-data-tabs" role="tablist" aria-label="实际采集数据"><button class="import-data-tab ${state.importDataTab==="table"?"active":""}" role="tab" aria-selected="${state.importDataTab==="table"}" data-action="import-data-tab" data-value="table">成本费项二维表<span>${detailFieldCount}</span></button><button class="import-data-tab ${state.importDataTab==="loose"?"active":""}" role="tab" aria-selected="${state.importDataTab==="loose"}" data-action="import-data-tab" data-value="loose">零散数值字段<span>${looseFields.length}</span></button></div>${state.importDataTab==="table"?tablePanel:loosePanel}</div></div></div>`;
 }
 
 function renderPool() {

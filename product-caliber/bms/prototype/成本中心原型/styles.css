@@ -302,6 +302,12 @@ button { letter-spacing: 0; }
 .preview-summary { display: grid; grid-template-columns: repeat(5, minmax(120px,1fr)); gap: 8px; margin-bottom: 12px; }
 .preview-metric { border: 1px solid var(--border); padding: 10px; }
 .preview-metric span { color: var(--muted); font-size: 11px; }.preview-metric strong { display: block; margin-top: 5px; font-size: 18px; }
+.import-preview-table { margin-top: 10px; border: 1px solid var(--border); overflow: auto; }
+.import-preview-table .data-table { min-width: 1120px; }
+.loose-preview-table .data-table { min-width: 860px; }
+.import-preview-empty { margin-top: 10px; border: 1px dashed var(--border); min-height: 260px; }
+.import-preview-empty strong, .import-preview-empty span { display: block; }
+.import-preview-empty span { margin-top: 6px; }
 .validation-list { display: grid; gap: 6px; margin: 11px 0; }
 .validation-item { display: flex; align-items: center; gap: 7px; padding: 8px 9px; background: #f8f9fb; color: #4b5260; }
 .validation-item svg { width: 15px; }.validation-item.ok svg { color: var(--success); }.validation-item.warn svg { color: var(--warning); }

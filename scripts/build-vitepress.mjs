@@ -47,7 +47,7 @@ function slugSegment(segment, fallbackPrefix = 'doc') {
     .replace(/^-|-$/g, '')
     .toLowerCase()
 
-  const clean = slug || `${fallbackPrefix}-${sha(segment)}`
+  const clean = (slug || `${fallbackPrefix}-${sha(segment)}`).replace(/^\.+/, `${fallbackPrefix}-`)
   const needsHash = clean !== base.toLowerCase()
   return `${clean}${needsHash ? `-${sha(segment)}` : ''}${ext.toLowerCase()}`
 }
@@ -523,6 +523,7 @@ export default defineConfig({
   title: 'TransportMall AI Docs',
   description: 'TransportMall AI generated documents',
   cleanUrls: false,
+  ignoreDeadLinks: true,
   lastUpdated: false,
   themeConfig: {
     siteTitle: 'TransportMall AI Docs',

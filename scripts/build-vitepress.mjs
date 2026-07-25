@@ -450,7 +450,7 @@ function docFolder(doc) {
   const parts = (doc.path || '').split('/').filter(Boolean)
   if (parts.length === 0) return '根目录'
   if (parts.length === 1) return '根目录'
-  return parts[0]
+  return parts.slice(0, Math.min(2, parts.length - 1)).join('/')
 }
 
 function formatDocDate(value) {

@@ -15,7 +15,7 @@ const sourceName = config.source || 'transportmall/aidocs'
 const plantUmlServer = String(config.plantUmlServer || '').replace(/\/+$/, '')
 const plantUmlCommand = process.env.PLANTUML_BIN || config.plantUmlCommand || 'plantuml'
 const plantUmlJar = process.env.PLANTUML_JAR || config.plantUmlJar || '/opt/plantuml/plantuml.jar'
-const rendererVersion = `incremental-pages-v8:${base}:${siteTitle}:${plantUmlServer}:${plantUmlCommand}:${plantUmlJar}`
+const rendererVersion = `incremental-pages-v9:${base}:${siteTitle}:${plantUmlServer}:${plantUmlCommand}:${plantUmlJar}`
 const sourceRoots = config.sourceRoots || [
   { dir: 'technical-caliber', label: '技术口径' },
   { dir: 'product-caliber', label: '产品口径' }
@@ -468,9 +468,9 @@ function pageHtml(title, body, options = {}) {
   <style>
     :root { color-scheme: light dark; --fg: #1f2937; --muted: #6b7280; --line: #d7dde8; --soft: #f6f8fb; --brand: #2563eb; --code: #fff7ed; }
     @media (prefers-color-scheme: dark) { :root { --fg: #d8dee9; --muted: #9ca3af; --line: #374151; --soft: #111827; --brand: #60a5fa; --code: #1f2937; } body { background: #0f1117; } }
-    body { margin: 0; padding: 32px 40px 56px; color: var(--fg); font: 15px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    main { max-width: 1280px; margin: 0 auto; }
-    .reader { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 34px; align-items: start; }
+    body { margin: 0; padding: 28px clamp(16px, 2vw, 32px) 56px; color: var(--fg); font: 15px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { max-width: 1680px; margin: 0 auto; }
+    .reader { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; align-items: start; }
     article { min-width: 0; }
     .reader-side { position: sticky; top: 78px; max-height: calc(100vh - 96px); overflow: auto; border-left: 1px solid var(--line); padding-left: 16px; }
     .doc-meta { display: grid; gap: 8px; margin-bottom: 18px; color: var(--muted); font-size: 12px; }

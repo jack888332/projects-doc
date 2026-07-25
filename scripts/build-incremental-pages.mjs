@@ -758,8 +758,12 @@ function writeIndex() {
     .search { display:flex; align-items:center; gap:12px; margin:30px 0 14px; }
     .search input { width:min(560px, 100%); padding:12px 14px; border:1px solid var(--line); border-radius:8px; font-size:16px; }
     .count { color:var(--muted); white-space:nowrap; }
-    .toolbar { display:flex; align-items:center; gap:10px; margin:0 0 20px; color:var(--muted); font-size:14px; }
+    .toolbar { display:flex; flex-wrap:wrap; align-items:flex-start; gap:10px 18px; margin:0 0 20px; color:var(--muted); font-size:14px; }
+    .toolbar-group { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
     .toolbar select { padding:8px 34px 8px 10px; border:1px solid var(--line); border-radius:8px; color:var(--fg); background:#fff; font:inherit; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; }
+    .chip { width:auto; margin:0; padding:7px 10px; border:1px solid var(--line); border-radius:999px; background:#fff; line-height:1.2; }
+    .chip.active { border-color:#bad1ff; background:var(--active); }
     .browser { display:grid; grid-template-columns:260px 1fr; gap:28px; }
     aside { border-right:1px solid var(--line); padding-right:18px; }
     section { margin-bottom:28px; }
@@ -793,12 +797,14 @@ function writeIndex() {
     <h1>${escapeHtml(siteTitle)}</h1>
     <p class="lead">${escapeHtml(siteDescription)}</p>
     <div class="search"><input id="query" placeholder="搜索标题、路径、类型、来源、正文"><span id="count" class="count"></span></div>
-    <div class="toolbar"><span>排序</span><select id="sortBy"><option value="updated-desc">最近修改优先</option><option value="created-desc">最近创建优先</option><option value="title-asc">标题 A-Z</option></select></div>
+    <div class="toolbar">
+      <div class="toolbar-group"><span>排序</span><select id="sortBy"><option value="updated-desc">最近修改优先</option><option value="created-desc">最近创建优先</option><option value="title-asc">标题 A-Z</option></select></div>
+      <div class="toolbar-group"><span>置顶</span><div class="chips" id="pinned"></div></div>
+      <div class="toolbar-group"><span>收藏</span><div class="chips" id="favorites"></div></div>
+      <div class="toolbar-group"><span>标签</span><div class="chips" id="tags"></div></div>
+    </div>
     <div class="browser">
       <aside>
-        <section><strong>置顶</strong><div id="pinned"></div></section>
-        <section><strong>收藏</strong><div id="favorites"></div></section>
-        <section><strong>标签</strong><div id="tags"></div></section>
         <section><strong>来源</strong><div id="sources"></div></section>
         <section><strong>分类</strong><div id="groups"></div></section>
         <section><strong>目录</strong><div id="folders"></div></section>
@@ -868,7 +874,13 @@ function writeIndex() {
         .catch(() => { localDocs = []; });
     }
     function docs() { return localDocs.concat(externalDocs); }
-    function docKey(doc) { return (doc.source || sourceFallback) + '|' + (doc.url || doc.path || ''); }
+    function docHref(doc) {
+      let href = String(doc.url || doc.path || '');
+      href = href.replace(/\\.md(?=([?#]|$))/i, '.html');
+      href = href.replace(/\\.sql(?=([?#]|$))/i, '.sql.html');
+      return href || '#';
+    }
+    function docKey(doc) { return (doc.source || sourceFallback) + '|' + docHref(doc); }
     function isPinned(doc) { return pinnedKeys.has(docKey(doc)); }
     function isFavorite(doc) { return favoriteKeys.has(docKey(doc)); }
     function customTags(doc) {
@@ -954,12 +966,12 @@ function writeIndex() {
       const specials = '\\\\^$.*+?()[]{}|';
       return String(value).split('').map(ch => specials.includes(ch) ? '\\\\' + ch : ch).join('');
     }
-    function buttonList(el, values, active, onClick) {
+    function buttonList(el, values, active, onClick, className) {
       el.innerHTML = '';
       values.forEach(value => {
         const btn = document.createElement('button');
         btn.textContent = value;
-        btn.className = value === active ? 'active' : '';
+        btn.className = (className || '') + (value === active ? ' active' : '');
         btn.onclick = () => onClick(value);
         el.appendChild(btn);
       });
@@ -975,9 +987,9 @@ function writeIndex() {
         .filter(doc => activeGroup === '全部分类' || group(doc) === activeGroup)
         .filter(doc => activeFolder === '全部目录' || folder(doc) === activeFolder)
         .filter(doc => !value || (doc.title + ' ' + doc.path + ' ' + (doc.url || '') + ' ' + doc.type + ' ' + group(doc) + ' ' + (doc.source || '') + ' ' + customTags(doc).join(' ') + ' ' + (doc.content || '')).toLowerCase().includes(value)));
-      buttonList(document.getElementById('pinned'), ['全部', '只看置顶'], activePinned, value => { activePinned = value; render(); });
-      buttonList(document.getElementById('favorites'), ['全部', '只看收藏'], activeFavorite, value => { activeFavorite = value; render(); });
-      buttonList(document.getElementById('tags'), ['全部标签'].concat(unique(all.flatMap(customTags))), activeTag, value => { activeTag = value; render(); });
+      buttonList(document.getElementById('pinned'), ['全部', '只看置顶'], activePinned, value => { activePinned = value; render(); }, 'chip');
+      buttonList(document.getElementById('favorites'), ['全部', '只看收藏'], activeFavorite, value => { activeFavorite = value; render(); }, 'chip');
+      buttonList(document.getElementById('tags'), ['全部标签'].concat(unique(all.flatMap(customTags))), activeTag, value => { activeTag = value; render(); }, 'chip');
       buttonList(document.getElementById('sources'), ['全部来源'].concat(unique(all.map(doc => doc.source || sourceFallback))), activeSource, value => { activeSource = value; activeGroup = '全部分类'; activeFolder = '全部目录'; render(); });
       buttonList(document.getElementById('groups'), ['全部分类'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource).map(group))), activeGroup, value => { activeGroup = value; activeFolder = '全部目录'; render(); });
       buttonList(document.getElementById('folders'), ['全部目录'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource).filter(doc => activeGroup === '全部分类' || group(doc) === activeGroup).map(folder))), activeFolder, value => { activeFolder = value; render(); });
@@ -985,11 +997,12 @@ function writeIndex() {
       results.innerHTML = visible.map(doc => {
         const sample = snippet(doc, value);
         const key = docKey(doc);
+        const href = docHref(doc);
         const pinned = pinnedKeys.has(key);
         const favorite = favoriteKeys.has(key);
         const tags = customTags(doc);
         const tagsHtml = tags.length ? '<span class="tags">' + tags.map(tag => '<span class="tag">' + escapeHtmlClient(tag) + '</span>').join('') + '</span>' : '';
-        return '<div class="card"><button class="quick-action favorite' + (favorite ? ' active' : '') + '" title="' + (favorite ? '取消收藏' : '收藏') + '" data-favorite="' + escapeHtmlClient(key) + '">' + (favorite ? '★' : '☆') + '</button><button class="quick-action pin' + (pinned ? ' active' : '') + '" title="' + (pinned ? '取消置顶' : '置顶') + '" data-pin="' + escapeHtmlClient(key) + '">' + (pinned ? '↑' : '↟') + '</button><button class="quick-action tag-edit' + (tags.length ? ' active' : '') + '" title="编辑标签" data-tags="' + escapeHtmlClient(key) + '">标</button><b><a href="' + (doc.url || doc.path) + '">' + highlight(doc.title, value) + '</a></b><span class="meta">' + escapeHtmlClient(dateLine(doc)) + '</span>' + tagsHtml + '<span class="snippet">' + highlight(sample, value) + '</span><small>' + escapeHtmlClient((doc.source || sourceFallback) + ' · ' + group(doc) + ' · ' + doc.path) + '</small><em>' + escapeHtmlClient(doc.type) + '</em></div>';
+        return '<div class="card"><button class="quick-action favorite' + (favorite ? ' active' : '') + '" title="' + (favorite ? '取消收藏' : '收藏') + '" data-favorite="' + escapeHtmlClient(key) + '">' + (favorite ? '★' : '☆') + '</button><button class="quick-action pin' + (pinned ? ' active' : '') + '" title="' + (pinned ? '取消置顶' : '置顶') + '" data-pin="' + escapeHtmlClient(key) + '">' + (pinned ? '↑' : '↟') + '</button><button class="quick-action tag-edit' + (tags.length ? ' active' : '') + '" title="编辑标签" data-tags="' + escapeHtmlClient(key) + '">标</button><b><a href="' + escapeHtmlClient(href) + '">' + highlight(doc.title, value) + '</a></b><span class="meta">' + escapeHtmlClient(dateLine(doc)) + '</span>' + tagsHtml + '<span class="snippet">' + highlight(sample, value) + '</span><small>' + escapeHtmlClient((doc.source || sourceFallback) + ' · ' + group(doc) + ' · ' + doc.path) + '</small><em>' + escapeHtmlClient(doc.type) + '</em></div>';
       }).join('');
       results.querySelectorAll('[data-tags]').forEach(btn => {
         btn.addEventListener('click', event => {

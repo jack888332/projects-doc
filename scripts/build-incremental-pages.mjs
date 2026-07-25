@@ -15,7 +15,7 @@ const sourceName = config.source || 'transportmall/aidocs'
 const plantUmlServer = String(config.plantUmlServer || '').replace(/\/+$/, '')
 const plantUmlCommand = process.env.PLANTUML_BIN || config.plantUmlCommand || 'plantuml'
 const plantUmlJar = process.env.PLANTUML_JAR || config.plantUmlJar || '/opt/plantuml/plantuml.jar'
-const rendererVersion = `incremental-pages-v9:${base}:${siteTitle}:${plantUmlServer}:${plantUmlCommand}:${plantUmlJar}`
+const rendererVersion = `incremental-pages-v10:${base}:${siteTitle}:${plantUmlServer}:${plantUmlCommand}:${plantUmlJar}`
 const sourceRoots = config.sourceRoots || [
   { dir: 'technical-caliber', label: '技术口径' },
   { dir: 'product-caliber', label: '产品口径' }
@@ -479,6 +479,11 @@ function pageHtml(title, body, options = {}) {
     .doc-toc strong { display: block; margin: 0 0 8px; }
     .doc-toc a, .doc-toc span { display: block; padding: 5px 0; color: var(--muted); text-decoration: none; font-size: 13px; line-height: 1.45; }
     .doc-toc a:hover { color: var(--brand); }
+    .doc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .doc-action { width: auto; margin: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: transparent; font: inherit; font-size: 13px; cursor: pointer; }
+    .doc-action.active { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 36%, var(--line)); background: var(--soft); font-weight: 700; }
+    .doc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: -8px 0 16px; }
+    .doc-tag { padding: 1px 6px; border: 1px solid #bbf7d0; border-radius: 4px; color: #047857; background: #f0fdf4; font-size: 12px; }
     .toc-l3 { padding-left: 12px !important; }
     .toc-l4 { padding-left: 24px !important; }
     h1, h2, h3 { line-height: 1.35; margin: 1.8em 0 .7em; }
@@ -511,7 +516,7 @@ function pageHtml(title, body, options = {}) {
 </head>
 <body>
 <nav class="aidocs-topbar"><div class="aidocs-topbar-inner"><a class="aidocs-home" href="${homeHref()}">← 返回首页</a><span class="aidocs-title">${escapeHtml(siteTitle)}</span></div></nav>
-<main><div class="reader"><article>${body}</article><aside class="reader-side">${metaHtml}${tocHtml}</aside></div></main>
+<main><div class="reader"><article>${body}</article><aside class="reader-side"><section class="doc-actions"><button class="doc-action" id="docFavorite" type="button">☆ 收藏</button><button class="doc-action" id="docPin" type="button">↟ 置顶</button><button class="doc-action" id="docTagEdit" type="button">标 标签</button></section><section class="doc-tags" id="docTags"></section>${metaHtml}${tocHtml}</aside></div></main>
 <script>
   if (document.querySelector('.mermaid')) {
     const script = document.createElement('script');
@@ -519,6 +524,74 @@ function pageHtml(title, body, options = {}) {
     script.onload = () => window.mermaid && window.mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
     document.head.appendChild(script);
   }
+  (function () {
+    const source = ${JSON.stringify(meta.source || sourceName)};
+    const key = source + '|' + window.location.pathname;
+    const favoriteButton = document.getElementById('docFavorite');
+    const pinButton = document.getElementById('docPin');
+    const tagButton = document.getElementById('docTagEdit');
+    const tagsEl = document.getElementById('docTags');
+    function readSet(name) {
+      try {
+        const items = JSON.parse(localStorage.getItem(name) || '[]');
+        return new Set(Array.isArray(items) ? items : []);
+      } catch (_) {
+        return new Set();
+      }
+    }
+    function saveSet(name, value) {
+      localStorage.setItem(name, JSON.stringify(Array.from(value)));
+    }
+    function readTags() {
+      try {
+        const value = JSON.parse(localStorage.getItem('aidocs:tags') || '{}');
+        return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+      } catch (_) {
+        return {};
+      }
+    }
+    function saveTags(value) {
+      localStorage.setItem('aidocs:tags', JSON.stringify(value));
+    }
+    function render() {
+      const favorites = readSet('aidocs:favorites');
+      const pinned = readSet('aidocs:pinned');
+      const tagMap = readTags();
+      const tags = Array.isArray(tagMap[key]) ? tagMap[key] : [];
+      favoriteButton.className = 'doc-action' + (favorites.has(key) ? ' active' : '');
+      favoriteButton.textContent = favorites.has(key) ? '★ 已收藏' : '☆ 收藏';
+      pinButton.className = 'doc-action' + (pinned.has(key) ? ' active' : '');
+      pinButton.textContent = pinned.has(key) ? '↑ 已置顶' : '↟ 置顶';
+      tagButton.className = 'doc-action' + (tags.length ? ' active' : '');
+      tagsEl.innerHTML = tags.map(tag => '<span class="doc-tag">' + String(tag).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch])) + '</span>').join('');
+    }
+    favoriteButton.addEventListener('click', () => {
+      const favorites = readSet('aidocs:favorites');
+      if (favorites.has(key)) favorites.delete(key);
+      else favorites.add(key);
+      saveSet('aidocs:favorites', favorites);
+      render();
+    });
+    pinButton.addEventListener('click', () => {
+      const pinned = readSet('aidocs:pinned');
+      if (pinned.has(key)) pinned.delete(key);
+      else pinned.add(key);
+      saveSet('aidocs:pinned', pinned);
+      render();
+    });
+    tagButton.addEventListener('click', () => {
+      const tagMap = readTags();
+      const current = Array.isArray(tagMap[key]) ? tagMap[key].join(', ') : '';
+      const input = window.prompt('输入标签，多个用逗号、中文逗号或空格分隔；留空清除标签', current);
+      if (input === null) return;
+      const tags = Array.from(new Set(input.split(/[,，\\s]+/).map(item => item.trim()).filter(Boolean))).slice(0, 12);
+      if (tags.length) tagMap[key] = tags;
+      else delete tagMap[key];
+      saveTags(tagMap);
+      render();
+    });
+    render();
+  })();
 </script>
 </body>
 </html>`
@@ -527,12 +600,33 @@ function pageHtml(title, body, options = {}) {
 function injectHtmlChrome(html) {
   const style = `<style>
 .aidocs-home-link{position:fixed;top:14px;left:14px;z-index:2147483647;display:inline-flex;align-items:center;padding:7px 11px;border:1px solid #d7dde8;border-radius:6px;background:rgba(255,255,255,.92);color:#2563eb;text-decoration:none;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 4px 16px rgba(15,23,42,.12);backdrop-filter:blur(10px)}
+.aidocs-html-actions{position:fixed;top:14px;left:128px;z-index:2147483647;display:flex;gap:8px}
+.aidocs-html-action{padding:7px 10px;border:1px solid #d7dde8;border-radius:999px;background:rgba(255,255,255,.92);color:#667085;font:600 13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 4px 16px rgba(15,23,42,.12);backdrop-filter:blur(10px);cursor:pointer}
+.aidocs-html-action.active{color:#2563eb;background:#eff6ff;border-color:#93c5fd}
 @media (prefers-color-scheme:dark){.aidocs-home-link{border-color:#374151;background:rgba(17,24,39,.9);color:#60a5fa}}
+@media (prefers-color-scheme:dark){.aidocs-html-action{border-color:#374151;background:rgba(17,24,39,.9);color:#9ca3af}.aidocs-html-action.active{color:#60a5fa;background:#111827;border-color:#60a5fa}}
 </style>`
   const link = `<a class="aidocs-home-link" href="${homeHref()}">← 返回首页</a>`
+  const actions = `<div class="aidocs-html-actions"><button class="aidocs-html-action" id="aidocsHtmlFavorite" type="button">☆ 收藏</button><button class="aidocs-html-action" id="aidocsHtmlPin" type="button">↟ 置顶</button><button class="aidocs-html-action" id="aidocsHtmlTag" type="button">标 标签</button></div><script>
+(function(){
+  const key = ${JSON.stringify(sourceName)} + '|' + window.location.pathname;
+  const favoriteButton = document.getElementById('aidocsHtmlFavorite');
+  const pinButton = document.getElementById('aidocsHtmlPin');
+  const tagButton = document.getElementById('aidocsHtmlTag');
+  function readSet(name){try{const items=JSON.parse(localStorage.getItem(name)||'[]');return new Set(Array.isArray(items)?items:[])}catch(_){return new Set()}}
+  function saveSet(name,value){localStorage.setItem(name,JSON.stringify(Array.from(value)))}
+  function readTags(){try{const value=JSON.parse(localStorage.getItem('aidocs:tags')||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?value:{}}catch(_){return {}}}
+  function saveTags(value){localStorage.setItem('aidocs:tags',JSON.stringify(value))}
+  function render(){const favorites=readSet('aidocs:favorites');const pinned=readSet('aidocs:pinned');const tagMap=readTags();const tags=Array.isArray(tagMap[key])?tagMap[key]:[];favoriteButton.className='aidocs-html-action'+(favorites.has(key)?' active':'');favoriteButton.textContent=favorites.has(key)?'★ 已收藏':'☆ 收藏';pinButton.className='aidocs-html-action'+(pinned.has(key)?' active':'');pinButton.textContent=pinned.has(key)?'↑ 已置顶':'↟ 置顶';tagButton.className='aidocs-html-action'+(tags.length?' active':'')}
+  favoriteButton.addEventListener('click',function(){const favorites=readSet('aidocs:favorites');if(favorites.has(key))favorites.delete(key);else favorites.add(key);saveSet('aidocs:favorites',favorites);render()});
+  pinButton.addEventListener('click',function(){const pinned=readSet('aidocs:pinned');if(pinned.has(key))pinned.delete(key);else pinned.add(key);saveSet('aidocs:pinned',pinned);render()});
+  tagButton.addEventListener('click',function(){const tagMap=readTags();const current=Array.isArray(tagMap[key])?tagMap[key].join(', '):'';const input=window.prompt('输入标签，多个用逗号、中文逗号或空格分隔；留空清除标签',current);if(input===null)return;const tags=Array.from(new Set(input.split(/[,，\\\\s]+/).map(item=>item.trim()).filter(Boolean))).slice(0,12);if(tags.length)tagMap[key]=tags;else delete tagMap[key];saveTags(tagMap);render()});
+  render();
+})();
+</script>`
   let result = html
   result = /<\/head>/i.test(result) ? result.replace(/<\/head>/i, `${style}\n</head>`) : `${style}\n${result}`
-  result = /<body[^>]*>/i.test(result) ? result.replace(/<body[^>]*>/i, match => `${match}\n${link}`) : `${link}\n${result}`
+  result = /<body[^>]*>/i.test(result) ? result.replace(/<body[^>]*>/i, match => `${match}\n${link}${actions}`) : `${link}${actions}\n${result}`
   return result
 }
 
@@ -753,7 +847,7 @@ function writeIndex() {
     header { height:72px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:center; }
     header div { width:min(1120px, calc(100% - 32px)); display:flex; align-items:center; gap:24px; }
     h1 { font-size:42px; margin:54px 0 14px; }
-    main { width:min(1120px, calc(100% - 32px)); margin:0 auto 64px; }
+    main { width:min(1360px, calc(100% - 32px)); margin:0 auto 64px; }
     .lead { color:var(--muted); font-size:20px; }
     .search { display:flex; align-items:center; gap:12px; margin:30px 0 14px; }
     .search input { width:min(560px, 100%); padding:12px 14px; border:1px solid var(--line); border-radius:8px; font-size:16px; }
@@ -764,8 +858,10 @@ function writeIndex() {
     .chips { display:flex; flex-wrap:wrap; gap:6px; }
     .chip { width:auto; margin:0; padding:7px 10px; border:1px solid var(--line); border-radius:999px; background:#fff; line-height:1.2; }
     .chip.active { border-color:#bad1ff; background:var(--active); }
-    .browser { display:grid; grid-template-columns:260px 1fr; gap:28px; }
-    aside { border-right:1px solid var(--line); padding-right:18px; }
+    .browser { display:grid; grid-template-columns:240px minmax(0, 1fr) 220px; gap:28px; align-items:start; }
+    aside { min-width:0; }
+    .left-filters { border-right:1px solid var(--line); padding-right:18px; }
+    .right-filters { border-left:1px solid var(--line); padding-left:18px; }
     section { margin-bottom:28px; }
     section strong { display:block; margin-bottom:10px; }
     button { display:block; width:100%; margin:6px 0; padding:9px 12px; border:0; border-radius:8px; color:var(--muted); background:transparent; text-align:left; font:inherit; cursor:pointer; }
@@ -788,7 +884,8 @@ function writeIndex() {
     mark { padding:0 2px; border-radius:3px; color:#8a4b00; background:#fff1a8; }
     small { margin-top:auto; }
     em { width:fit-content; padding:2px 7px; border-radius:4px; color:var(--brand); background:#eef4ff; font-size:12px; font-style:normal; font-weight:700; }
-    @media (max-width: 860px) { h1 { font-size:32px; } .browser { grid-template-columns:1fr; } aside { border-right:0; border-bottom:1px solid var(--line); padding:0 0 16px; } }
+    @media (max-width: 1080px) { .browser { grid-template-columns:220px minmax(0, 1fr); } .right-filters { grid-column:1 / -1; border-left:0; border-top:1px solid var(--line); padding:16px 0 0; display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px; } }
+    @media (max-width: 860px) { h1 { font-size:32px; } .browser { grid-template-columns:1fr; } .left-filters { border-right:0; border-bottom:1px solid var(--line); padding:0 0 16px; } .right-filters { display:block; } }
   </style>
 </head>
 <body>
@@ -804,12 +901,14 @@ function writeIndex() {
       <div class="toolbar-group"><span>标签</span><div class="chips" id="tags"></div></div>
     </div>
     <div class="browser">
-      <aside>
-        <section><strong>来源</strong><div id="sources"></div></section>
-        <section><strong>分类</strong><div id="groups"></div></section>
+      <aside class="left-filters">
         <section><strong>目录</strong><div id="folders"></div></section>
       </aside>
       <div class="grid" id="results"></div>
+      <aside class="right-filters">
+        <section><strong>来源</strong><div id="sources"></div></section>
+        <section><strong>分类</strong><div id="groups"></div></section>
+      </aside>
     </div>
   </main>
   <script>

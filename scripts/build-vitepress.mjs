@@ -76,6 +76,29 @@ function yamlString(value) {
   return JSON.stringify(String(value))
 }
 
+function gitDates(file) {
+  const rel = path.relative(root, file)
+  const result = spawnSync('git', ['log', '--follow', '--format=%cI', '--', rel], {
+    cwd: root,
+    encoding: 'utf8'
+  })
+  const dates = result.status === 0
+    ? result.stdout.split(/\r?\n/).map(item => item.trim()).filter(Boolean)
+    : []
+  if (dates.length) {
+    return {
+      createdAt: dates[dates.length - 1],
+      updatedAt: dates[0]
+    }
+  }
+
+  const stat = fs.statSync(file)
+  return {
+    createdAt: stat.birthtime.toISOString(),
+    updatedAt: stat.mtime.toISOString()
+  }
+}
+
 function normalizeSearchText(value) {
   return String(value)
     .replace(/```[\s\S]*?```/g, block => block.replace(/```/g, ' '))
@@ -306,7 +329,8 @@ function copyMarkdown(file, rootInfo) {
     title,
     path: pageRel.replace(/\.md$/i, '.html'),
     type: 'MD',
-    group: rootInfo.label
+    group: rootInfo.label,
+    ...gitDates(file)
   })
 }
 
@@ -329,7 +353,8 @@ function copyHtml(file, rootInfo) {
     title,
     path: pageRel,
     type: 'HTML',
-    group: rootInfo.label
+    group: rootInfo.label,
+    ...gitDates(file)
   })
 }
 
@@ -347,7 +372,8 @@ function copyCodeDoc(file, rootInfo) {
     title,
     path: destRel.replace(/\.md$/i, '.html'),
     type: lang.toUpperCase(),
-    group: rootInfo.label
+    group: rootInfo.label,
+    ...gitDates(file)
   })
 }
 
@@ -360,9 +386,12 @@ function copyAsset(file, rootInfo) {
 }
 
 function writeIndex() {
-  const docs = docEntries.sort((a, b) => a.path.localeCompare(b.path))
+  const docs = docEntries.sort((a, b) => {
+    const byUpdated = String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
+    return byUpdated || a.path.localeCompare(b.path)
+  })
   const list = docs
-    .map(doc => `  { title: '${escapeJs(doc.title)}', path: '${escapeJs(doc.path)}', url: '/aidocs/${escapeJs(doc.path)}', type: '${doc.type}', group: '${escapeJs(doc.group)}', source: 'transportmall/aidocs' },`)
+    .map(doc => `  { title: '${escapeJs(doc.title)}', path: '${escapeJs(doc.path)}', url: '/aidocs/${escapeJs(doc.path)}', type: '${doc.type}', group: '${escapeJs(doc.group)}', source: 'transportmall/aidocs', createdAt: '${escapeJs(doc.createdAt || '')}', updatedAt: '${escapeJs(doc.updatedAt || '')}' },`)
     .join('\n')
   const externalIndexFile = path.join(root, 'external-indexes.json')
   const externalIndexScripts = fs.existsSync(externalIndexFile)
@@ -424,6 +453,26 @@ function docFolder(doc) {
   return parts[0]
 }
 
+function formatDocDate(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
+function docDateLine(doc) {
+  const created = formatDocDate(doc.createdAt)
+  const updated = formatDocDate(doc.updatedAt)
+  if (created && updated) return '创建 ' + created + ' · 修改 ' + updated
+  if (updated) return '修改 ' + updated
+  if (created) return '创建 ' + created
+  return ''
+}
+
 const sources = computed(() => ['全部来源', ...uniqueSorted(docs.value.map(doc => doc.source || 'transportmall/aidocs'))])
 const groups = computed(() => ['全部分类', ...uniqueSorted(docs.value
   .filter(doc => activeSource.value === '全部来源' || (doc.source || 'transportmall/aidocs') === activeSource.value)
@@ -452,7 +501,7 @@ const results = computed(() => {
     .filter(doc => activeFolder.value === '全部目录' || docFolder(doc) === activeFolder.value)
     .filter(doc => {
       if (!value) return true
-      return (doc.title + ' ' + doc.path + ' ' + (doc.url || '') + ' ' + doc.type + ' ' + docGroup(doc) + ' ' + (doc.source || '')).toLowerCase().includes(value)
+      return (doc.title + ' ' + doc.path + ' ' + (doc.url || '') + ' ' + doc.type + ' ' + docGroup(doc) + ' ' + (doc.source || '') + ' ' + (doc.createdAt || '') + ' ' + (doc.updatedAt || '')).toLowerCase().includes(value)
     })
 })
 </script>
@@ -488,6 +537,7 @@ const results = computed(() => {
     <div class="doc-grid">
       <a v-for="doc in results" :key="(doc.source || '') + ':' + doc.path" class="doc-card" :href="doc.url || doc.path">
         <b>{{ doc.title }}</b>
+        <span v-if="docDateLine(doc)" class="doc-meta">{{ docDateLine(doc) }}</span>
         <small>{{ doc.source || 'transportmall/aidocs' }} · {{ docGroup(doc) }} · {{ doc.path }}</small>
         <em>{{ doc.type }}</em>
       </a>
@@ -502,7 +552,9 @@ const results = computed(() => {
     url: `/aidocs/${doc.path}`,
     type: doc.type,
     group: doc.group,
-    source: 'transportmall/aidocs'
+    source: 'transportmall/aidocs',
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt
   }))
   ensureDir(path.join(src, 'public'))
   fs.writeFileSync(path.join(src, 'public', 'search-index.json'), `${JSON.stringify(searchIndex, null, 2)}\n`, 'utf8')
@@ -650,6 +702,10 @@ export default defineConfig({
 }
 
 .doc-card:hover { border-color: var(--vp-c-brand-1); }
+.doc-card .doc-meta {
+  color: var(--vp-c-text-2);
+  font-size: 12px;
+}
 .doc-card small { margin-top: auto; color: var(--vp-c-text-2); overflow-wrap: anywhere; }
 .doc-card em {
   width: fit-content;

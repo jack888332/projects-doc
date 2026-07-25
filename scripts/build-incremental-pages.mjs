@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
+import zlib from 'node:zlib'
 
 const root = process.cwd()
 const out = path.join(root, 'public')
@@ -11,7 +12,8 @@ const base = normalizeBase(config.base || '/aidocs/')
 const siteTitle = config.title || 'AI Docs'
 const siteDescription = config.description || '统一沉淀 AI 生成文档。'
 const sourceName = config.source || 'transportmall/aidocs'
-const rendererVersion = `incremental-pages-v5:${base}:${siteTitle}`
+const plantUmlServer = String(config.plantUmlServer || '').replace(/\/+$/, '')
+const rendererVersion = `incremental-pages-v6:${base}:${siteTitle}:${plantUmlServer}`
 const sourceRoots = config.sourceRoots || [
   { dir: 'technical-caliber', label: '技术口径' },
   { dir: 'product-caliber', label: '产品口径' }
@@ -132,7 +134,7 @@ function renderTable(lines) {
 
 function renderMarkdownLite(markdownText) {
   const lines = markdownText
-    .replace(/^```(?:plantuml|pre!)(?:\s+[^\r\n]*)?$/gim, '```text')
+    .replace(/^```pre!(?:\s+[^\r\n]*)?$/gim, '```text')
     .split(/\r?\n/)
   const html = []
   const toc = []
@@ -170,6 +172,18 @@ function renderMarkdownLite(markdownText) {
     }
     if (code) {
       code.lines.push(line)
+      continue
+    }
+    if (/^\s*@start\w*/i.test(line)) {
+      flushParagraph()
+      flushTable()
+      const block = [line]
+      while (index + 1 < lines.length && !/^\s*@end\w*/i.test(lines[index])) {
+        index += 1
+        block.push(lines[index])
+        if (/^\s*@end\w*/i.test(lines[index])) break
+      }
+      html.push(renderCodeBlock('plantuml', block.join('\n')))
       continue
     }
     if (line.includes('|') && (table.length || isTableDelimiter(lines[index + 1] || ''))) {
@@ -236,11 +250,61 @@ function headingId(text, index) {
 }
 
 function renderCodeBlock(lang, content) {
-  if (String(lang).toLowerCase() === 'mermaid') {
+  const normalizedLang = String(lang || '').toLowerCase()
+  if (normalizedLang === 'mermaid') {
     return `<div class="mermaid">${escapeHtml(content)}</div>`
+  }
+  if (['plantuml', 'puml', 'uml'].includes(normalizedLang)) {
+    return renderPlantUmlBlock(content)
   }
   const label = String(lang || 'text').trim() || 'text'
   return `<figure class="code-block"><figcaption>${escapeHtml(label)}</figcaption><pre><code>${escapeHtml(content)}</code></pre></figure>`
+}
+
+function renderPlantUmlBlock(content) {
+  const source = normalizePlantUmlSource(content)
+  if (!plantUmlServer) {
+    return `<figure class="code-block plantuml-source"><figcaption>plantuml</figcaption><pre><code>${escapeHtml(source)}</code></pre></figure>`
+  }
+  const imageUrl = `${plantUmlServer}/svg/${plantUmlEncode(source)}`
+  return `<figure class="plantuml-diagram"><figcaption>PlantUML</figcaption><img src="${imageUrl}" alt="PlantUML diagram" loading="lazy"><details><summary>查看源码</summary><pre><code>${escapeHtml(source)}</code></pre></details></figure>`
+}
+
+function normalizePlantUmlSource(content) {
+  const text = String(content).trim()
+  return /^@start\w*/i.test(text) ? text : `@startuml\n${text}\n@enduml`
+}
+
+function plantUmlEncode(source) {
+  return encodePlantUmlBytes(zlib.deflateRawSync(Buffer.from(source, 'utf8')))
+}
+
+function encodePlantUmlBytes(buffer) {
+  let result = ''
+  for (let index = 0; index < buffer.length; index += 3) {
+    result += append3bytes(buffer[index], buffer[index + 1] ?? 0, buffer[index + 2] ?? 0)
+  }
+  return result
+}
+
+function append3bytes(b1, b2, b3) {
+  const c1 = b1 >> 2
+  const c2 = ((b1 & 0x3) << 4) | (b2 >> 4)
+  const c3 = ((b2 & 0xF) << 2) | (b3 >> 6)
+  const c4 = b3 & 0x3F
+  return encode6bit(c1 & 0x3F) + encode6bit(c2 & 0x3F) + encode6bit(c3 & 0x3F) + encode6bit(c4 & 0x3F)
+}
+
+function encode6bit(value) {
+  if (value < 10) return String.fromCharCode(48 + value)
+  value -= 10
+  if (value < 26) return String.fromCharCode(65 + value)
+  value -= 26
+  if (value < 26) return String.fromCharCode(97 + value)
+  value -= 26
+  if (value === 0) return '-'
+  if (value === 1) return '_'
+  return '?'
 }
 
 function homeHref() {
@@ -312,6 +376,11 @@ function pageHtml(title, body, options = {}) {
     .code-block { margin: 16px 0; }
     .code-block figcaption { padding: 6px 10px; border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0; color: var(--muted); background: var(--soft); font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .mermaid { overflow: auto; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); text-align: center; }
+    .plantuml-diagram { margin: 18px 0; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); }
+    .plantuml-diagram figcaption { margin-bottom: 10px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .plantuml-diagram img { display: block; max-width: 100%; margin: 0 auto; }
+    .plantuml-diagram details { margin-top: 12px; color: var(--muted); }
+    .plantuml-diagram summary { cursor: pointer; }
     table { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; }
     th, td { border: 1px solid var(--line); padding: 8px 10px; vertical-align: top; }
     th { background: var(--soft); text-align: left; }

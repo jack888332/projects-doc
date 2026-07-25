@@ -4,6 +4,7 @@
   "title": "TransportMall AI Docs",
   "description": "统一沉淀 TransportMall 相关产品口径、技术口径、研发方案和运行手册。",
   "source": "transportmall/aidocs",
+  "plantUmlServer": "",
   "sourceRoots": [
     {
       "dir": "technical-caliber",

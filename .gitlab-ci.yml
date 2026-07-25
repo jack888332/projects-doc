@@ -1,0 +1,15 @@
+stages:
+  - deploy
+
+pages:
+  stage: deploy
+  tags:
+    - pages
+  image: 192.168.0.242:5000/docs/ai-docs-vitepress-builder:latest
+  script:
+    - node scripts/build-vitepress.mjs
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master

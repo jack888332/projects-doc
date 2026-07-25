@@ -11,3 +11,5 @@
 **/*.out
 **/*.err
 **/*.stackdump
+public/
+.vitepress-work/

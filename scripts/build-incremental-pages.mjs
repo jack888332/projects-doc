@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process'
 const root = process.cwd()
 const out = path.join(root, 'public')
 const cacheRoot = path.join(root, '.aidocs-cache')
-const rendererVersion = 'incremental-pages-v2'
+const rendererVersion = 'incremental-pages-v3'
 const sourceRoots = [
   { dir: 'technical-caliber', label: '技术口径' },
   { dir: 'product-caliber', label: '产品口径' }
@@ -145,10 +145,10 @@ function renderMarkdownLite(markdownText) {
       flushParagraph()
       flushTable()
       if (code) {
-        html.push(`<pre><code>${escapeHtml(code.lines.join('\n'))}</code></pre>`)
+        html.push(renderCodeBlock(code.lang, code.lines.join('\n')))
         code = null
       } else {
-        code = { lines: [] }
+        code = { lang: fence[1] || '', lines: [] }
       }
       continue
     }
@@ -204,8 +204,15 @@ function renderMarkdownLite(markdownText) {
   }
   flushParagraph()
   flushTable()
-  if (code) html.push(`<pre><code>${escapeHtml(code.lines.join('\n'))}</code></pre>`)
+  if (code) html.push(renderCodeBlock(code.lang, code.lines.join('\n')))
   return html.join('\n')
+}
+
+function renderCodeBlock(lang, content) {
+  if (String(lang).toLowerCase() === 'mermaid') {
+    return `<div class="mermaid">${escapeHtml(content)}</div>`
+  }
+  return `<pre><code>${escapeHtml(content)}</code></pre>`
 }
 
 function pageHtml(title, body) {
@@ -228,6 +235,7 @@ function pageHtml(title, body) {
     code { padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px; background: var(--code); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     pre { overflow: auto; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); }
     pre code { padding: 0; border: 0; background: transparent; }
+    .mermaid { overflow: auto; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); text-align: center; }
     table { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; }
     th, td { border: 1px solid var(--line); padding: 8px 10px; vertical-align: top; }
     th { background: var(--soft); text-align: left; }
@@ -236,7 +244,16 @@ function pageHtml(title, body) {
     @media (max-width: 720px) { body { padding: 20px 16px 40px; } h1 { font-size: 26px; } }
   </style>
 </head>
-<body><main>${body}</main></body>
+<body><main>${body}</main>
+<script>
+  if (document.querySelector('.mermaid')) {
+    const script = document.createElement('script');
+    script.src = '/aidocs/assets/mermaid.min.js';
+    script.onload = () => window.mermaid && window.mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+    document.head.appendChild(script);
+  }
+</script>
+</body>
 </html>`
 }
 
@@ -352,6 +369,17 @@ function copyAsset(file, rootInfo) {
   const dest = path.join(out, rootInfo.dir, safe)
   ensureDir(path.dirname(dest))
   fs.copyFileSync(file, dest)
+}
+
+function copyRootAssets() {
+  const assetDir = path.join(root, 'assets')
+  if (!fs.existsSync(assetDir)) return
+  for (const file of walk(assetDir)) {
+    const rel = path.relative(assetDir, file)
+    const dest = path.join(out, 'assets', safeRelPath(rel))
+    ensureDir(path.dirname(dest))
+    fs.copyFileSync(file, dest)
+  }
 }
 
 function docGroup(doc) {
@@ -544,5 +572,6 @@ for (const source of sourceRoots) {
   }
 }
 
+copyRootAssets()
 writeIndex()
 console.log(`incremental pages build complete: rendered=${stats.rendered}, cached=${stats.cached}, docs=${docEntries.length}`)

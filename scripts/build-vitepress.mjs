@@ -117,7 +117,9 @@ function searchSeedBlock(text) {
 }
 
 function sanitizeMarkdownForVitePress(text) {
-  return String(text).replace(/</g, '&lt;')
+  return String(text)
+    .replace(/^```(?:plantuml|pre!)(?:\s+[^\r\n]*)?$/gim, '```text')
+    .replace(/</g, '&lt;')
 }
 
 function renderInline(text) {

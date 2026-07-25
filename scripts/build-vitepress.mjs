@@ -360,6 +360,9 @@ function writeIndex() {
 import { ref, computed, onMounted } from 'vue'
 
 const query = ref('')
+const activeSource = ref('全部来源')
+const activeGroup = ref('全部分类')
+const activeFolder = ref('全部目录')
 const localDocs = [
 ${list}
 ]
@@ -386,10 +389,54 @@ onMounted(async () => {
 
 const docs = computed(() => [...localDocs, ...externalDocs.value])
 
+function uniqueSorted(values) {
+  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN'))
+}
+
+function docGroup(doc) {
+  if (doc.group) return doc.group
+  if ((doc.path || '').startsWith('technical-caliber/')) return '技术口径'
+  if ((doc.path || '').startsWith('product-caliber/')) return '产品口径'
+  return '外部文档'
+}
+
+function docFolder(doc) {
+  const parts = (doc.path || '').split('/').filter(Boolean)
+  if (parts.length === 0) return '根目录'
+  if (parts.length === 1) return '根目录'
+  return parts[0]
+}
+
+const sources = computed(() => ['全部来源', ...uniqueSorted(docs.value.map(doc => doc.source || 'transportmall/aidocs'))])
+const groups = computed(() => ['全部分类', ...uniqueSorted(docs.value
+  .filter(doc => activeSource.value === '全部来源' || (doc.source || 'transportmall/aidocs') === activeSource.value)
+  .map(docGroup))])
+const folders = computed(() => ['全部目录', ...uniqueSorted(docs.value
+  .filter(doc => activeSource.value === '全部来源' || (doc.source || 'transportmall/aidocs') === activeSource.value)
+  .filter(doc => activeGroup.value === '全部分类' || docGroup(doc) === activeGroup.value)
+  .map(docFolder))])
+
+function setSource(value) {
+  activeSource.value = value
+  activeGroup.value = '全部分类'
+  activeFolder.value = '全部目录'
+}
+
+function setGroup(value) {
+  activeGroup.value = value
+  activeFolder.value = '全部目录'
+}
+
 const results = computed(() => {
   const value = query.value.trim().toLowerCase()
-  if (!value) return docs.value
-  return docs.value.filter(doc => \`\${doc.title} \${doc.path} \${doc.url} \${doc.type} \${doc.group || ''} \${doc.source || ''}\`.toLowerCase().includes(value))
+  return docs.value
+    .filter(doc => activeSource.value === '全部来源' || (doc.source || 'transportmall/aidocs') === activeSource.value)
+    .filter(doc => activeGroup.value === '全部分类' || docGroup(doc) === activeGroup.value)
+    .filter(doc => activeFolder.value === '全部目录' || docFolder(doc) === activeFolder.value)
+    .filter(doc => {
+      if (!value) return true
+      return (doc.title + ' ' + doc.path + ' ' + (doc.url || '') + ' ' + doc.type + ' ' + docGroup(doc) + ' ' + (doc.source || '')).toLowerCase().includes(value)
+    })
 })
 </script>
 
@@ -398,12 +445,37 @@ const results = computed(() => {
   <span>{{ results.length }} / {{ docs.length }}</span>
 </div>
 
-<div class="doc-grid">
-  <a v-for="doc in results" :key="\`\${doc.source}:\${doc.path}\`" class="doc-card" :href="doc.url || doc.path">
-    <b>{{ doc.title }}</b>
-    <small>{{ doc.source || doc.group }} · {{ doc.path }}</small>
-    <em>{{ doc.type }}</em>
-  </a>
+<div class="doc-browser">
+  <aside class="doc-filters">
+    <section>
+      <strong>来源</strong>
+      <button v-for="item in sources" :key="item" :class="{ active: activeSource === item }" @click="setSource(item)">
+        {{ item }}
+      </button>
+    </section>
+    <section>
+      <strong>分类</strong>
+      <button v-for="item in groups" :key="item" :class="{ active: activeGroup === item }" @click="setGroup(item)">
+        {{ item }}
+      </button>
+    </section>
+    <section>
+      <strong>目录</strong>
+      <button v-for="item in folders" :key="item" :class="{ active: activeFolder === item }" @click="activeFolder = item">
+        {{ item }}
+      </button>
+    </section>
+  </aside>
+
+  <div class="doc-results">
+    <div class="doc-grid">
+      <a v-for="doc in results" :key="(doc.source || '') + ':' + doc.path" class="doc-card" :href="doc.url || doc.path">
+        <b>{{ doc.title }}</b>
+        <small>{{ doc.source || 'transportmall/aidocs' }} · {{ docGroup(doc) }} · {{ doc.path }}</small>
+        <em>{{ doc.type }}</em>
+      </a>
+    </div>
+  </div>
 </div>
 `, 'utf8')
 
@@ -473,6 +545,62 @@ export default defineConfig({
 
 .doc-search span { color: var(--vp-c-text-2); white-space: nowrap; }
 
+.doc-browser {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.doc-filters {
+  position: sticky;
+  top: 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-right: 16px;
+  border-right: 1px solid var(--vp-c-divider);
+}
+
+.doc-filters section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.doc-filters strong {
+  color: var(--vp-c-text-1);
+  font-size: 13px;
+}
+
+.doc-filters button {
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: var(--vp-c-text-2);
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.doc-filters button:hover {
+  color: var(--vp-c-text-1);
+  background: var(--vp-c-default-soft);
+}
+
+.doc-filters button.active {
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+  font-weight: 700;
+}
+
+.doc-results {
+  min-width: 0;
+}
+
 .doc-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -532,6 +660,20 @@ export default defineConfig({
 .VPDoc:has(.html-frame-wrap) .content-container,
 .VPDoc:has(.html-frame-wrap) .main { max-width: none !important; }
 .VPDoc:has(.html-frame-wrap) .aside { display: none; }
+
+@media (max-width: 860px) {
+  .doc-browser {
+    grid-template-columns: 1fr;
+  }
+
+  .doc-filters {
+    position: static;
+    padding-right: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--vp-c-divider);
+    padding-bottom: 16px;
+  }
+}
 `, 'utf8')
 
   fs.writeFileSync(path.join(src, '.vitepress', 'theme', 'index.ts'), `import DefaultTheme from 'vitepress/theme'

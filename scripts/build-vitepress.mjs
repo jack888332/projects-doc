@@ -369,7 +369,8 @@ const externalIndexScripts = ${JSON.stringify(externalIndexScripts, null, 2)}
 function loadExternalIndex(src) {
   return new Promise(resolve => {
     const script = document.createElement('script')
-    script.src = src
+    const separator = src.includes('?') ? '&' : '?'
+    script.src = src + separator + 't=' + Date.now()
     script.async = true
     script.onload = () => resolve(true)
     script.onerror = () => resolve(false)

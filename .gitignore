@@ -13,3 +13,4 @@
 **/*.stackdump
 public/
 .vitepress-work/
+.aidocs-cache/

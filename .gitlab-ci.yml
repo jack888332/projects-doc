@@ -6,8 +6,12 @@ pages:
   tags:
     - pages
   image: 192.168.0.242:5000/docs/ai-docs-vitepress-builder:latest
+  cache:
+    key: "$CI_PROJECT_PATH_SLUG-pages-render-cache"
+    paths:
+      - .aidocs-cache/
   script:
-    - node scripts/build-vitepress.mjs
+    - node scripts/build-incremental-pages.mjs
   artifacts:
     paths:
       - public/

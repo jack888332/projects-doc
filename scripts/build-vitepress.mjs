@@ -364,11 +364,17 @@ function copyCodeDoc(file, rootInfo) {
   const rel = path.relative(path.join(root, rootInfo.dir), file)
   const safe = safeRelPath(`${rel}.md`)
   const destRel = path.posix.join(rootInfo.dir, safe).replace(/\\/g, '/')
-  const dest = path.join(src, destRel)
+  const rawRel = path.posix.join('_code', rootInfo.dir, safe.replace(/\.md$/i, '.html')).replace(/\\/g, '/')
+  const rawDest = path.join(src, 'public', rawRel)
   const title = path.basename(file)
   const lang = path.extname(file).slice(1) || 'text'
-  ensureDir(path.dirname(dest))
-  fs.writeFileSync(dest, `---\ntitle: ${yamlString(title)}\n---\n\n# ${title}\n\n\`\`\`${lang}\n${fs.readFileSync(file, 'utf8')}\n\`\`\`\n`, 'utf8')
+  const body = fs.readFileSync(file, 'utf8')
+  ensureDir(path.dirname(rawDest))
+  fs.writeFileSync(rawDest, renderStandaloneHtml(title, `<h1>${escapeHtml(title)}</h1>\n<pre><code>${escapeHtml(body)}</code></pre>`), 'utf8')
+
+  const wrapper = path.join(src, destRel)
+  ensureDir(path.dirname(wrapper))
+  fs.writeFileSync(wrapper, `---\ntitle: ${yamlString(title)}\noutline: false\n---\n\n<div class="html-frame-wrap">\n  <iframe class="html-frame" src="/aidocs/${rawRel}" title="${escapeHtml(title)}"></iframe>\n</div>\n`, 'utf8')
 
   docEntries.push({
     title,

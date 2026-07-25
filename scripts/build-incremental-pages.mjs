@@ -755,9 +755,11 @@ function writeIndex() {
     h1 { font-size:42px; margin:54px 0 14px; }
     main { width:min(1120px, calc(100% - 32px)); margin:0 auto 64px; }
     .lead { color:var(--muted); font-size:20px; }
-    .search { display:flex; align-items:center; gap:12px; margin:30px 0 20px; }
+    .search { display:flex; align-items:center; gap:12px; margin:30px 0 14px; }
     .search input { width:min(560px, 100%); padding:12px 14px; border:1px solid var(--line); border-radius:8px; font-size:16px; }
     .count { color:var(--muted); white-space:nowrap; }
+    .toolbar { display:flex; align-items:center; gap:10px; margin:0 0 20px; color:var(--muted); font-size:14px; }
+    .toolbar select { padding:8px 34px 8px 10px; border:1px solid var(--line); border-radius:8px; color:var(--fg); background:#fff; font:inherit; }
     .browser { display:grid; grid-template-columns:260px 1fr; gap:28px; }
     aside { border-right:1px solid var(--line); padding-right:18px; }
     section { margin-bottom:28px; }
@@ -781,6 +783,7 @@ function writeIndex() {
     <h1>${escapeHtml(siteTitle)}</h1>
     <p class="lead">${escapeHtml(siteDescription)}</p>
     <div class="search"><input id="query" placeholder="搜索标题、路径、类型、来源、正文"><span id="count" class="count"></span></div>
+    <div class="toolbar"><span>排序</span><select id="sortBy"><option value="updated-desc">最近修改优先</option><option value="created-desc">最近创建优先</option><option value="title-asc">标题 A-Z</option></select></div>
     <div class="browser">
       <aside>
         <section><strong>来源</strong><div id="sources"></div></section>
@@ -799,6 +802,7 @@ function writeIndex() {
     let activeFolder = '全部目录';
     const sourceFallback = ${JSON.stringify(sourceName)};
     const query = document.getElementById('query');
+    const sortBy = document.getElementById('sortBy');
     const count = document.getElementById('count');
     const results = document.getElementById('results');
     function loadExternalIndex(src) {
@@ -841,6 +845,18 @@ function writeIndex() {
       if (created && updated) return '创建 ' + created + ' · 修改 ' + updated;
       return updated ? '修改 ' + updated : created ? '创建 ' + created : '';
     }
+    function timeValue(value) {
+      const time = new Date(value || 0).getTime();
+      return Number.isNaN(time) ? 0 : time;
+    }
+    function sortDocs(items) {
+      const mode = sortBy.value;
+      return items.slice().sort((a, b) => {
+        if (mode === 'created-desc') return timeValue(b.createdAt) - timeValue(a.createdAt) || String(a.path || '').localeCompare(String(b.path || ''), 'zh-CN');
+        if (mode === 'title-asc') return String(a.title || '').localeCompare(String(b.title || ''), 'zh-CN') || String(a.path || '').localeCompare(String(b.path || ''), 'zh-CN');
+        return timeValue(b.updatedAt) - timeValue(a.updatedAt) || String(a.path || '').localeCompare(String(b.path || ''), 'zh-CN');
+      });
+    }
     function snippet(doc, value) {
       const text = String(doc.content || doc.title || doc.path || '').replace(/\\s+/g, ' ').trim();
       if (!text) return '';
@@ -873,11 +889,11 @@ function writeIndex() {
     function render() {
       const all = docs();
       const value = query.value.trim().toLowerCase();
-      const visible = all
+      const visible = sortDocs(all
         .filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource)
         .filter(doc => activeGroup === '全部分类' || group(doc) === activeGroup)
         .filter(doc => activeFolder === '全部目录' || folder(doc) === activeFolder)
-        .filter(doc => !value || (doc.title + ' ' + doc.path + ' ' + (doc.url || '') + ' ' + doc.type + ' ' + group(doc) + ' ' + (doc.source || '') + ' ' + (doc.content || '')).toLowerCase().includes(value));
+        .filter(doc => !value || (doc.title + ' ' + doc.path + ' ' + (doc.url || '') + ' ' + doc.type + ' ' + group(doc) + ' ' + (doc.source || '') + ' ' + (doc.content || '')).toLowerCase().includes(value)));
       buttonList(document.getElementById('sources'), ['全部来源'].concat(unique(all.map(doc => doc.source || sourceFallback))), activeSource, value => { activeSource = value; activeGroup = '全部分类'; activeFolder = '全部目录'; render(); });
       buttonList(document.getElementById('groups'), ['全部分类'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource).map(group))), activeGroup, value => { activeGroup = value; activeFolder = '全部目录'; render(); });
       buttonList(document.getElementById('folders'), ['全部目录'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource).filter(doc => activeGroup === '全部分类' || group(doc) === activeGroup).map(folder))), activeFolder, value => { activeFolder = value; render(); });
@@ -891,6 +907,7 @@ function writeIndex() {
       return String(value).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
     }
     query.addEventListener('input', render);
+    sortBy.addEventListener('change', render);
     window.__AIDOCS_EXTERNAL_INDEXES__ = [];
     Promise.all([loadLocalIndex()].concat(externalIndexScripts.map(loadExternalIndex))).then(() => {
       externalDocs = (window.__AIDOCS_EXTERNAL_INDEXES__ || []).flatMap(item => item.docs || []);

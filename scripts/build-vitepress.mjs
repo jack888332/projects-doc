@@ -76,6 +76,23 @@ function yamlString(value) {
   return JSON.stringify(String(value))
 }
 
+function normalizeSearchText(value) {
+  return String(value)
+    .replace(/```[\s\S]*?```/g, block => block.replace(/```/g, ' '))
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[#>*_`|[\](){}!-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function searchSeedBlock(text) {
+  const seed = normalizeSearchText(text)
+  if (!seed) return ''
+  return `\n\n<div class="search-seed" v-pre>${escapeHtml(seed)}</div>\n`
+}
+
 function renderInline(text) {
   return escapeHtml(text)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -284,7 +301,7 @@ function copyMarkdown(file, rootInfo) {
 
   const wrapper = path.join(src, pageRel)
   ensureDir(path.dirname(wrapper))
-  fs.writeFileSync(wrapper, `---\ntitle: ${yamlString(title)}\noutline: false\n---\n\n<div class="html-frame-wrap">\n  <iframe class="html-frame" src="/aidocs/${rawRel}" title="${escapeHtml(title)}"></iframe>\n</div>\n`, 'utf8')
+  fs.writeFileSync(wrapper, `---\ntitle: ${yamlString(title)}\noutline: false\n---\n\n<div class="html-frame-wrap">\n  <iframe class="html-frame" src="/aidocs/${rawRel}" title="${escapeHtml(title)}"></iframe>\n</div>${searchSeedBlock(body)}\n`, 'utf8')
 
   docEntries.push({
     title,
@@ -301,12 +318,13 @@ function copyHtml(file, rootInfo) {
   const rawRel = path.posix.join('_html', rootInfo.dir, safe).replace(/\\/g, '/')
   const rawDest = path.join(src, 'public', rawRel)
   ensureDir(path.dirname(rawDest))
+  const body = fs.readFileSync(file, 'utf8')
   fs.copyFileSync(file, rawDest)
 
   const title = titleFromHtml(file)
   const wrapper = path.join(src, pageRel.replace(/\.html$/i, '.md'))
   ensureDir(path.dirname(wrapper))
-  fs.writeFileSync(wrapper, `---\ntitle: ${yamlString(title)}\noutline: false\n---\n\n<div class="html-frame-wrap">\n  <iframe class="html-frame" src="/aidocs/${rawRel}" title="${escapeHtml(title)}"></iframe>\n</div>\n`, 'utf8')
+  fs.writeFileSync(wrapper, `---\ntitle: ${yamlString(title)}\noutline: false\n---\n\n<div class="html-frame-wrap">\n  <iframe class="html-frame" src="/aidocs/${rawRel}" title="${escapeHtml(title)}"></iframe>\n</div>${searchSeedBlock(body)}\n`, 'utf8')
 
   docEntries.push({
     title,
@@ -595,6 +613,17 @@ export default defineConfig({
   color: var(--vp-c-brand-1);
   background: var(--vp-c-brand-soft);
   font-weight: 700;
+}
+
+.search-seed {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .doc-results {

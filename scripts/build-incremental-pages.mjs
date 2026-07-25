@@ -13,7 +13,9 @@ const siteTitle = config.title || 'AI Docs'
 const siteDescription = config.description || '统一沉淀 AI 生成文档。'
 const sourceName = config.source || 'transportmall/aidocs'
 const plantUmlServer = String(config.plantUmlServer || '').replace(/\/+$/, '')
-const rendererVersion = `incremental-pages-v6:${base}:${siteTitle}:${plantUmlServer}`
+const plantUmlCommand = process.env.PLANTUML_BIN || config.plantUmlCommand || 'plantuml'
+const plantUmlJar = process.env.PLANTUML_JAR || config.plantUmlJar || '/opt/plantuml/plantuml.jar'
+const rendererVersion = `incremental-pages-v8:${base}:${siteTitle}:${plantUmlServer}:${plantUmlCommand}:${plantUmlJar}`
 const sourceRoots = config.sourceRoots || [
   { dir: 'technical-caliber', label: '技术口径' },
   { dir: 'product-caliber', label: '产品口径' }
@@ -22,6 +24,8 @@ const sourceRoots = config.sourceRoots || [
 const docEntries = []
 const ignoredPathParts = new Set(['.git', 'public', '.vitepress-work', '.aidocs-cache', 'node_modules'])
 const ignoredRelativePrefixes = ['technical-caliber/startup/tools/']
+let plantUmlLocalRendererMemo
+let plantUmlRendererCacheKeyMemo
 
 function readConfig() {
   const configFile = path.join(root, 'docs-build.config.json')
@@ -41,6 +45,18 @@ function ensureDir(target) {
   fs.mkdirSync(target, { recursive: true })
 }
 
+function commandExists(command) {
+  const result = spawnSync('sh', ['-lc', `command -v ${shellQuote(command)}`], {
+    cwd: root,
+    encoding: 'utf8'
+  })
+  return result.status === 0
+}
+
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, "'\\''")}'`
+}
+
 function sha(value) {
   return crypto.createHash('sha1').update(value).digest('hex').slice(0, 10)
 }
@@ -48,8 +64,22 @@ function sha(value) {
 function fileHash(file) {
   return crypto.createHash('sha1')
     .update(rendererVersion)
+    .update(plantUmlRendererCacheKey())
     .update(fs.readFileSync(file))
     .digest('hex')
+}
+
+function plantUmlRendererCacheKey() {
+  if (plantUmlRendererCacheKeyMemo) return plantUmlRendererCacheKeyMemo
+  const localRenderer = plantUmlLocalRenderer()
+  if (localRenderer) {
+    plantUmlRendererCacheKeyMemo = `plantuml-local:${localRenderer.command}:${localRenderer.args.join(' ')}`
+  } else if (plantUmlServer) {
+    plantUmlRendererCacheKeyMemo = `plantuml-server:${plantUmlServer}`
+  } else {
+    plantUmlRendererCacheKeyMemo = 'plantuml-source'
+  }
+  return plantUmlRendererCacheKeyMemo
 }
 
 function slugSegment(segment, fallbackPrefix = 'doc') {
@@ -132,6 +162,27 @@ function renderTable(lines) {
   return `<table><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`
 }
 
+function htmlBlockTag(line) {
+  const match = /^\s*<([a-z][a-z0-9-]*)(\s|>|\/>)/i.exec(line)
+  if (!match) return ''
+  const tag = match[1].toLowerCase()
+  const allowed = new Set(['div', 'table', 'details', 'summary', 'figure', 'figcaption', 'img', 'section', 'article'])
+  return allowed.has(tag) ? tag : ''
+}
+
+function isSelfClosingHtmlTag(tag, line) {
+  return ['img'].includes(tag) || /\/>\s*$/.test(line)
+}
+
+function renderHtmlBlock(rawHtml) {
+  const safeHtml = String(rawHtml)
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(href|src)\s*=\s*(['"])\s*javascript:[\s\S]*?\2/gi, '$1="#"')
+  return `<div class="raw-html-block">${safeHtml}</div>`
+}
+
 function renderMarkdownLite(markdownText) {
   const lines = markdownText
     .replace(/^```pre!(?:\s+[^\r\n]*)?$/gim, '```text')
@@ -172,6 +223,22 @@ function renderMarkdownLite(markdownText) {
     }
     if (code) {
       code.lines.push(line)
+      continue
+    }
+    const blockTag = htmlBlockTag(line)
+    if (blockTag) {
+      flushParagraph()
+      flushTable()
+      const block = [line]
+      const closeTag = `</${blockTag}>`
+      if (!isSelfClosingHtmlTag(blockTag, line)) {
+        while (index + 1 < lines.length && !lines[index].toLowerCase().includes(closeTag)) {
+          index += 1
+          block.push(lines[index])
+          if (lines[index].toLowerCase().includes(closeTag)) break
+        }
+      }
+      html.push(renderHtmlBlock(block.join('\n')))
       continue
     }
     if (/^\s*@start\w*/i.test(line)) {
@@ -263,11 +330,60 @@ function renderCodeBlock(lang, content) {
 
 function renderPlantUmlBlock(content) {
   const source = normalizePlantUmlSource(content)
+  const localSvg = renderPlantUmlSvg(source)
+  if (localSvg) {
+    return `<figure class="plantuml-diagram"><figcaption>PlantUML</figcaption><img src="${localSvg}" alt="PlantUML diagram" loading="lazy"><details><summary>查看源码</summary><pre><code>${escapeHtml(source)}</code></pre></details></figure>`
+  }
   if (!plantUmlServer) {
     return `<figure class="code-block plantuml-source"><figcaption>plantuml</figcaption><pre><code>${escapeHtml(source)}</code></pre></figure>`
   }
   const imageUrl = `${plantUmlServer}/svg/${plantUmlEncode(source)}`
   return `<figure class="plantuml-diagram"><figcaption>PlantUML</figcaption><img src="${imageUrl}" alt="PlantUML diagram" loading="lazy"><details><summary>查看源码</summary><pre><code>${escapeHtml(source)}</code></pre></details></figure>`
+}
+
+function renderPlantUmlSvg(source) {
+  const localRenderer = plantUmlLocalRenderer()
+  if (!localRenderer) return ''
+  const fileName = `${sha(source)}.svg`
+  const cacheFile = path.join(cacheRoot, 'plantuml', fileName)
+  const outFile = path.join(out, 'assets', 'plantuml', fileName)
+  ensureDir(path.dirname(cacheFile))
+  ensureDir(path.dirname(outFile))
+  if (fs.existsSync(cacheFile)) {
+    fs.copyFileSync(cacheFile, outFile)
+    return `${base}assets/plantuml/${fileName}`
+  }
+  const result = spawnSync(localRenderer.command, localRenderer.args, {
+    cwd: root,
+    input: source,
+    encoding: 'utf8',
+    maxBuffer: 20 * 1024 * 1024
+  })
+  if (result.status !== 0 || !String(result.stdout || '').includes('<svg')) {
+    const error = String(result.stderr || result.stdout || '').trim()
+    console.warn(`PlantUML render skipped: ${error.slice(0, 300) || 'unknown error'}`)
+    return ''
+  }
+  fs.writeFileSync(cacheFile, result.stdout, 'utf8')
+  fs.copyFileSync(cacheFile, outFile)
+  return `${base}assets/plantuml/${fileName}`
+}
+
+function plantUmlLocalRenderer() {
+  if (plantUmlLocalRendererMemo !== undefined) return plantUmlLocalRendererMemo
+  if (commandExists(plantUmlCommand)) {
+    plantUmlLocalRendererMemo = { command: plantUmlCommand, args: ['-tsvg', '-pipe', '-charset', 'UTF-8'] }
+    return plantUmlLocalRendererMemo
+  }
+  if (fs.existsSync(plantUmlJar) && commandExists('java')) {
+    plantUmlLocalRendererMemo = {
+      command: 'java',
+      args: ['-Djava.awt.headless=true', '-jar', plantUmlJar, '-tsvg', '-pipe', '-charset', 'UTF-8']
+    }
+    return plantUmlLocalRendererMemo
+  }
+  plantUmlLocalRendererMemo = null
+  return plantUmlLocalRendererMemo
 }
 
 function normalizePlantUmlSource(content) {
@@ -381,6 +497,8 @@ function pageHtml(title, body, options = {}) {
     .plantuml-diagram img { display: block; max-width: 100%; margin: 0 auto; }
     .plantuml-diagram details { margin-top: 12px; color: var(--muted); }
     .plantuml-diagram summary { cursor: pointer; }
+    .raw-html-block { margin: 16px 0; overflow-x: auto; }
+    .raw-html-block table { width: max-content; max-width: none; }
     table { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; }
     th, td { border: 1px solid var(--line); padding: 8px 10px; vertical-align: top; }
     th { background: var(--soft); text-align: left; }
@@ -561,6 +679,27 @@ function copyRootAssets() {
     const dest = path.join(out, 'assets', safeRelPath(rel))
     ensureDir(path.dirname(dest))
     fs.copyFileSync(file, dest)
+  }
+}
+
+function copyCachedPlantUmlAssets() {
+  const sourceDir = path.join(cacheRoot, 'plantuml')
+  if (!fs.existsSync(sourceDir)) return
+  const pending = [sourceDir]
+  while (pending.length) {
+    const current = pending.pop()
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name)
+      if (entry.isDirectory()) {
+        pending.push(full)
+        continue
+      }
+      if (path.extname(entry.name).toLowerCase() !== '.svg') continue
+      const rel = path.relative(sourceDir, full)
+      const dest = path.join(out, 'assets', 'plantuml', safeRelPath(rel))
+      ensureDir(path.dirname(dest))
+      fs.copyFileSync(full, dest)
+    }
   }
 }
 
@@ -780,5 +919,6 @@ for (const source of sourceRoots) {
 }
 
 copyRootAssets()
+copyCachedPlantUmlAssets()
 writeIndex()
 console.log(`incremental pages build complete: rendered=${stats.rendered}, cached=${stats.cached}, docs=${docEntries.length}`)

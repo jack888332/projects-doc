@@ -1,0 +1,18 @@
+{
+  "mode": "incremental",
+  "base": "/aidocs/",
+  "title": "TransportMall AI Docs",
+  "description": "统一沉淀 TransportMall 相关产品口径、技术口径、研发方案和运行手册。",
+  "source": "transportmall/aidocs",
+  "sourceRoots": [
+    {
+      "dir": "technical-caliber",
+      "label": "技术口径"
+    },
+    {
+      "dir": "product-caliber",
+      "label": "产品口径"
+    }
+  ],
+  "externalIndexesFile": "external-indexes.json"
+}

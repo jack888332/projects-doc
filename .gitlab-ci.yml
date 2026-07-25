@@ -11,7 +11,7 @@ pages:
     paths:
       - .aidocs-cache/
   script:
-    - node scripts/build-incremental-pages.mjs
+    - node scripts/build-pages.mjs
   artifacts:
     paths:
       - public/

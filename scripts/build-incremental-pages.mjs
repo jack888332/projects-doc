@@ -6,8 +6,13 @@ import { spawnSync } from 'node:child_process'
 const root = process.cwd()
 const out = path.join(root, 'public')
 const cacheRoot = path.join(root, '.aidocs-cache')
-const rendererVersion = 'incremental-pages-v3'
-const sourceRoots = [
+const config = readConfig()
+const base = normalizeBase(config.base || '/aidocs/')
+const siteTitle = config.title || 'AI Docs'
+const siteDescription = config.description || '统一沉淀 AI 生成文档。'
+const sourceName = config.source || 'transportmall/aidocs'
+const rendererVersion = `incremental-pages-v4:${base}:${siteTitle}`
+const sourceRoots = config.sourceRoots || [
   { dir: 'technical-caliber', label: '技术口径' },
   { dir: 'product-caliber', label: '产品口径' }
 ]
@@ -15,6 +20,16 @@ const sourceRoots = [
 const docEntries = []
 const ignoredPathParts = new Set(['.git', 'public', '.vitepress-work', '.aidocs-cache', 'node_modules'])
 const ignoredRelativePrefixes = ['technical-caliber/startup/tools/']
+
+function readConfig() {
+  const configFile = path.join(root, 'docs-build.config.json')
+  return fs.existsSync(configFile) ? JSON.parse(fs.readFileSync(configFile, 'utf8')) : {}
+}
+
+function normalizeBase(value) {
+  const raw = String(value || '/')
+  return `/${raw.replace(/^\/+|\/+$/g, '')}/`.replace(/^\/\/$/, '/')
+}
 
 function rmrf(target) {
   fs.rmSync(target, { recursive: true, force: true })
@@ -215,6 +230,19 @@ function renderCodeBlock(lang, content) {
   return `<pre><code>${escapeHtml(content)}</code></pre>`
 }
 
+function homeHref() {
+  return base
+}
+
+function homeChromeCss() {
+  return `
+    .aidocs-topbar { position: sticky; top: 0; z-index: 20; margin: -32px -40px 28px; padding: 12px 40px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, Canvas 92%, transparent); backdrop-filter: blur(10px); }
+    .aidocs-topbar-inner { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+    .aidocs-home { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--brand); text-decoration: none; font-weight: 600; line-height: 1.4; }
+    .aidocs-title { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (max-width: 720px) { .aidocs-topbar { margin: -20px -16px 22px; padding: 10px 16px; } }`
+}
+
 function pageHtml(title, body) {
   return `<!doctype html>
 <html lang="zh-CN">
@@ -241,20 +269,35 @@ function pageHtml(title, body) {
     th { background: var(--soft); text-align: left; }
     img { max-width: 100%; }
     a { color: var(--brand); }
+    ${homeChromeCss()}
     @media (max-width: 720px) { body { padding: 20px 16px 40px; } h1 { font-size: 26px; } }
   </style>
 </head>
-<body><main>${body}</main>
+<body>
+<nav class="aidocs-topbar"><div class="aidocs-topbar-inner"><a class="aidocs-home" href="${homeHref()}">← 返回首页</a><span class="aidocs-title">${escapeHtml(siteTitle)}</span></div></nav>
+<main>${body}</main>
 <script>
   if (document.querySelector('.mermaid')) {
     const script = document.createElement('script');
-    script.src = '/aidocs/assets/mermaid.min.js';
+    script.src = '${base}assets/mermaid.min.js';
     script.onload = () => window.mermaid && window.mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
     document.head.appendChild(script);
   }
 </script>
 </body>
 </html>`
+}
+
+function injectHtmlChrome(html) {
+  const style = `<style>
+.aidocs-home-link{position:fixed;top:14px;left:14px;z-index:2147483647;display:inline-flex;align-items:center;padding:7px 11px;border:1px solid #d7dde8;border-radius:6px;background:rgba(255,255,255,.92);color:#2563eb;text-decoration:none;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 4px 16px rgba(15,23,42,.12);backdrop-filter:blur(10px)}
+@media (prefers-color-scheme:dark){.aidocs-home-link{border-color:#374151;background:rgba(17,24,39,.9);color:#60a5fa}}
+</style>`
+  const link = `<a class="aidocs-home-link" href="${homeHref()}">← 返回首页</a>`
+  let result = html
+  result = /<\/head>/i.test(result) ? result.replace(/<\/head>/i, `${style}\n</head>`) : `${style}\n${result}`
+  result = /<body[^>]*>/i.test(result) ? result.replace(/<body[^>]*>/i, match => `${match}\n${link}`) : `${link}\n${result}`
+  return result
 }
 
 function titleFromMarkdown(file) {
@@ -319,7 +362,7 @@ function copyMarkdown(file, rootInfo, stats) {
     path: pageRel,
     type: 'MD',
     group: rootInfo.label,
-    source: 'transportmall/aidocs',
+    source: sourceName,
     content: normalizeSearchText(body).slice(0, 12000),
     ...gitDates(file)
   })
@@ -331,14 +374,14 @@ function copyHtml(file, rootInfo, stats) {
   const pageRel = path.posix.join(rootInfo.dir, safe)
   const title = titleFromHtml(file)
   const body = fs.readFileSync(file, 'utf8')
-  const result = writeCached(file, pageRel, () => body)
+  const result = writeCached(file, pageRel, () => injectHtmlChrome(body))
   stats[result.cacheHit ? 'cached' : 'rendered'] += 1
   addDoc({
     title,
     path: pageRel,
     type: 'HTML',
     group: rootInfo.label,
-    source: 'transportmall/aidocs',
+    source: sourceName,
     content: normalizeSearchText(body).slice(0, 12000),
     ...gitDates(file)
   })
@@ -357,7 +400,7 @@ function copyCodeDoc(file, rootInfo, stats) {
     path: pageRel,
     type: path.extname(file).slice(1).toUpperCase(),
     group: rootInfo.label,
-    source: 'transportmall/aidocs',
+    source: sourceName,
     content: normalizeSearchText(body).slice(0, 12000),
     ...gitDates(file)
   })
@@ -400,7 +443,7 @@ function writeIndex() {
   const searchIndex = docs.map(doc => ({
     title: doc.title,
     path: doc.path,
-    url: `/aidocs/${doc.path}`,
+    url: `${base}${doc.path}`,
     type: doc.type,
     group: doc.group,
     source: doc.source,
@@ -411,11 +454,11 @@ function writeIndex() {
   fs.writeFileSync(path.join(out, 'search-index.json'), `${JSON.stringify(searchIndex, null, 2)}\n`, 'utf8')
   fs.writeFileSync(
     path.join(out, 'search-index.js'),
-    `window.__AIDOCS_EXTERNAL_INDEXES__ = window.__AIDOCS_EXTERNAL_INDEXES__ || [];\nwindow.__AIDOCS_EXTERNAL_INDEXES__.push(${JSON.stringify({ source: 'transportmall/aidocs', docs: searchIndex })});\n`,
+    `window.__AIDOCS_EXTERNAL_INDEXES__ = window.__AIDOCS_EXTERNAL_INDEXES__ || [];\nwindow.__AIDOCS_EXTERNAL_INDEXES__.push(${JSON.stringify({ source: sourceName, docs: searchIndex })});\n`,
     'utf8'
   )
 
-  const externalIndexFile = path.join(root, 'external-indexes.json')
+  const externalIndexFile = path.join(root, config.externalIndexesFile || 'external-indexes.json')
   const externalIndexScripts = fs.existsSync(externalIndexFile)
     ? JSON.parse(fs.readFileSync(externalIndexFile, 'utf8')).map(item => item.script).filter(Boolean)
     : []
@@ -425,7 +468,7 @@ function writeIndex() {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TransportMall AI Docs</title>
+  <title>${escapeHtml(siteTitle)}</title>
   <style>
     :root { --fg:#20242c; --muted:#667085; --line:#d9e0ea; --soft:#f6f8fb; --brand:#1d75d8; --active:#e8efff; }
     body { margin:0; color:var(--fg); font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:#fff; }
@@ -453,10 +496,10 @@ function writeIndex() {
   </style>
 </head>
 <body>
-  <header><div><strong>TransportMall AI Docs</strong></div></header>
+  <header><div><strong>${escapeHtml(siteTitle)}</strong></div></header>
   <main>
-    <h1>TransportMall AI Docs</h1>
-    <p class="lead">统一沉淀 TransportMall 相关产品口径、技术口径、研发方案和运行手册。</p>
+    <h1>${escapeHtml(siteTitle)}</h1>
+    <p class="lead">${escapeHtml(siteDescription)}</p>
     <div class="search"><input id="query" placeholder="搜索标题、路径、类型、来源、正文"><span id="count" class="count"></span></div>
     <div class="browser">
       <aside>
@@ -474,6 +517,7 @@ function writeIndex() {
     let activeSource = '全部来源';
     let activeGroup = '全部分类';
     let activeFolder = '全部目录';
+    const sourceFallback = ${JSON.stringify(sourceName)};
     const query = document.getElementById('query');
     const count = document.getElementById('count');
     const results = document.getElementById('results');
@@ -531,15 +575,15 @@ function writeIndex() {
       const all = docs();
       const value = query.value.trim().toLowerCase();
       const visible = all
-        .filter(doc => activeSource === '全部来源' || (doc.source || 'transportmall/aidocs') === activeSource)
+        .filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource)
         .filter(doc => activeGroup === '全部分类' || group(doc) === activeGroup)
         .filter(doc => activeFolder === '全部目录' || folder(doc) === activeFolder)
         .filter(doc => !value || (doc.title + ' ' + doc.path + ' ' + (doc.url || '') + ' ' + doc.type + ' ' + group(doc) + ' ' + (doc.source || '') + ' ' + (doc.content || '')).toLowerCase().includes(value));
-      buttonList(document.getElementById('sources'), ['全部来源'].concat(unique(all.map(doc => doc.source || 'transportmall/aidocs'))), activeSource, value => { activeSource = value; activeGroup = '全部分类'; activeFolder = '全部目录'; render(); });
-      buttonList(document.getElementById('groups'), ['全部分类'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || 'transportmall/aidocs') === activeSource).map(group))), activeGroup, value => { activeGroup = value; activeFolder = '全部目录'; render(); });
-      buttonList(document.getElementById('folders'), ['全部目录'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || 'transportmall/aidocs') === activeSource).filter(doc => activeGroup === '全部分类' || group(doc) === activeGroup).map(folder))), activeFolder, value => { activeFolder = value; render(); });
+      buttonList(document.getElementById('sources'), ['全部来源'].concat(unique(all.map(doc => doc.source || sourceFallback))), activeSource, value => { activeSource = value; activeGroup = '全部分类'; activeFolder = '全部目录'; render(); });
+      buttonList(document.getElementById('groups'), ['全部分类'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource).map(group))), activeGroup, value => { activeGroup = value; activeFolder = '全部目录'; render(); });
+      buttonList(document.getElementById('folders'), ['全部目录'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource).filter(doc => activeGroup === '全部分类' || group(doc) === activeGroup).map(folder))), activeFolder, value => { activeFolder = value; render(); });
       count.textContent = visible.length + ' / ' + all.length;
-      results.innerHTML = visible.map(doc => '<a class="card" href="' + (doc.url || doc.path) + '"><b>' + escapeHtmlClient(doc.title) + '</b><span class="meta">' + escapeHtmlClient(dateLine(doc)) + '</span><small>' + escapeHtmlClient((doc.source || 'transportmall/aidocs') + ' · ' + group(doc) + ' · ' + doc.path) + '</small><em>' + escapeHtmlClient(doc.type) + '</em></a>').join('');
+      results.innerHTML = visible.map(doc => '<a class="card" href="' + (doc.url || doc.path) + '"><b>' + escapeHtmlClient(doc.title) + '</b><span class="meta">' + escapeHtmlClient(dateLine(doc)) + '</span><small>' + escapeHtmlClient((doc.source || sourceFallback) + ' · ' + group(doc) + ' · ' + doc.path) + '</small><em>' + escapeHtmlClient(doc.type) + '</em></a>').join('');
     }
     function escapeHtmlClient(value) {
       return String(value).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));

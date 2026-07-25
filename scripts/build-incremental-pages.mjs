@@ -767,9 +767,19 @@ function writeIndex() {
     button { display:block; width:100%; margin:6px 0; padding:9px 12px; border:0; border-radius:8px; color:var(--muted); background:transparent; text-align:left; font:inherit; cursor:pointer; }
     button.active { color:var(--brand); background:var(--active); font-weight:700; }
     .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; }
-    .card { min-height:132px; display:flex; flex-direction:column; gap:8px; padding:16px; border:1px solid var(--line); border-radius:8px; color:var(--fg); text-decoration:none; background:var(--soft); }
+    .card { position:relative; min-height:132px; display:flex; flex-direction:column; gap:8px; padding:16px 48px 16px 16px; border:1px solid var(--line); border-radius:8px; color:var(--fg); background:var(--soft); }
     .card:hover { border-color:var(--brand); }
+    .card b a { color:var(--brand); text-decoration:underline; }
+    .quick-action { position:absolute; right:12px; width:28px; height:28px; margin:0; padding:0; border:1px solid var(--line); border-radius:50%; color:var(--muted); background:#fff; text-align:center; line-height:1; }
+    .favorite { top:12px; }
+    .pin { top:46px; }
+    .tag-edit { top:80px; font-size:13px; font-weight:700; }
+    .favorite.active { color:#a16207; border-color:#f6d365; background:#fff7cc; }
+    .pin.active { color:#1d4ed8; border-color:#93c5fd; background:#eff6ff; }
+    .tag-edit.active { color:#047857; border-color:#86efac; background:#ecfdf5; }
     .meta, small { color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
+    .tags { display:flex; flex-wrap:wrap; gap:6px; }
+    .tag { width:fit-content; padding:1px 6px; border:1px solid #bbf7d0; border-radius:4px; color:#047857; background:#f0fdf4; font-size:12px; }
     .snippet { color:var(--muted); font-size:13px; line-height:1.55; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
     mark { padding:0 2px; border-radius:3px; color:#8a4b00; background:#fff1a8; }
     small { margin-top:auto; }
@@ -786,6 +796,9 @@ function writeIndex() {
     <div class="toolbar"><span>排序</span><select id="sortBy"><option value="updated-desc">最近修改优先</option><option value="created-desc">最近创建优先</option><option value="title-asc">标题 A-Z</option></select></div>
     <div class="browser">
       <aside>
+        <section><strong>置顶</strong><div id="pinned"></div></section>
+        <section><strong>收藏</strong><div id="favorites"></div></section>
+        <section><strong>标签</strong><div id="tags"></div></section>
         <section><strong>来源</strong><div id="sources"></div></section>
         <section><strong>分类</strong><div id="groups"></div></section>
         <section><strong>目录</strong><div id="folders"></div></section>
@@ -800,11 +813,45 @@ function writeIndex() {
     let activeSource = '全部来源';
     let activeGroup = '全部分类';
     let activeFolder = '全部目录';
+    let activePinned = '全部';
+    let activeFavorite = '全部';
+    let activeTag = '全部标签';
+    let pinnedKeys = readStoredKeys('aidocs:pinned');
+    let favoriteKeys = readFavorites();
+    let tagMap = readTagMap();
     const sourceFallback = ${JSON.stringify(sourceName)};
     const query = document.getElementById('query');
     const sortBy = document.getElementById('sortBy');
     const count = document.getElementById('count');
     const results = document.getElementById('results');
+    function readStoredKeys(storageKey) {
+      try {
+        const items = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        return new Set(Array.isArray(items) ? items : []);
+      } catch (_) {
+        return new Set();
+      }
+    }
+    function readFavorites() {
+      return readStoredKeys('aidocs:favorites');
+    }
+    function saveFavorites() {
+      localStorage.setItem('aidocs:favorites', JSON.stringify(Array.from(favoriteKeys)));
+    }
+    function savePinned() {
+      localStorage.setItem('aidocs:pinned', JSON.stringify(Array.from(pinnedKeys)));
+    }
+    function readTagMap() {
+      try {
+        const value = JSON.parse(localStorage.getItem('aidocs:tags') || '{}');
+        return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+      } catch (_) {
+        return {};
+      }
+    }
+    function saveTagMap() {
+      localStorage.setItem('aidocs:tags', JSON.stringify(tagMap));
+    }
     function loadExternalIndex(src) {
       return new Promise(resolve => {
         const script = document.createElement('script');
@@ -821,6 +868,35 @@ function writeIndex() {
         .catch(() => { localDocs = []; });
     }
     function docs() { return localDocs.concat(externalDocs); }
+    function docKey(doc) { return (doc.source || sourceFallback) + '|' + (doc.url || doc.path || ''); }
+    function isPinned(doc) { return pinnedKeys.has(docKey(doc)); }
+    function isFavorite(doc) { return favoriteKeys.has(docKey(doc)); }
+    function customTags(doc) {
+      const tags = tagMap[docKey(doc)];
+      return Array.isArray(tags) ? tags : [];
+    }
+    function togglePinned(key) {
+      if (pinnedKeys.has(key)) pinnedKeys.delete(key);
+      else pinnedKeys.add(key);
+      savePinned();
+      render();
+    }
+    function toggleFavorite(key) {
+      if (favoriteKeys.has(key)) favoriteKeys.delete(key);
+      else favoriteKeys.add(key);
+      saveFavorites();
+      render();
+    }
+    function editTags(key) {
+      const current = Array.isArray(tagMap[key]) ? tagMap[key].join(', ') : '';
+      const input = window.prompt('输入标签，多个用逗号、中文逗号或空格分隔；留空清除标签', current);
+      if (input === null) return;
+      const tags = Array.from(new Set(input.split(/[,，\\s]+/).map(item => item.trim()).filter(Boolean))).slice(0, 12);
+      if (tags.length) tagMap[key] = tags;
+      else delete tagMap[key];
+      saveTagMap();
+      render();
+    }
     function unique(values) { return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN')); }
     function group(doc) {
       if (doc.group) return doc.group;
@@ -852,6 +928,8 @@ function writeIndex() {
     function sortDocs(items) {
       const mode = sortBy.value;
       return items.slice().sort((a, b) => {
+        const pinnedDiff = Number(isPinned(b)) - Number(isPinned(a));
+        if (pinnedDiff) return pinnedDiff;
         if (mode === 'created-desc') return timeValue(b.createdAt) - timeValue(a.createdAt) || String(a.path || '').localeCompare(String(b.path || ''), 'zh-CN');
         if (mode === 'title-asc') return String(a.title || '').localeCompare(String(b.title || ''), 'zh-CN') || String(a.path || '').localeCompare(String(b.path || ''), 'zh-CN');
         return timeValue(b.updatedAt) - timeValue(a.updatedAt) || String(a.path || '').localeCompare(String(b.path || ''), 'zh-CN');
@@ -890,18 +968,47 @@ function writeIndex() {
       const all = docs();
       const value = query.value.trim().toLowerCase();
       const visible = sortDocs(all
+        .filter(doc => activePinned === '全部' || isPinned(doc))
+        .filter(doc => activeFavorite === '全部' || isFavorite(doc))
+        .filter(doc => activeTag === '全部标签' || customTags(doc).includes(activeTag))
         .filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource)
         .filter(doc => activeGroup === '全部分类' || group(doc) === activeGroup)
         .filter(doc => activeFolder === '全部目录' || folder(doc) === activeFolder)
-        .filter(doc => !value || (doc.title + ' ' + doc.path + ' ' + (doc.url || '') + ' ' + doc.type + ' ' + group(doc) + ' ' + (doc.source || '') + ' ' + (doc.content || '')).toLowerCase().includes(value)));
+        .filter(doc => !value || (doc.title + ' ' + doc.path + ' ' + (doc.url || '') + ' ' + doc.type + ' ' + group(doc) + ' ' + (doc.source || '') + ' ' + customTags(doc).join(' ') + ' ' + (doc.content || '')).toLowerCase().includes(value)));
+      buttonList(document.getElementById('pinned'), ['全部', '只看置顶'], activePinned, value => { activePinned = value; render(); });
+      buttonList(document.getElementById('favorites'), ['全部', '只看收藏'], activeFavorite, value => { activeFavorite = value; render(); });
+      buttonList(document.getElementById('tags'), ['全部标签'].concat(unique(all.flatMap(customTags))), activeTag, value => { activeTag = value; render(); });
       buttonList(document.getElementById('sources'), ['全部来源'].concat(unique(all.map(doc => doc.source || sourceFallback))), activeSource, value => { activeSource = value; activeGroup = '全部分类'; activeFolder = '全部目录'; render(); });
       buttonList(document.getElementById('groups'), ['全部分类'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource).map(group))), activeGroup, value => { activeGroup = value; activeFolder = '全部目录'; render(); });
       buttonList(document.getElementById('folders'), ['全部目录'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource).filter(doc => activeGroup === '全部分类' || group(doc) === activeGroup).map(folder))), activeFolder, value => { activeFolder = value; render(); });
       count.textContent = visible.length + ' / ' + all.length;
       results.innerHTML = visible.map(doc => {
         const sample = snippet(doc, value);
-        return '<a class="card" href="' + (doc.url || doc.path) + '"><b>' + highlight(doc.title, value) + '</b><span class="meta">' + escapeHtmlClient(dateLine(doc)) + '</span><span class="snippet">' + highlight(sample, value) + '</span><small>' + escapeHtmlClient((doc.source || sourceFallback) + ' · ' + group(doc) + ' · ' + doc.path) + '</small><em>' + escapeHtmlClient(doc.type) + '</em></a>';
+        const key = docKey(doc);
+        const pinned = pinnedKeys.has(key);
+        const favorite = favoriteKeys.has(key);
+        const tags = customTags(doc);
+        const tagsHtml = tags.length ? '<span class="tags">' + tags.map(tag => '<span class="tag">' + escapeHtmlClient(tag) + '</span>').join('') + '</span>' : '';
+        return '<div class="card"><button class="quick-action favorite' + (favorite ? ' active' : '') + '" title="' + (favorite ? '取消收藏' : '收藏') + '" data-favorite="' + escapeHtmlClient(key) + '">' + (favorite ? '★' : '☆') + '</button><button class="quick-action pin' + (pinned ? ' active' : '') + '" title="' + (pinned ? '取消置顶' : '置顶') + '" data-pin="' + escapeHtmlClient(key) + '">' + (pinned ? '↑' : '↟') + '</button><button class="quick-action tag-edit' + (tags.length ? ' active' : '') + '" title="编辑标签" data-tags="' + escapeHtmlClient(key) + '">标</button><b><a href="' + (doc.url || doc.path) + '">' + highlight(doc.title, value) + '</a></b><span class="meta">' + escapeHtmlClient(dateLine(doc)) + '</span>' + tagsHtml + '<span class="snippet">' + highlight(sample, value) + '</span><small>' + escapeHtmlClient((doc.source || sourceFallback) + ' · ' + group(doc) + ' · ' + doc.path) + '</small><em>' + escapeHtmlClient(doc.type) + '</em></div>';
       }).join('');
+      results.querySelectorAll('[data-tags]').forEach(btn => {
+        btn.addEventListener('click', event => {
+          event.preventDefault();
+          editTags(btn.getAttribute('data-tags'));
+        });
+      });
+      results.querySelectorAll('[data-pin]').forEach(btn => {
+        btn.addEventListener('click', event => {
+          event.preventDefault();
+          togglePinned(btn.getAttribute('data-pin'));
+        });
+      });
+      results.querySelectorAll('[data-favorite]').forEach(btn => {
+        btn.addEventListener('click', event => {
+          event.preventDefault();
+          toggleFavorite(btn.getAttribute('data-favorite'));
+        });
+      });
     }
     function escapeHtmlClient(value) {
       return String(value).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));

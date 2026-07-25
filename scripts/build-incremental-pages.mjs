@@ -11,7 +11,7 @@ const base = normalizeBase(config.base || '/aidocs/')
 const siteTitle = config.title || 'AI Docs'
 const siteDescription = config.description || '统一沉淀 AI 生成文档。'
 const sourceName = config.source || 'transportmall/aidocs'
-const rendererVersion = `incremental-pages-v4:${base}:${siteTitle}`
+const rendererVersion = `incremental-pages-v5:${base}:${siteTitle}`
 const sourceRoots = config.sourceRoots || [
   { dir: 'technical-caliber', label: '技术口径' },
   { dir: 'product-caliber', label: '产品口径' }
@@ -135,6 +135,7 @@ function renderMarkdownLite(markdownText) {
     .replace(/^```(?:plantuml|pre!)(?:\s+[^\r\n]*)?$/gim, '```text')
     .split(/\r?\n/)
   const html = []
+  const toc = []
   let paragraph = []
   let code = null
   let table = []
@@ -185,7 +186,10 @@ function renderMarkdownLite(markdownText) {
     if (heading) {
       flushParagraph()
       const level = heading[1].length
-      html.push(`<h${level}>${renderInline(heading[2].trim())}</h${level}>`)
+      const text = heading[2].trim()
+      const id = headingId(text, toc.length)
+      toc.push({ level, title: normalizeSearchText(text), id })
+      html.push(`<h${level} id="${id}">${renderInline(text)}</h${level}>`)
       continue
     }
     if (/^\s*---+\s*$/.test(line)) {
@@ -220,14 +224,23 @@ function renderMarkdownLite(markdownText) {
   flushParagraph()
   flushTable()
   if (code) html.push(renderCodeBlock(code.lang, code.lines.join('\n')))
-  return html.join('\n')
+  return { html: html.join('\n'), toc }
+}
+
+function headingId(text, index) {
+  const slug = normalizeSearchText(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
+    .replace(/^-|-$/g, '')
+  return `h-${slug || sha(text)}-${index}`
 }
 
 function renderCodeBlock(lang, content) {
   if (String(lang).toLowerCase() === 'mermaid') {
     return `<div class="mermaid">${escapeHtml(content)}</div>`
   }
-  return `<pre><code>${escapeHtml(content)}</code></pre>`
+  const label = String(lang || 'text').trim() || 'text'
+  return `<figure class="code-block"><figcaption>${escapeHtml(label)}</figcaption><pre><code>${escapeHtml(content)}</code></pre></figure>`
 }
 
 function homeHref() {
@@ -243,7 +256,29 @@ function homeChromeCss() {
     @media (max-width: 720px) { .aidocs-topbar { margin: -20px -16px 22px; padding: 10px 16px; } }`
 }
 
-function pageHtml(title, body) {
+function formatDate(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
+}
+
+function pageHtml(title, body, options = {}) {
+  const meta = options.meta || {}
+  const toc = options.toc || []
+  const metaItems = [
+    ['来源', meta.source],
+    ['分类', meta.group],
+    ['类型', meta.type],
+    ['创建', formatDate(meta.createdAt)],
+    ['修改', formatDate(meta.updatedAt)]
+  ].filter(([, value]) => value)
+  const metaHtml = metaItems.length
+    ? `<section class="doc-meta">${metaItems.map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}</section>`
+    : ''
+  const tocHtml = toc.length
+    ? `<nav class="doc-toc"><strong>目录</strong>${toc.map(item => `<a class="toc-l${Math.min(item.level, 4)}" href="#${item.id}">${escapeHtml(item.title)}</a>`).join('')}</nav>`
+    : '<nav class="doc-toc"><strong>目录</strong><span>暂无标题</span></nav>'
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -254,15 +289,28 @@ function pageHtml(title, body) {
     :root { color-scheme: light dark; --fg: #1f2937; --muted: #6b7280; --line: #d7dde8; --soft: #f6f8fb; --brand: #2563eb; --code: #fff7ed; }
     @media (prefers-color-scheme: dark) { :root { --fg: #d8dee9; --muted: #9ca3af; --line: #374151; --soft: #111827; --brand: #60a5fa; --code: #1f2937; } body { background: #0f1117; } }
     body { margin: 0; padding: 32px 40px 56px; color: var(--fg); font: 15px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    main { max-width: 1120px; margin: 0 auto; }
+    main { max-width: 1280px; margin: 0 auto; }
+    .reader { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 34px; align-items: start; }
+    article { min-width: 0; }
+    .reader-side { position: sticky; top: 78px; max-height: calc(100vh - 96px); overflow: auto; border-left: 1px solid var(--line); padding-left: 16px; }
+    .doc-meta { display: grid; gap: 8px; margin-bottom: 18px; color: var(--muted); font-size: 12px; }
+    .doc-meta div { display: grid; gap: 2px; }
+    .doc-meta strong { color: var(--fg); font-weight: 600; overflow-wrap: anywhere; }
+    .doc-toc strong { display: block; margin: 0 0 8px; }
+    .doc-toc a, .doc-toc span { display: block; padding: 5px 0; color: var(--muted); text-decoration: none; font-size: 13px; line-height: 1.45; }
+    .doc-toc a:hover { color: var(--brand); }
+    .toc-l3 { padding-left: 12px !important; }
+    .toc-l4 { padding-left: 24px !important; }
     h1, h2, h3 { line-height: 1.35; margin: 1.8em 0 .7em; }
     h1 { font-size: 32px; padding-bottom: 12px; border-bottom: 2px solid var(--brand); }
     h2 { font-size: 24px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
     h3 { font-size: 19px; }
     p, ul, ol, blockquote, pre, table { margin: 14px 0; }
     code { padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px; background: var(--code); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    pre { overflow: auto; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); }
+    pre { overflow: auto; margin: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 0 0 8px 8px; background: var(--soft); }
     pre code { padding: 0; border: 0; background: transparent; }
+    .code-block { margin: 16px 0; }
+    .code-block figcaption { padding: 6px 10px; border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0; color: var(--muted); background: var(--soft); font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .mermaid { overflow: auto; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); text-align: center; }
     table { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; }
     th, td { border: 1px solid var(--line); padding: 8px 10px; vertical-align: top; }
@@ -270,12 +318,13 @@ function pageHtml(title, body) {
     img { max-width: 100%; }
     a { color: var(--brand); }
     ${homeChromeCss()}
+    @media (max-width: 980px) { .reader { grid-template-columns: 1fr; } .reader-side { position: static; max-height: none; border-left: 0; border-top: 1px solid var(--line); padding: 16px 0 0; } }
     @media (max-width: 720px) { body { padding: 20px 16px 40px; } h1 { font-size: 26px; } }
   </style>
 </head>
 <body>
 <nav class="aidocs-topbar"><div class="aidocs-topbar-inner"><a class="aidocs-home" href="${homeHref()}">← 返回首页</a><span class="aidocs-title">${escapeHtml(siteTitle)}</span></div></nav>
-<main>${body}</main>
+<main><div class="reader"><article>${body}</article><aside class="reader-side">${metaHtml}${tocHtml}</aside></div></main>
 <script>
   if (document.querySelector('.mermaid')) {
     const script = document.createElement('script');
@@ -355,7 +404,19 @@ function copyMarkdown(file, rootInfo, stats) {
   const pageRel = path.posix.join(rootInfo.dir, safe).replace(/\.md$/i, '.html')
   const title = titleFromMarkdown(file)
   const body = fs.readFileSync(file, 'utf8')
-  const result = writeCached(file, pageRel, () => pageHtml(title, renderMarkdownLite(body)))
+  const dates = gitDates(file)
+  const result = writeCached(file, pageRel, () => {
+    const rendered = renderMarkdownLite(body)
+    return pageHtml(title, rendered.html, {
+      toc: rendered.toc,
+      meta: {
+        source: sourceName,
+        group: rootInfo.label,
+        type: 'MD',
+        ...dates
+      }
+    })
+  })
   stats[result.cacheHit ? 'cached' : 'rendered'] += 1
   addDoc({
     title,
@@ -364,7 +425,7 @@ function copyMarkdown(file, rootInfo, stats) {
     group: rootInfo.label,
     source: sourceName,
     content: normalizeSearchText(body).slice(0, 12000),
-    ...gitDates(file)
+    ...dates
   })
 }
 
@@ -393,7 +454,16 @@ function copyCodeDoc(file, rootInfo, stats) {
   const pageRel = path.posix.join(rootInfo.dir, safe)
   const title = path.basename(file)
   const body = fs.readFileSync(file, 'utf8')
-  const result = writeCached(file, pageRel, () => pageHtml(title, `<h1>${escapeHtml(title)}</h1>\n<pre><code>${escapeHtml(body)}</code></pre>`))
+  const dates = gitDates(file)
+  const result = writeCached(file, pageRel, () => pageHtml(title, `<h1 id="h-${sha(title)}-0">${escapeHtml(title)}</h1>\n${renderCodeBlock(path.extname(file).slice(1), body)}`, {
+    toc: [{ level: 1, title, id: `h-${sha(title)}-0` }],
+    meta: {
+      source: sourceName,
+      group: rootInfo.label,
+      type: path.extname(file).slice(1).toUpperCase(),
+      ...dates
+    }
+  }))
   stats[result.cacheHit ? 'cached' : 'rendered'] += 1
   addDoc({
     title,
@@ -402,7 +472,7 @@ function copyCodeDoc(file, rootInfo, stats) {
     group: rootInfo.label,
     source: sourceName,
     content: normalizeSearchText(body).slice(0, 12000),
-    ...gitDates(file)
+    ...dates
   })
 }
 
@@ -490,6 +560,8 @@ function writeIndex() {
     .card { min-height:132px; display:flex; flex-direction:column; gap:8px; padding:16px; border:1px solid var(--line); border-radius:8px; color:var(--fg); text-decoration:none; background:var(--soft); }
     .card:hover { border-color:var(--brand); }
     .meta, small { color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
+    .snippet { color:var(--muted); font-size:13px; line-height:1.55; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+    mark { padding:0 2px; border-radius:3px; color:#8a4b00; background:#fff1a8; }
     small { margin-top:auto; }
     em { width:fit-content; padding:2px 7px; border-radius:4px; color:var(--brand); background:#eef4ff; font-size:12px; font-style:normal; font-weight:700; }
     @media (max-width: 860px) { h1 { font-size:32px; } .browser { grid-template-columns:1fr; } aside { border-right:0; border-bottom:1px solid var(--line); padding:0 0 16px; } }
@@ -561,6 +633,25 @@ function writeIndex() {
       if (created && updated) return '创建 ' + created + ' · 修改 ' + updated;
       return updated ? '修改 ' + updated : created ? '创建 ' + created : '';
     }
+    function snippet(doc, value) {
+      const text = String(doc.content || doc.title || doc.path || '').replace(/\\s+/g, ' ').trim();
+      if (!text) return '';
+      const needle = value.trim().toLowerCase();
+      const index = needle ? text.toLowerCase().indexOf(needle) : -1;
+      const start = index > 36 ? index - 36 : 0;
+      const sample = text.slice(start, start + 150);
+      return (start > 0 ? '...' : '') + sample + (text.length > start + 150 ? '...' : '');
+    }
+    function highlight(value, keyword) {
+      const escaped = escapeHtmlClient(value);
+      const needle = keyword.trim();
+      if (!needle) return escaped;
+      return escaped.replace(new RegExp(escapeRegExp(escapeHtmlClient(needle)), 'ig'), match => '<mark>' + match + '</mark>');
+    }
+    function escapeRegExp(value) {
+      const specials = '\\\\^$.*+?()[]{}|';
+      return String(value).split('').map(ch => specials.includes(ch) ? '\\\\' + ch : ch).join('');
+    }
     function buttonList(el, values, active, onClick) {
       el.innerHTML = '';
       values.forEach(value => {
@@ -583,7 +674,10 @@ function writeIndex() {
       buttonList(document.getElementById('groups'), ['全部分类'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource).map(group))), activeGroup, value => { activeGroup = value; activeFolder = '全部目录'; render(); });
       buttonList(document.getElementById('folders'), ['全部目录'].concat(unique(all.filter(doc => activeSource === '全部来源' || (doc.source || sourceFallback) === activeSource).filter(doc => activeGroup === '全部分类' || group(doc) === activeGroup).map(folder))), activeFolder, value => { activeFolder = value; render(); });
       count.textContent = visible.length + ' / ' + all.length;
-      results.innerHTML = visible.map(doc => '<a class="card" href="' + (doc.url || doc.path) + '"><b>' + escapeHtmlClient(doc.title) + '</b><span class="meta">' + escapeHtmlClient(dateLine(doc)) + '</span><small>' + escapeHtmlClient((doc.source || sourceFallback) + ' · ' + group(doc) + ' · ' + doc.path) + '</small><em>' + escapeHtmlClient(doc.type) + '</em></a>').join('');
+      results.innerHTML = visible.map(doc => {
+        const sample = snippet(doc, value);
+        return '<a class="card" href="' + (doc.url || doc.path) + '"><b>' + highlight(doc.title, value) + '</b><span class="meta">' + escapeHtmlClient(dateLine(doc)) + '</span><span class="snippet">' + highlight(sample, value) + '</span><small>' + escapeHtmlClient((doc.source || sourceFallback) + ' · ' + group(doc) + ' · ' + doc.path) + '</small><em>' + escapeHtmlClient(doc.type) + '</em></a>';
+      }).join('');
     }
     function escapeHtmlClient(value) {
       return String(value).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));

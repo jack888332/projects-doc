@@ -93,6 +93,10 @@ function searchSeedBlock(text) {
   return `\n\n<div class="search-seed" v-pre>${escapeHtml(seed)}</div>\n`
 }
 
+function sanitizeMarkdownForVitePress(text) {
+  return String(text).replace(/</g, '&lt;')
+}
+
 function renderInline(text) {
   return escapeHtml(text)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -292,16 +296,11 @@ function copyMarkdown(file, rootInfo) {
   const rel = path.relative(path.join(root, rootInfo.dir), file)
   const safe = safeRelPath(rel)
   const pageRel = path.posix.join(rootInfo.dir, safe).replace(/\\/g, '/')
-  const rawRel = path.posix.join('_rendered', rootInfo.dir, safe.replace(/\.md$/i, '.html')).replace(/\\/g, '/')
-  const rawDest = path.join(src, 'public', rawRel)
+  const dest = path.join(src, pageRel)
   const title = titleFromMarkdown(file)
   const body = fs.readFileSync(file, 'utf8')
-  ensureDir(path.dirname(rawDest))
-  fs.writeFileSync(rawDest, renderStandaloneHtml(title, renderMarkdownLite(body)), 'utf8')
-
-  const wrapper = path.join(src, pageRel)
-  ensureDir(path.dirname(wrapper))
-  fs.writeFileSync(wrapper, `---\ntitle: ${yamlString(title)}\noutline: false\n---\n\n<div class="html-frame-wrap">\n  <iframe class="html-frame" src="/aidocs/${rawRel}" title="${escapeHtml(title)}"></iframe>\n</div>${searchSeedBlock(body)}\n`, 'utf8')
+  ensureDir(path.dirname(dest))
+  fs.writeFileSync(dest, `---\ntitle: ${yamlString(title)}\n---\n\n${sanitizeMarkdownForVitePress(body)}\n`, 'utf8')
 
   docEntries.push({
     title,

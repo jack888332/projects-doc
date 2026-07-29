@@ -434,7 +434,7 @@ DROP TABLE IF EXISTS `bill_source_collect_mark`;
 CREATE TABLE `bill_source_collect_mark` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `collect_no` varchar(64) NOT NULL COMMENT '归集标记编号',
-  `collect_type` varchar(32) NOT NULL COMMENT '归集类型：MAIN_ORDER主订单，ADDITIONAL_FEE附加费，ADDITIONAL_INCREMENT附加费增量',
+  `collect_type` varchar(32) NOT NULL COMMENT '归集类型：MAIN_ORDER主订单，ADDITIONAL_FEE附加费，ADDITIONAL_INCREMENT附加费增量，CLAIM_ORDER理赔，NON_FEE_FETCH非费项已抓取',
   `source_system` varchar(64) NOT NULL COMMENT '来源系统，如OFP',
   `source_database` varchar(64) DEFAULT NULL COMMENT '来源库',
   `source_table` varchar(128) NOT NULL COMMENT '来源表',
@@ -442,8 +442,8 @@ CREATE TABLE `bill_source_collect_mark` (
   `source_biz_no` varchar(128) DEFAULT NULL COMMENT '来源业务单号',
   `source_order_id` varchar(128) DEFAULT NULL COMMENT '来源订单ID',
   `source_order_no` varchar(128) DEFAULT NULL COMMENT '来源订单号',
-  `bill_id` bigint(20) unsigned NOT NULL COMMENT '账单ID',
-  `bill_no` varchar(64) NOT NULL COMMENT '账单编号',
+  `bill_id` bigint(20) unsigned DEFAULT NULL COMMENT '账单ID；NON_FEE_FETCH未进入账单时为空',
+  `bill_no` varchar(64) DEFAULT NULL COMMENT '账单编号；NON_FEE_FETCH未进入账单时为空',
   `bill_type` varchar(32) NOT NULL DEFAULT 'MEMBER_AR' COMMENT '账单类型：MEMBER_AR/COD_REFUND/COST_AP',
   `bill_config_id` bigint(20) unsigned NOT NULL COMMENT '账单配置ID',
   `generate_task_id` bigint(20) unsigned DEFAULT NULL COMMENT '生成任务ID',
@@ -461,13 +461,14 @@ CREATE TABLE `bill_source_collect_mark` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_collect_no` (`collect_no`),
-  UNIQUE KEY `uk_source_collect` (`source_system`,`source_table`,`source_id`,`collect_type`),
+  UNIQUE KEY `uk_source_collect` (`source_system`,`source_table`,`source_id`,`collect_type`,`bill_type`),
   KEY `idx_collect_bill` (`bill_id`,`collect_type`,`mark_status`),
   KEY `idx_collect_task` (`generate_task_id`,`mark_status`),
   KEY `idx_collect_subject` (`sc_id`,`shop_id`,`user_id`,`member_code`,`mark_status`),
   KEY `idx_collect_source_order` (`source_order_id`,`source_order_no`),
-  KEY `idx_collect_retry` (`mark_status`,`retry_count`,`updated_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=253 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='账单来源归集标记/跨库打标补偿记录';
+  KEY `idx_collect_retry` (`mark_status`,`retry_count`,`updated_at`),
+  KEY `idx_collect_bill_type` (`bill_type`,`bill_id`,`collect_type`,`mark_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='账单来源归集标记/跨库打标补偿记录';
 
 -- ----------------------------
 -- Table structure for bms_operation_log

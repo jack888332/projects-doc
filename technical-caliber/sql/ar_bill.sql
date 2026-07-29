@@ -1345,3 +1345,7 @@ CREATE TABLE `cost_supplier_board` (
   KEY `idx_cost_supplier_board` (`sc_id`, `cost_board`, `is_deleted`, `period_config_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
   ROW_FORMAT=DYNAMIC COMMENT='供应商成本账期配置适用板块';
+
+-- 2026-07-27 成本账单导入与成本池独立表。
+-- 完整结构由下列独立迁移文件维护并纳入本归档。
+SOURCE 2026-07-27-cost-bill-pool-init.sql;

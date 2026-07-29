@@ -21,10 +21,23 @@ http://chaorong.lai.pages.sztgitlab/ai-docs/
 ```text
 提交文档
   -> GitLab CI 触发 pages job
-  -> Runner 使用 VitePress builder 镜像构建
+  -> Runner 使用 AI Docs builder 镜像构建
   -> 生成 public/
   -> GitLab Pages 发布
   -> 用户通过 pages.sztgitlab 访问
+```
+
+当前 `transportmall/aidocs` 推荐构建方式：
+
+```text
+node scripts/build-pages.mjs
+```
+
+`build-pages.mjs` 会读取 `docs-build.config.json`，再决定使用：
+
+```text
+incremental  自研增量渲染模式，当前推荐
+vitepress    VitePress 构建模式，保留用于切换和对比
 ```
 
 ## 一、GitLab 服务器启用 Pages
@@ -341,9 +354,38 @@ Running in system-mode
 
 ```text
 提前安装 Node、npm、VitePress、git
+提前安装 PlantUML、Graphviz、OpenJDK、中文字体
 CI 不需要每次访问公网拉依赖
+CI 不需要调用远程 PlantUML Server
 提高构建速度和稳定性
 ```
+
+当前 builder 镜像由仓库内文件维护：
+
+```text
+Dockerfile.vitepress-builder
+scripts/build-and-push-vitepress-builder.sh
+```
+
+重建并推送 builder 镜像：
+
+```bash
+scripts/build-and-push-vitepress-builder.sh
+```
+
+该脚本会使用国内 npm 镜像源安装依赖，并推送到：
+
+```text
+192.168.0.242:5000/docs/ai-docs-vitepress-builder:latest
+```
+
+如果本地 Docker 版本较新、内网 Registry 较旧，推送可能遇到：
+
+```text
+error from registry: manifest invalid
+```
+
+当前脚本已使用单平台 Docker media type 输出，避免旧 Registry 不接受 OCI manifest。
 
 如果 Runner 拉镜像时报：
 
@@ -363,7 +405,7 @@ http: server gave HTTP response to HTTPS client
 
 ## 九、项目 .gitlab-ci.yml
 
-VitePress 文档站推荐配置：
+当前推荐配置：
 
 ```yaml
 stages:
@@ -375,7 +417,7 @@ pages:
     - pages
   image: 192.168.0.242:5000/docs/ai-docs-vitepress-builder:latest
   script:
-    - node scripts/build-vitepress.mjs
+    - node scripts/build-pages.mjs
   artifacts:
     paths:
       - public/
@@ -390,6 +432,39 @@ job 名必须叫 pages
 artifacts 必须包含 public/
 public/ 是 GitLab Pages 的发布目录
 tag 要和 Runner 标签一致，例如 pages
+```
+
+`build-pages.mjs` 会根据 `docs-build.config.json` 中的 `mode` 决定构建方式。当前推荐：
+
+```json
+{
+  "mode": "incremental",
+  "base": "/aidocs/",
+  "title": "TransportMall AI Docs",
+  "source": "transportmall/aidocs",
+  "plantUmlServer": "",
+  "plantUmlCommand": "plantuml",
+  "plantUmlJar": "/opt/plantuml/plantuml.jar",
+  "sourceRoots": [
+    {
+      "dir": "technical-caliber",
+      "label": "技术口径"
+    },
+    {
+      "dir": "product-caliber",
+      "label": "产品口径"
+    }
+  ],
+  "externalIndexesFile": "external-indexes.json"
+}
+```
+
+需要临时切回 VitePress 时：
+
+```json
+{
+  "mode": "vitepress"
+}
 ```
 
 ## 十、最小静态文件模式
@@ -430,7 +505,7 @@ Markdown 原样展示，不美观
 没有统一搜索
 ```
 
-## 十一、VitePress 模式
+## 十一、当前推荐：incremental 增量渲染模式
 
 推荐用于正式文档站。
 
@@ -443,7 +518,13 @@ Markdown 原样展示，不美观
 Markdown 美化展示
 HTML 文档展示
 SQL 文档展示
+Mermaid 图渲染
+PlantUML / StartUML 本地渲染
+原生 HTML 表格块渲染
 多项目索引聚合
+按修改时间 / 创建时间 / 标题排序
+收藏、置顶、自定义标签
+详情页收藏、置顶、自定义标签
 ```
 
 当前 `transportmall/aidocs` 扫描目录：
@@ -456,12 +537,70 @@ technical-caliber/
 支持文件：
 
 ```text
-.md       直接渲染成 VitePress 页面，支持正文搜索
-.html     iframe 保真展示，同时提取文字用于首页搜索
-.sql      渲染成代码页面
+.md       渲染成阅读页，支持目录、正文搜索、Mermaid、PlantUML、原生 HTML 表格块
+.html     保真展示，同时注入返回首页、收藏、置顶、标签操作，并提取文字用于首页搜索
+.sql      渲染成代码阅读页
 ```
 
-## 十二、GitLab Pages 访问规则
+增量渲染缓存：
+
+```text
+.aidocs-cache/
+```
+
+构建时会按文件内容、渲染器版本和 PlantUML 渲染方式计算缓存 key。普通改动只重渲染变化的文档；如果模板、样式、渲染能力变化，需要提升 `rendererVersion`，让旧缓存失效。
+
+当前已支持的 Markdown 扩展：
+
+```text
+Mermaid 代码块
+PlantUML / StartUML / StartGantt / StartWBS 等 @start... 块
+plantuml 代码块
+常规 Markdown 表格
+受控原生 HTML block，例如 div/table/details/figure/img/section/article
+```
+
+PlantUML 渲染方式：
+
+```text
+优先本地 plantuml 命令
+其次本地 /opt/plantuml/plantuml.jar
+如果配置 plantUmlServer，则可回退远程服务
+都不可用时显示源码
+```
+
+当前 builder 镜像已经内置：
+
+```text
+plantuml
+graphviz
+openjdk17-jre
+font-noto-cjk
+```
+
+因此正常 CI 不需要调用远程 PlantUML Server。
+
+## 十二、保留能力：VitePress 模式
+
+VitePress 模式仍然保留，用于对比或需要完整 VitePress 生态能力时切换。
+
+切换方式：
+
+```json
+{
+  "mode": "vitepress"
+}
+```
+
+限制：
+
+```text
+每次构建更偏全量
+大量 Markdown 页面构建时间更长
+HTML 保真、个人收藏置顶标签等能力需要额外适配
+```
+
+## 十三、GitLab Pages 访问规则
 
 GitLab Pages 地址格式：
 
@@ -489,7 +628,7 @@ http://transportmall.pages.sztgitlab/aidocs/product-caliber/bms/prd/doc-prd-80fd
 /ai-docs/
 ```
 
-## 十三、GitLab 服务器验证输出文件
+## 十四、GitLab 服务器验证输出文件
 
 CI 成功后，在 GitLab 服务器查看 Pages 文件：
 
@@ -536,7 +675,7 @@ pages job 没生成 public/
 GitLab Pages 没启用成功
 ```
 
-## 十四、浏览器验证
+## 十五、浏览器验证
 
 访问首页：
 
@@ -564,7 +703,60 @@ Mac: Cmd + Shift + R
 Windows: Ctrl + F5
 ```
 
-## 十五、其他项目如何接入主站
+首页当前能力：
+
+```text
+顶部：排序、只看置顶、只看收藏、标签筛选
+左侧：目录筛选
+中间：文档列表
+右侧：来源、分类筛选
+```
+
+排序支持：
+
+```text
+最近修改优先
+最近创建优先
+标题 A-Z
+```
+
+个人快捷能力：
+
+```text
+收藏
+置顶
+自定义标签
+```
+
+这些数据只保存在当前浏览器：
+
+```text
+localStorage: aidocs:favorites
+localStorage: aidocs:pinned
+localStorage: aidocs:tags
+```
+
+说明：
+
+```text
+不写回 Git
+不跟随账号同步
+换浏览器、换电脑或清理浏览器数据后会丢失
+适合个人快速定位常用文档
+```
+
+详情页也支持：
+
+```text
+收藏
+置顶
+标签
+返回首页
+```
+
+Markdown / SQL 阅读页在右侧信息栏展示这些操作；HTML 保真页在页面左上方以浮动按钮展示这些操作。
+
+## 十六、其他项目如何接入主站
 
 推荐模式：
 
@@ -622,13 +814,13 @@ external-indexes.json
 
 提交主站后，主站首页会多一个来源。
 
-## 十六、其他项目接入步骤
+## 十七、其他项目接入步骤
 
 新项目接入流程：
 
 ```text
 1. 项目准备文档目录
-2. 增加 scripts/build-vitepress.mjs
+2. 增加 scripts/build-pages.mjs
 3. 增加 .gitlab-ci.yml
 4. 提交 master
 5. 等 CI pages job 成功
@@ -651,7 +843,7 @@ http://<group-or-user>.pages.sztgitlab/<project>/
 http://<group-or-user>.pages.sztgitlab/<project>/search-index.js
 ```
 
-## 十七、用户看到最新内容的时间
+## 十八、用户看到最新内容的时间
 
 子站内容更新：
 
@@ -677,7 +869,7 @@ http://<group-or-user>.pages.sztgitlab/<project>/search-index.js
 需要主站重新 CI
 ```
 
-## 十八、常见问题排查
+## 十九、常见问题排查
 
 Runner pending：
 
@@ -745,14 +937,14 @@ Pages 404：
 Markdown 展示丑：
 
 ```text
-使用 VitePress 模式
+使用 incremental 增量渲染模式或 VitePress 模式
 不要直接发布 .md 原文件
 ```
 
 Markdown 搜不到正文：
 
 ```text
-.md 必须直接给 VitePress 渲染
+.md 必须进入 build-pages.mjs 渲染流程
 不要用 iframe 包 .md
 ```
 
@@ -760,11 +952,35 @@ HTML 展示有空白：
 
 ```text
 HTML 原文件样式导致
-当前 iframe 是保真展示
-要统一风格需要把 HTML 转 Markdown 或重写为 VitePress 页面
+当前是保真展示，并注入返回首页、收藏、置顶、标签操作
+要统一风格需要把 HTML 转 Markdown 或重写为 Markdown 页面
 ```
 
-## 十九、当前推荐主入口
+PlantUML 没有渲染：
+
+```text
+检查 builder 镜像中是否有 plantuml、dot、java
+检查 .gitlab-ci.yml 是否使用最新 builder 镜像
+检查 docs-build.config.json 的 plantUmlCommand / plantUmlJar
+检查 CI 日志中是否有 PlantUML render skipped
+```
+
+验证 builder 镜像：
+
+```bash
+docker run --rm 192.168.0.242:5000/docs/ai-docs-vitepress-builder:latest sh -lc 'command -v plantuml; command -v dot; java -version'
+```
+
+点击文档变成下载原文件：
+
+```text
+首页链接必须指向渲染后的 .html 页面
+.md 应转成 .html
+.sql 应转成 .sql.html
+外部 search-index.js 不要直接暴露原始 .md/.sql 下载路径
+```
+
+## 二十、当前推荐主入口
 
 以后建议统一访问主站：
 

@@ -96,13 +96,14 @@ COD 货款代收流程可理解为：
 @startuml
 title COD 返款账单与应收账单拆分流程
 skinparam DefaultTextAlignment center
+skinparam activityDiamondBackgroundColor #FFF4CC
 
 start
 :订单/包裹进入COD履约链路;
 :产生可回款金额;
 :产生可归集费项;
 
-if (费项是否属于返款时扣减?) then (是)
+if (费项是否属于返款时扣减的费用？) then (是)
   :进入返款账单;
   :在返款时直接扣减;
 else (否)

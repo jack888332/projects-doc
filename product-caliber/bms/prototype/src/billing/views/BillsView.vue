@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Download, RefreshRight, Search, Setting, View } from '@element-plus/icons-vue'
 import PageHeader from '../components/PageHeader.vue'
 import BillDetailPanel from '../components/BillDetailPanel.vue'
@@ -70,16 +70,17 @@ function confirmExport() {
 async function handleBillAction(name) {
   const bill = selectedBill.value
   if (!bill) return
-  if (name === '审核通过') {
+  if (name === '创建补充生成任务') {
+    bill.processingState = '补充生成待处理'; bill.activeTask = 'BMS-20260802-00082'
+  } else if (name === '创建替换生成任务') {
+    bill.processingState = '替换待处理'; bill.activeTask = 'BMS-20260802-00083'
+  } else if (name === '审核通过') {
     if (bill.closeStatus !== '已收口') return ElMessage.warning('账期未收口，不能审核通过')
     bill.status = '待结清'; bill.issued = true; bill.notice = '已通知'; bill.sentAt = bill.sentAt === '-' ? '2026/08/02' : bill.sentAt
   } else if (name === '退回待审核') {
     bill.status = '待审核'
   } else if (name === '期末收口') {
     bill.closeStatus = '已收口'
-  } else if (name === '替换生成') {
-    await ElMessageBox.confirm('替换生成会作废当前未发出账单，并创建新账单，是否继续？', '替换生成预览', { type: 'warning' })
-    bill.status = '已作废'; bill.voidReason = '替换生成后原账单作废'
   }
   ElMessage.success(`${name}已提交`)
 }
@@ -117,12 +118,13 @@ async function handleBillAction(name) {
         <el-table-column prop="billNo" label="账单编号" width="205" fixed />
         <el-table-column label="账单状态" width="100"><template #default="scope"><span :class="['status-tag', scope.row.status === '已结清' ? 'success' : scope.row.status === '已作废' ? 'neutral' : scope.row.status === '待结清' ? 'running' : 'warning']">{{ scope.row.status }}</span></template></el-table-column>
         <el-table-column prop="closeStatus" label="账期收口" width="90"><template #default="scope"><span :class="['status-tag', scope.row.closeStatus === '已收口' ? 'success' : 'warning']">{{ scope.row.closeStatus }}</span></template></el-table-column>
+        <el-table-column prop="processingState" label="处理状态" width="125"><template #default="scope">{{ scope.row.processingState || '-' }}</template></el-table-column>
         <el-table-column v-if="!isReceivable" prop="refundMode" label="返款模式" width="100" />
         <el-table-column :label="isReceivable ? '费项结算币种金额' : '货款结算币种金额'" width="250"><template #default="scope"><div class="amount-lines"><span>{{ isReceivable ? '应收' : '原始货款' }} <b>{{ money(isReceivable ? scope.row.amount : scope.row.original) }} {{ scope.row.currency }}</b></span><span>{{ isReceivable ? '已核销' : '扣除费项' }} {{ money(isReceivable ? scope.row.paid : scope.row.deduction) }} {{ scope.row.currency }}</span><span>{{ isReceivable ? '未核销' : '待返货款' }} <b>{{ money(scope.row.amount - scope.row.paid) }} {{ scope.row.currency }}</b></span></div></template></el-table-column>
         <el-table-column prop="periodType" label="账期类型" width="90" /><el-table-column prop="periodStart" label="账期起始日" width="112" /><el-table-column prop="periodEnd" label="账期结束日" width="112" />
         <el-table-column v-if="isReceivable" prop="sector" label="业务板块" width="125" /><el-table-column prop="country" :label="isReceivable ? '运抵国' : '目的国'" width="100" /><el-table-column prop="customer" label="客户名称" width="160" show-overflow-tooltip /><el-table-column prop="shop" label="店铺" width="155" show-overflow-tooltip /><el-table-column prop="sentAt" label="账单发出日" width="112" />
         <el-table-column v-if="isReceivable" prop="dueAt" label="信用期结束日" width="120" /><el-table-column v-if="isReceivable" prop="overdueDays" label="逾期天数" width="90" /><el-table-column prop="notice" label="通知状态" width="95" />
-        <el-table-column label="操作" width="150" fixed="right"><template #default="scope"><el-button link type="primary" :icon="View" @click="openDetail(scope.row)">详情</el-button><el-dropdown v-if="!['已结清','已作废'].includes(scope.row.status)" trigger="click" @command="(command) => { openDetail(scope.row); handleBillAction(command) }"><el-button link type="primary">更多</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item v-if="scope.row.status==='待审核' && scope.row.closeStatus==='未收口'" command="期末收口">期末收口</el-dropdown-item><el-dropdown-item v-if="scope.row.status==='待审核'" command="补充生成">补充生成</el-dropdown-item><el-dropdown-item v-if="scope.row.status==='待审核' && !scope.row.issued" command="替换生成">替换生成</el-dropdown-item><el-dropdown-item command="账单重算">账单重算</el-dropdown-item></el-dropdown-menu></template></el-dropdown></template></el-table-column>
+        <el-table-column label="操作" width="150" fixed="right"><template #default="scope"><el-button link type="primary" :icon="View" @click="openDetail(scope.row)">详情</el-button><el-dropdown v-if="!['已结清','已作废'].includes(scope.row.status) && !scope.row.processingState" trigger="click" @command="(command) => { openDetail(scope.row); handleBillAction(command) }"><el-button link type="primary">更多</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item v-if="scope.row.status==='待审核' && scope.row.closeStatus==='未收口'" command="期末收口">期末收口</el-dropdown-item><el-dropdown-item command="账单重算">账单重算</el-dropdown-item></el-dropdown-menu></template></el-dropdown></template></el-table-column>
       </el-table>
       <div class="table-pagination"><span>共 {{ filteredBills.length }} 条</span><el-pagination layout="sizes, prev, pager, next, jumper" :total="filteredBills.length" :page-size="20" /></div>
     </section>

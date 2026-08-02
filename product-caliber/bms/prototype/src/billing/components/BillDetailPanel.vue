@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { Download, EditPen, Search } from '@element-plus/icons-vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
@@ -17,6 +18,10 @@ const previewVisible = ref(false)
 const previewAction = ref('')
 const rateEditorVisible = ref(false)
 const editableRates = ref([])
+const generationVisible = ref(false)
+const generationMode = ref('SUPPLEMENT')
+const generationStep = ref(0)
+const generationForm = reactive({ reason: '', dataCutoff: '2026-08-02 10:30:00', newConfig: '', switchAt: '2026-08-03 00:00:00' })
 
 watch(() => [props.bill.billNo, props.isReceivable], () => {
   activeTab.value = props.isReceivable ? 'rates' : 'info'
@@ -78,15 +83,83 @@ const adjustmentRows = useDemoDataset('billingBillAdjustmentLinks', [
   { billNo: 'ARB-OG0370-20260707-81FF', no: 'ADJ-AR-260715-001', type: '应收调账', status: '审核通过', fee: '派送附加费', objectNo: 'PF607701342355197952', currency: 'CNY', delta: 18, adjustedAt: '2026/07/15 10:24' },
   { billNo: 'PCB-OG0370-20260721', no: 'ADJ-RF-260728-004', type: '返款调账', status: '待审核', fee: '代收服务费', objectNo: 'SO-260721-004221', currency: 'CNY', delta: -320, adjustedAt: '2026/07/28 16:02' },
 ])
+const generationCandidateFees = useDemoDataset('billingGenerationCandidateFees', [
+  { id: 'GF-AR-001', billType: 'AR', selected: true, fee: '派送附加费', businessNo: 'PF607701342355197952', sourceAt: '2026-08-02 08:42', currency: 'CNY', amount: 18, reason: '期末补录' },
+  { id: 'GF-AR-002', billType: 'AR', selected: true, fee: '仓储费', businessNo: 'PF607701343168892928', sourceAt: '2026-08-02 09:15', currency: 'CNY', amount: 22, reason: '延迟同步' },
+  { id: 'GF-AR-003', billType: 'AR', selected: false, fee: '操作费', businessNo: 'PF607701344225857536', sourceAt: '2026-08-02 09:32', currency: 'CNY', amount: 18, reason: '待财务确认' },
+  { id: 'GF-RF-001', billType: 'RF', selected: true, fee: '应返货款', businessNo: 'SO-260721-004326', sourceAt: '2026-08-02 08:56', currency: 'CNY', amount: 1260, reason: '新增签收包裹' },
+  { id: 'GF-RF-002', billType: 'RF', selected: true, fee: '代收服务费', businessNo: 'SO-260721-004326', sourceAt: '2026-08-02 08:56', currency: 'CNY', amount: -42, reason: '随包裹归集' },
+])
+const replacementOptions = useDemoDataset('billingReplacementOptions', [
+  { billType: 'AR', value: 'ARB-OG0370-Scheme-1782960772-v11', label: 'V11 · 7天账期 · 新版费项币种规则', state: '待生效', effect: '2026-08-03 至长期' },
+  { billType: 'AR', value: 'ARB-OG0370-Scheme-1782960772-v12', label: 'V12 · 周账期 · 台湾线路分支', state: '已生效', effect: '2026-08-01 至长期' },
+  { billType: 'RF', value: 'RFB-OG0370-Scheme-1782960772-v5', label: 'V5 · 周账期 · 回款返款', state: '待生效', effect: '2026-08-03 至长期' },
+  { billType: 'RF', value: 'RFB-OG0370-Scheme-1782960772-v6', label: 'V6 · 半周账期 · 签收返款', state: '已生效', effect: '2026-08-01 至长期' },
+])
+const replacementPreviewRows = useDemoDataset('billingReplacementPreview', [
+  { billType: 'AR', side: 'OLD', billNo: 'ARB-OG0370-20260707-81FF', group: '默认业务板块 / 台湾', config: 'V10', currency: 'CNY', amount: 3096.09, feeCount: 14, state: '待审核 · 已收口' },
+  { billType: 'AR', side: 'NEW', billNo: '候选-01', group: '默认业务板块 / 台湾', config: 'V11', currency: 'CNY', amount: 2984.09, feeCount: 13, state: '候选账单' },
+  { billType: 'AR', side: 'NEW', billNo: '候选-02', group: '增值业务板块 / 台湾', config: 'V11', currency: 'CNY', amount: 130, feeCount: 2, state: '候选账单' },
+  { billType: 'RF', side: 'OLD', billNo: 'PCB-OG0370-20260721', group: '台湾 / 周账期', config: 'V4', currency: 'CNY', amount: 88620, feeCount: 2, state: '待审核 · 未收口' },
+  { billType: 'RF', side: 'NEW', billNo: '候选-01', group: '台湾 / 周账期', config: 'V5', currency: 'CNY', amount: 87360, feeCount: 3, state: '候选账单' },
+])
 const refundDetails = computed(() => refundDetailRows.value.filter((row) => row.billNo === props.bill.billNo))
 const deductionDetails = computed(() => deductionDetailRows.value.filter((row) => row.billNo === props.bill.billNo))
 const writeoffs = computed(() => writeoffRows.value.filter((row) => row.billNo === props.bill.billNo))
 const adjustments = computed(() => adjustmentRows.value.filter((row) => row.billNo === props.bill.billNo))
+const billType = computed(() => props.isReceivable ? 'AR' : 'RF')
+const candidateFees = computed(() => generationCandidateFees.value.filter((row) => row.billType === billType.value))
+const selectedCandidateFees = computed(() => candidateFees.value.filter((row) => row.selected))
+const candidateAmount = computed(() => selectedCandidateFees.value.reduce((sum, row) => sum + row.amount, 0))
+const availableReplacementOptions = computed(() => replacementOptions.value.filter((row) => row.billType === billType.value))
+const selectedReplacementOption = computed(() => availableReplacementOptions.value.find((row) => row.value === generationForm.newConfig))
+const replacementOldRows = computed(() => replacementPreviewRows.value.filter((row) => row.billType === billType.value && row.side === 'OLD').map((row) => ({
+  ...row,
+  billNo: props.bill.billNo,
+  group: props.isReceivable ? `${props.bill.sector} / ${props.bill.country}` : `${props.bill.country} / ${props.bill.periodType}账期`,
+  config: currentConfigVersion.value,
+  currency: props.bill.currency,
+  amount: Number(props.bill.amount || 0),
+})))
+const replacementNewRows = computed(() => {
+  const rows = replacementPreviewRows.value.filter((row) => row.billType === billType.value && row.side === 'NEW')
+  const oldAmount = Number(props.bill.amount || 0)
+  return rows.map((row, index) => ({
+    ...row,
+    config: selectedReplacementOption.value?.label.match(/^V\d+/)?.[0] || row.config,
+    currency: props.bill.currency,
+    amount: props.isReceivable ? (index === 0 ? Number((oldAmount * 0.96).toFixed(2)) : Number((oldAmount * 0.04 + 18).toFixed(2))) : Number(Math.max(oldAmount - 1260, 0).toFixed(2)),
+  }))
+})
+const replacementOldAmount = computed(() => replacementOldRows.value.reduce((sum, row) => sum + row.amount, 0))
+const replacementNewAmount = computed(() => replacementNewRows.value.reduce((sum, row) => sum + row.amount, 0))
+const currentConfigLabel = computed(() => props.bill.configNo || `${props.isReceivable ? 'ARB' : 'RFB'}-${props.bill.customerNo}-Scheme`)
+const currentConfigVersion = computed(() => props.bill.configVersion || (props.isReceivable ? 'V10' : 'V4'))
+const currentResultVersion = computed(() => props.bill.resultVersion || 'RV-20260801-0018')
 
 function openPreview(action) { previewAction.value = action; previewVisible.value = true }
 function confirmPreview() { previewVisible.value = false; emit('action', previewAction.value) }
 function openRateEditor() { editableRates.value = arRates.value.map((row) => ({ ...row })); rateEditorVisible.value = true }
 function saveRates() { rateEditorVisible.value = false; emit('action', '保存账单特调汇率') }
+function openGeneration(mode) {
+  generationMode.value = mode
+  generationStep.value = 0
+  generationForm.reason = ''
+  generationForm.dataCutoff = '2026-08-02 10:30:00'
+  generationForm.switchAt = '2026-08-03 00:00:00'
+  generationForm.newConfig = availableReplacementOptions.value[0]?.value || ''
+  generationVisible.value = true
+}
+function nextGenerationStep() {
+  if (generationStep.value === 0 && !generationForm.reason.trim()) return ElMessage.warning('请填写本次生成原因')
+  if (generationMode.value === 'REPLACE' && generationStep.value === 0 && !generationForm.newConfig) return ElMessage.warning('请选择新版账单配置')
+  if (generationMode.value === 'SUPPLEMENT' && generationStep.value === 1 && !selectedCandidateFees.value.length) return ElMessage.warning('至少选择一条待补充费项')
+  generationStep.value += 1
+}
+function submitGenerationTask() {
+  generationVisible.value = false
+  emit('action', generationMode.value === 'SUPPLEMENT' ? '创建补充生成任务' : '创建替换生成任务')
+}
 </script>
 
 <template>
@@ -96,6 +169,7 @@ function saveRates() { rateEditorVisible.value = false; emit('action', '保存�
         <div class="bill-detail-title-line">
           <strong>{{ bill.billNo }}</strong>
           <span :class="['status-tag', statusClass]">{{ bill.status }}</span>
+          <span v-if="bill.processingState" class="status-tag running">{{ bill.processingState }}</span>
         </div>
         <div class="bill-detail-meta">
           <span class="period-chip">{{ bill.periodType }} <i></i> {{ bill.periodStart }} ~ {{ bill.periodEnd }}</span>
@@ -106,21 +180,21 @@ function saveRates() { rateEditorVisible.value = false; emit('action', '保存�
       </div>
       <div class="bill-detail-actions">
         <template v-if="isReceivable">
-          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口'" @click="emit('action', '审核通过')">审核通过</el-button>
-          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '未收口'" @click="openPreview('期末收口')">期末收口</el-button>
-          <el-button v-if="bill.status === '待审核'" @click="openPreview('补充生成')">补充生成</el-button>
-          <el-button v-if="bill.status === '待审核' && !bill.issued" @click="openPreview('替换生成')">替换生成</el-button>
-          <el-button v-if="!['已结清','已作废'].includes(bill.status)" @click="openPreview('账单重算')">账单重算</el-button>
+          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口' && !bill.processingState" @click="emit('action', '审核通过')">审核通过</el-button>
+          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '未收口' && !bill.processingState" @click="openPreview('期末收口')">期末收口</el-button>
+          <el-button v-if="bill.status === '待审核' && !bill.processingState" @click="openGeneration('SUPPLEMENT')">补充生成</el-button>
+          <el-button v-if="bill.status === '待审核' && !bill.issued && !bill.processingState" @click="openGeneration('REPLACE')">替换生成</el-button>
+          <el-button v-if="!['已结清','已作废'].includes(bill.status) && !bill.processingState" @click="openPreview('账单重算')">账单重算</el-button>
           <el-button type="primary" plain :icon="Download" @click="emit('action', '导出账单')">导出账单</el-button>
         </template>
         <template v-else>
-          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口'" @click="emit('action', '审核通过')">审核通过</el-button>
-          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '未收口'" @click="openPreview('期末收口')">期末收口</el-button>
-          <el-button v-if="bill.status === '待结清'" @click="emit('action', '退回待审核')">退回待审核</el-button>
-          <el-button v-if="bill.status === '待审核'" @click="openPreview('补充生成')">补充生成</el-button>
-          <el-button v-if="bill.status === '待审核' && !bill.issued" @click="openPreview('替换生成')">替换生成</el-button>
-          <el-button v-if="!['已结清','已作废'].includes(bill.status)" @click="openPreview('账单重算')">账单重算</el-button>
-          <el-button v-if="bill.status === '待结清'" @click="emit('action', '登记返还')">登记返还</el-button>
+          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口' && !bill.processingState" @click="emit('action', '审核通过')">审核通过</el-button>
+          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '未收口' && !bill.processingState" @click="openPreview('期末收口')">期末收口</el-button>
+          <el-button v-if="bill.status === '待结清' && !bill.processingState" @click="emit('action', '退回待审核')">退回待审核</el-button>
+          <el-button v-if="bill.status === '待审核' && !bill.processingState" @click="openGeneration('SUPPLEMENT')">补充生成</el-button>
+          <el-button v-if="bill.status === '待审核' && !bill.issued && !bill.processingState" @click="openGeneration('REPLACE')">替换生成</el-button>
+          <el-button v-if="!['已结清','已作废'].includes(bill.status) && !bill.processingState" @click="openPreview('账单重算')">账单重算</el-button>
+          <el-button v-if="bill.status === '待结清' && !bill.processingState" @click="emit('action', '登记返还')">登记返还</el-button>
           <el-button @click="emit('action', '打开调账中心')">调账中心</el-button>
           <el-button type="primary" plain :icon="Download" @click="emit('action', '导出明细')">导出明细</el-button>
         </template>
@@ -133,7 +207,7 @@ function saveRates() { rateEditorVisible.value = false; emit('action', '保存�
         <article v-for="bucket in arCurrencyBuckets" :key="bucket.currency" class="currency-bucket">
           <div class="currency-bucket-head"><strong>{{ bucket.currency }}</strong><span :class="['status-tag', bucket.state === '已核销' ? 'success' : 'neutral']">{{ bucket.state }}</span></div>
           <dl><div><dt>应收金额</dt><dd>{{ money(bucket.due) }}</dd></div><div><dt>实收金额</dt><dd>{{ money(bucket.settled) }}</dd></div><div><dt>待收金额</dt><dd>{{ money(bucket.pending) }}</dd></div></dl>
-          <el-button type="primary" plain @click="emit('action', `${bucket.currency}费用核销`)">费用核销</el-button>
+          <el-button type="primary" plain :disabled="Boolean(bill.processingState)" @click="emit('action', `${bucket.currency}费用核销`)">费用核销</el-button>
         </article>
       </div>
     </section>
@@ -148,7 +222,7 @@ function saveRates() { rateEditorVisible.value = false; emit('action', '保存�
         <div class="money-panel-heading"><h3>货款结算币种金额</h3><small>按账单下所有返款币种维度汇总展示</small></div>
         <div class="currency-bucket-head"><strong>{{ bill.currency }}</strong><span class="status-tag warning">待核销</span></div>
         <dl class="money-metrics five"><div><dt>原始货款金额</dt><dd>{{ money(bill.original) }}</dd></div><div><dt>扣除费项金额</dt><dd>{{ money(bill.deduction) }}</dd></div><div><dt>应返货款金额</dt><dd>{{ money(bill.amount) }}</dd></div><div><dt>已返货款金额</dt><dd>{{ money(bill.paid) }}</dd></div><div><dt>待返货款金额</dt><dd>{{ money(bill.amount - bill.paid) }}</dd></div></dl>
-        <el-button type="primary" @click="emit('action', `${bill.currency}货款核销`)">核销</el-button>
+        <el-button type="primary" :disabled="Boolean(bill.processingState)" @click="emit('action', `${bill.currency}货款核销`)">核销</el-button>
       </article>
     </section>
 
@@ -197,6 +271,66 @@ function saveRates() { rateEditorVisible.value = false; emit('action', '保存�
       <el-tab-pane label="核销记录" name="writeoffs"><el-table :data="writeoffs" border><el-table-column prop="no" label="核销编号" /><el-table-column prop="type" label="核销类型" /><el-table-column prop="currency" label="币种" /><el-table-column label="核销金额"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column prop="time" label="核销时间" /><el-table-column prop="operator" label="操作人" /></el-table></el-tab-pane>
     </el-tabs>
 
+    <el-dialog v-model="generationVisible" :title="generationMode === 'SUPPLEMENT' ? '账单补充生成' : '账单替换生成'" width="1040px" align-center append-to-body :close-on-click-modal="false" class="generation-dialog">
+      <el-steps :active="generationStep" finish-status="success" align-center class="generation-steps">
+        <el-step title="确认处理条件" />
+        <el-step :title="generationMode === 'SUPPLEMENT' ? '选择补充费项' : '核对替换推演'" />
+        <el-step title="创建任务" />
+      </el-steps>
+
+      <section v-if="generationStep === 0" class="generation-step-panel">
+        <div class="generation-mode-banner">
+          <div><strong>{{ generationMode === 'SUPPLEMENT' ? '保留原账单，沿用原配置' : '按新版配置重新拆单' }}</strong><span>{{ generationMode === 'SUPPLEMENT' ? '新增费项写入同一账单的新结果版本，不改变账单编号。' : '系统先生成候选账单，任务整体成功后才作废原账单集合。' }}</span></div>
+          <span :class="['status-tag', generationMode === 'SUPPLEMENT' ? 'running' : 'warning']">{{ generationMode === 'SUPPLEMENT' ? '普通操作' : '高风险操作' }}</span>
+        </div>
+        <dl class="generation-context-grid">
+          <div><dt>目标账单</dt><dd>{{ bill.billNo }}</dd></div><div><dt>客户 / 账单类型</dt><dd>{{ bill.customer }} / {{ isReceivable ? '应收账单' : '返款账单' }}</dd></div>
+          <div><dt>实际账期</dt><dd>{{ bill.periodStart }} 至 {{ bill.periodEnd }}</dd></div><div><dt>当前收口状态</dt><dd>{{ bill.closeStatus }}</dd></div>
+          <div><dt>原配置</dt><dd>{{ currentConfigLabel }} · {{ currentConfigVersion }}</dd></div><div><dt>当前结果版本</dt><dd>{{ currentResultVersion }}</dd></div>
+        </dl>
+        <div v-if="generationMode === 'REPLACE'" class="generation-checks">
+          <div><span class="check-mark">✓</span><strong>账单状态为待审核</strong><small>符合替换条件</small></div>
+          <div><span class="check-mark">✓</span><strong>账单尚未发出</strong><small>发出时间为空</small></div>
+          <div><span class="check-mark">✓</span><strong>不存在资金事实</strong><small>无核销、回款或返款</small></div>
+          <div><span class="check-mark">✓</span><strong>范围未被其它任务占用</strong><small>允许创建替换批次</small></div>
+        </div>
+        <el-form label-position="top" class="generation-form-grid">
+          <el-form-item v-if="generationMode === 'REPLACE'" label="新版账单配置"><el-select v-model="generationForm.newConfig"><el-option v-for="item in availableReplacementOptions" :key="item.value" :label="item.label" :value="item.value"><span>{{ item.label }}</span><small class="option-meta">{{ item.state }} · {{ item.effect }}</small></el-option></el-select></el-form-item>
+          <el-form-item v-if="generationMode === 'REPLACE'" label="配置切换时点 T"><el-date-picker v-model="generationForm.switchAt" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" /></el-form-item>
+          <el-form-item label="数据截止点"><el-date-picker v-model="generationForm.dataCutoff" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" /></el-form-item>
+          <el-form-item label="生成原因" :class="{ 'span-2': generationMode === 'SUPPLEMENT' }"><el-input v-model="generationForm.reason" type="textarea" :rows="2" :placeholder="generationMode === 'SUPPLEMENT' ? '说明新增或更正费项的来源' : '说明改用新版配置的原因'" /></el-form-item>
+        </el-form>
+      </section>
+
+      <section v-else-if="generationStep === 1 && generationMode === 'SUPPLEMENT'" class="generation-step-panel">
+        <el-alert title="仅展示原配置范围内、尚未归入有效账单的新费项或更正费项；不会读取后来生效的新配置。" type="info" :closable="false" />
+        <div class="generation-summary-row"><div><span>待选择费项</span><strong>{{ candidateFees.length }}</strong></div><div><span>已选择</span><strong>{{ selectedCandidateFees.length }}</strong></div><div><span>预计金额变化</span><strong>{{ money(candidateAmount) }} {{ bill.currency }}</strong></div><div><span>结果处理</span><strong>新增结果版本</strong></div></div>
+        <el-table :data="candidateFees" border class="generation-table">
+          <el-table-column label="纳入" width="64" align="center"><template #default="scope"><el-checkbox v-model="scope.row.selected" /></template></el-table-column>
+          <el-table-column prop="fee" label="费项" width="150" /><el-table-column prop="businessNo" label="业务单号" min-width="220" /><el-table-column prop="sourceAt" label="进入费项池时间" width="160" /><el-table-column prop="reason" label="待补充原因" width="130" /><el-table-column prop="currency" label="币种" width="80" /><el-table-column label="金额" align="right" width="130"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column>
+        </el-table>
+      </section>
+
+      <section v-else-if="generationStep === 1" class="generation-step-panel">
+        <el-alert title="以下结果为新版配置推演。候选账单在任务成功前不可见、不可审核，也不会提前释放原费项占用。" type="warning" :closable="false" />
+        <div class="replacement-config-line"><span>原配置：<strong>{{ currentConfigVersion }}</strong></span><span>新版配置：<strong>{{ selectedReplacementOption?.label }}</strong></span><span>切换时点：<strong>{{ generationForm.switchAt }}</strong></span></div>
+        <div class="replacement-columns">
+          <div><h4>待替换账单集合</h4><el-table :data="replacementOldRows" border><el-table-column prop="billNo" label="原账单" min-width="210" /><el-table-column prop="group" label="分组范围" min-width="170" /><el-table-column prop="config" label="配置" width="80" /><el-table-column prop="feeCount" label="费项" width="70" /><el-table-column label="金额" width="130" align="right"><template #default="scope">{{ money(scope.row.amount) }} {{ scope.row.currency }}</template></el-table-column></el-table></div>
+          <div><h4>候选新账单集合</h4><el-table :data="replacementNewRows" border><el-table-column prop="billNo" label="候选账单" min-width="120" /><el-table-column prop="group" label="新版拆单结果" min-width="170" /><el-table-column prop="config" label="配置" width="80" /><el-table-column prop="feeCount" label="费项" width="70" /><el-table-column label="金额" width="130" align="right"><template #default="scope">{{ money(scope.row.amount) }} {{ scope.row.currency }}</template></el-table-column></el-table></div>
+        </div>
+        <div class="generation-summary-row replacement-summary"><div><span>原账单数量</span><strong>{{ replacementOldRows.length }}</strong></div><div><span>候选账单数量</span><strong>{{ replacementNewRows.length }}</strong></div><div><span>原账单金额</span><strong>{{ money(replacementOldAmount) }}</strong></div><div><span>候选金额</span><strong>{{ money(replacementNewAmount) }}</strong></div><div><span>金额变化</span><strong>{{ money(replacementNewAmount - replacementOldAmount) }}</strong></div></div>
+      </section>
+
+      <section v-else class="generation-step-panel generation-confirm-panel">
+        <div class="confirm-icon">✓</div><h3>任务信息已准备完成</h3>
+        <p>{{ generationMode === 'SUPPLEMENT' ? '提交后创建账单生成任务，实际生成方式将在任务取得执行权后确定。' : '提交后创建替换批次并锁定待替换范围，只有候选集合整体成功才切换新旧账单。' }}</p>
+        <dl class="generation-context-grid confirm-grid"><div><dt>执行级别</dt><dd>账单计算</dd></div><div><dt>计算类型</dt><dd>账单生成</dd></div><div><dt>发起意图</dt><dd>{{ generationMode === 'SUPPLEMENT' ? '补充生成' : '替换生成' }}</dd></div><div><dt>实际生成方式</dt><dd>{{ generationMode === 'SUPPLEMENT' ? '待判定' : '替换生成' }}</dd></div><div><dt>数据截止点</dt><dd>{{ generationForm.dataCutoff }}</dd></div><div><dt>操作原因</dt><dd>{{ generationForm.reason }}</dd></div></dl>
+        <el-alert v-if="generationMode === 'REPLACE'" title="任务创建后，原账单将显示“替换待处理”并禁止审核、发送、补充生成、再次替换、重算和核销。" type="warning" :closable="false" />
+      </section>
+
+      <template #footer><el-button @click="generationVisible=false">取消</el-button><el-button v-if="generationStep > 0" @click="generationStep--">上一步</el-button><el-button v-if="generationStep < 2" type="primary" @click="nextGenerationStep">下一步</el-button><el-button v-else type="primary" @click="submitGenerationTask">创建任务</el-button></template>
+    </el-dialog>
+
     <el-dialog v-model="previewVisible" :title="`${previewAction}预览`" width="720px" align-center append-to-body>
       <dl class="bill-info-grid"><div><dt>账单编号</dt><dd>{{ bill.billNo }}</dd></div><div><dt>客户</dt><dd>{{ bill.customer }}</dd></div><div><dt>当前账单状态</dt><dd>{{ bill.status }}</dd></div><div><dt>当前收口状态</dt><dd>{{ bill.closeStatus }}</dd></div><div><dt>影响范围</dt><dd>当前账单及其账期内未归属费项</dd></div><div><dt>生成结果</dt><dd>{{ previewAction === '替换生成' ? '原账单作废并创建新账单' : previewAction === '期末收口' ? '锁定账期并允许审核' : '创建账单计算任务' }}</dd></div></dl>
       <el-alert v-if="previewAction === '替换生成'" title="替换生成仅适用于未发出的待审核账单，确认后原账单不可继续使用。" type="warning" :closable="false" />
@@ -210,3 +344,7 @@ function saveRates() { rateEditorVisible.value = false; emit('action', '保存�
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.generation-steps{margin:0 24px 26px}.generation-step-panel{min-height:430px}.generation-mode-banner{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-left:3px solid var(--primary);background:var(--primary-soft)}.generation-mode-banner div{display:flex;flex-direction:column;gap:5px}.generation-mode-banner strong{font-size:16px;color:#17233d}.generation-mode-banner span{color:#637089}.generation-context-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:16px 0;border-top:1px solid #e1e6ef;border-left:1px solid #e1e6ef}.generation-context-grid div{min-height:72px;padding:12px 14px;border-right:1px solid #e1e6ef;border-bottom:1px solid #e1e6ef}.generation-context-grid dt{margin-bottom:6px;color:#7a8699;font-size:12px}.generation-context-grid dd{margin:0;color:#273247;font-weight:600;overflow-wrap:anywhere}.generation-checks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}.generation-checks div{display:grid;grid-template-columns:24px 1fr;gap:2px 8px;padding:12px;border:1px solid #dfe6ee;background:#fbfcfd}.generation-checks .check-mark{grid-row:1/3;display:grid;place-items:center;width:22px;height:22px;background:#e8f7ef;color:#11875d;font-weight:700}.generation-checks strong{font-size:13px}.generation-checks small{color:#7b8797}.generation-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}.generation-form-grid :deep(.el-form-item.span-2){grid-column:span 2}.generation-form-grid :deep(.el-date-editor){width:100%}.option-meta{float:right;margin-left:16px;color:#8a95a6}.generation-summary-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:16px 0;border:1px solid #dfe5ee}.generation-summary-row div{padding:12px 16px;border-right:1px solid #dfe5ee}.generation-summary-row div:last-child{border-right:0}.generation-summary-row span{display:block;margin-bottom:6px;color:#7c8798;font-size:12px}.generation-summary-row strong{color:#17233d;font-size:16px}.generation-table{margin-top:12px}.replacement-config-line{display:flex;gap:28px;margin:16px 0;padding:12px 16px;background:#f6f8fb;color:#657187}.replacement-config-line strong{color:#273247}.replacement-columns{display:grid;grid-template-columns:1fr;gap:14px}.replacement-columns h4{margin:0 0 10px}.replacement-summary{grid-template-columns:repeat(5,minmax(0,1fr))}.generation-confirm-panel{text-align:center;padding-top:24px}.confirm-icon{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 12px;background:#e8f7ef;color:#14845e;font-size:26px;font-weight:700}.generation-confirm-panel h3{margin:0 0 8px;font-size:20px}.generation-confirm-panel>p{margin:0 auto 20px;color:#69758a}.confirm-grid{text-align:left}.generation-confirm-panel :deep(.el-alert){text-align:left}@media(max-width:900px){.generation-context-grid,.generation-checks{grid-template-columns:1fr 1fr}.generation-form-grid{grid-template-columns:1fr}.generation-form-grid :deep(.el-form-item.span-2){grid-column:auto}.replacement-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>

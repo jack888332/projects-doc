@@ -15,8 +15,8 @@
         <button class="icon-btn topbar-icon" data-action="switch-org" title="切换组织"><i data-lucide="chevron-down"></i></button>
       </div>
       <nav class="top-menu" aria-label="顶部菜单">
-        <button data-domain="billing"><i data-lucide="receipt-text"></i><span>账单系统</span></button>
-        <button class="active" data-domain="cost"><i data-lucide="chart-no-axes-combined"></i><span>成本中心</span></button>
+        <button class="active" data-domain="billing"><i data-lucide="receipt-text"></i><span>账单系统</span></button>
+        <button data-domain="cost"><i data-lucide="chart-no-axes-combined"></i><span>成本中心</span></button>
       </nav>
       <div class="top-actions">
         <button class="icon-btn topbar-icon" data-view="suppliers" title="供应商管理"><i data-lucide="building-2"></i></button>
@@ -28,26 +28,33 @@
     </header>
 
     <aside class="sidebar" id="sidebar">
-      <div class="side-title">成本中心</div>
+      <div class="side-title">账单系统</div>
       <nav class="side-nav">
-        <button class="nav-item active" data-view="overview"><i data-lucide="layout-dashboard"></i><span>成本总览</span></button>
-        <div class="nav-group-label">成本管理</div>
-        <button class="nav-item" data-view="suppliers"><i data-lucide="building-2"></i><span>供应商管理</span></button>
-        <button class="nav-item" data-view="bills"><i data-lucide="file-spreadsheet"></i><span>成本账单</span><span class="nav-count">8</span></button>
-        <button class="nav-item" data-view="pool"><i data-lucide="database"></i><span>成本池</span><span class="nav-count warn">23</span></button>
-        <div class="nav-group-label">分析与配置</div>
-        <button class="nav-item" data-view="profit"><i data-lucide="chart-no-axes-combined"></i><span>利润分析</span></button>
-        <button class="nav-item" data-view="rules"><i data-lucide="list-checks"></i><span>分摊规则</span></button>
-        <button class="nav-item" data-view="fees"><i data-lucide="tags"></i><span>成本费项索引</span></button>
+        <div class="nav-group-label">财务日常</div>
+        <button class="nav-item" data-billing-view="receivable"><i data-lucide="file-text"></i><span>应收账单</span></button>
+        <button class="nav-item" data-billing-view="refund"><i data-lucide="receipt"></i><span>返款账单</span></button>
+        <button class="nav-item" data-billing-view="remittance"><i data-lucide="banknote"></i><span>回款管理</span></button>
+        <button class="nav-item" data-billing-view="adjustments"><i data-lucide="sliders-horizontal"></i><span>调账中心</span></button>
+        <div class="nav-group-label">核心配置</div>
+        <button class="nav-item" data-billing-view="config"><i data-lucide="settings"></i><span>账单配置</span></button>
+        <button class="nav-item" data-billing-view="rates"><i data-lucide="coins"></i><span>汇率配置</span></button>
+        <div class="nav-group-label">过程管控</div>
+        <button class="nav-item active" data-billing-view="tasks"><i data-lucide="clipboard-list"></i><span>生成任务</span><span class="nav-count warn">4</span></button>
+        <button class="nav-item" data-billing-view="base"><i data-lucide="settings-2"></i><span>基础配置</span></button>
+        <button class="nav-item" data-billing-view="exports"><i data-lucide="download"></i><span>导出管理</span></button>
+        <button class="nav-item" data-billing-view="audit"><i data-lucide="shield-check"></i><span>内部审计</span></button>
+        <div class="nav-group-label">辅助测试</div>
+        <button class="nav-item" data-billing-view="compare"><i data-lucide="search-check"></i><span>报表比对</span></button>
+        <button class="nav-item" data-billing-view="migration"><i data-lucide="refresh-cw"></i><span>数据迁移</span></button>
       </nav>
-      <div class="sidebar-foot"><i data-lucide="circle-help"></i><span>成本中心操作指引</span></div>
+      <div class="sidebar-foot"><i data-lucide="circle-help"></i><span>账单系统操作指引</span></div>
     </aside>
 
     <main class="workspace">
       <div class="route-tabs">
         <button class="sidebar-toggle icon-btn" data-action="toggle-sidebar" title="展开或收起菜单"><i data-lucide="panel-left"></i></button>
         <button id="route-back" class="route-back hidden" data-action="back-bills" title="返回成本账单列表"><i data-lucide="arrow-left"></i><span>返回</span></button>
-        <span>首页</span><i data-lucide="chevron-right"></i><span class="current-route">成本总览</span>
+        <span>首页</span><i data-lucide="chevron-right"></i><span class="current-route">生成任务</span>
       </div>
       <section id="content" class="content"></section>
     </main>

@@ -1,5 +1,15 @@
 @import "./src/billing/module-pages.css";
 
+:root {
+  --el-color-primary: var(--primary);
+  --el-color-primary-light-3: #8380c2;
+  --el-color-primary-light-5: #a7a4d3;
+  --el-color-primary-light-7: #cbc9e5;
+  --el-color-primary-light-8: #dddcf0;
+  --el-color-primary-light-9: #eeeef8;
+  --el-color-primary-dark-2: var(--primary-strong);
+}
+
 .billing-content .app-shell.is-embedded {
   display: block;
   min-height: 0;
@@ -56,14 +66,44 @@
   align-items: center;
   gap: 7px;
 }
-.billing-content .el-button {
-  border-radius: 2px;
+.el-button.el-button:not(.is-circle) {
+  min-height: var(--action-button-height);
+  height: var(--action-button-height);
+  padding: 0 12px;
+  border-radius: var(--action-button-radius);
+  transition: color .15s ease, border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
 }
-.billing-content .el-button--primary {
+.el-button.el-button--small:not(.is-circle) {
+  min-height: var(--action-button-small-height);
+  height: var(--action-button-small-height);
+  padding: 0 9px;
+}
+.el-button.el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
+  --el-button-text-color: #fff;
   --el-button-bg-color: var(--primary);
   --el-button-border-color: var(--primary);
+  --el-button-outline-color: var(--primary-focus-ring);
   --el-button-hover-bg-color: var(--primary-strong);
   --el-button-hover-border-color: var(--primary-strong);
+  --el-button-hover-text-color: #fff;
+  --el-button-active-bg-color: var(--primary-active);
+  --el-button-active-border-color: var(--primary-active);
+  --el-button-active-text-color: #fff;
+  --el-button-disabled-bg-color: var(--primary-disabled);
+  --el-button-disabled-border-color: var(--primary-disabled);
+  --el-button-disabled-text-color: rgba(255,255,255,.82);
+  font-weight: 500;
+  box-shadow: var(--action-button-shadow);
+}
+.el-button.el-button--primary:not(.is-plain):not(.is-link):not(.is-text):active {
+  box-shadow: none;
+}
+.el-button.el-button--primary:not(.is-plain):not(.is-link):not(.is-text):focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--primary-focus-ring), var(--action-button-shadow);
+}
+.el-button.el-button--primary:not(.is-plain):not(.is-link):not(.is-text).is-disabled {
+  box-shadow: none;
 }
 .billing-content .el-input__wrapper,
 .billing-content .el-select__wrapper,
@@ -94,7 +134,9 @@
   border-radius: 0;
 }
 .billing-content .module-segmented button.active,
-.billing-content .status-tabs-row button.active {
+.billing-content .status-tabs-row button.active,
+.billing-content .sub-tab.active,
+.billing-content .fee-view-switch button.active {
   border-color: var(--primary);
   background: var(--primary);
 }
@@ -164,7 +206,7 @@
 .billing-content .summary-card.red { border-top-color: var(--danger); }
 .billing-content .summary-card.amber { border-top-color: var(--warning); }
 .billing-content .summary-card.violet { border-top-color: #6b55b4; }
-.billing-content .summary-card.active { background: var(--primary-soft); outline: 1px solid #aaa9ef; }
+.billing-content .summary-card.active { background: var(--primary-soft); outline: 1px solid var(--primary-border); }
 .billing-content .result-summary {
   height: 36px;
   padding: 0 14px;
@@ -183,7 +225,7 @@
   --el-table-header-text-color: #596170;
   --el-table-text-color: #414957;
   --el-table-border-color: var(--border-soft);
-  --el-table-row-hover-bg-color: #f7f7ff;
+  --el-table-row-hover-bg-color: #faf8fb;
 }
 .billing-content .clean-table .el-table__header th { height: 38px; font-size: 11px; font-weight: 600; }
 .billing-content .clean-table .el-table__row td { height: 46px; font-size: 11px; }

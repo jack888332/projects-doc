@@ -5,13 +5,14 @@ import { Plus, RefreshRight, Search } from '@element-plus/icons-vue'
 import PageHeader from '../components/PageHeader.vue'
 import ReceivableConfigEditor from '../components/ReceivableConfigEditor.vue'
 import RefundConfigEditor from '../components/RefundConfigEditor.vue'
+import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const activeType = ref('AR')
 const query = reactive({ shop: '', customer: '', customerNo: '', memberCode: '', status: '' })
 const detailVisible = ref(false)
 const selectedConfig = ref(null)
 const editorRef = ref(null)
-const configs = ref([
+const configs = useDemoDataset('billingConfigs', [
   { type:'AR', no:'ARB-OG0271-Scheme-1785487906-v1', customer:'渣渣辉3号', customerNo:'OG0271', memberCode:'700127', shop:'星际货运(中转)', currency:'TWD', cycle:'1天账单', sentRule:'账期结束后 3 天', branches:'-', status:'启用' },
   { type:'AR', no:'ARB-OG0370-Scheme-1782960772-v10', customer:'JYK-深圳立杰海快', customerNo:'OG0370', memberCode:'20260701-009', shop:'星际中转2', currency:'CNY', cycle:'7天', sentRule:'账期结束后 1 天', branches:'-', status:'启用' },
   { type:'AR', no:'ARB-OG0347-Scheme-1782548834-v1', customer:'测试1', customerNo:'OG0347', memberCode:'20260228-002', shop:'星际中转2', currency:'TWD', cycle:'周账单', sentRule:'账期结束后 3 天', branches:'-', status:'启用' },
@@ -33,7 +34,12 @@ async function save(){
       await ElMessageBox.confirm('确定提交整份结算设置？<br>（任何设置有变动都会以邮件通知客户）','提示',{dangerouslyUseHTMLString:true,type:'warning',confirmButtonText:'确定',cancelButtonText:'取消'})
     } catch { return }
   }
-  ElMessage.success(selectedConfig.value?.type === 'AR' ? `配置已保存，编号：${selectedConfig.value.no}` : '返款账单配置已保存')
+  const next = { ...selectedConfig.value }
+  if (next.no === '新配置') next.no = `${next.type === 'AR' ? 'ARB' : 'RFB'}-${next.customerNo || 'NEW'}-Scheme-${Date.now()}-v1`
+  const currentIndex = configs.value.findIndex((item) => item.no === selectedConfig.value.no)
+  if (currentIndex >= 0) configs.value.splice(currentIndex, 1, next)
+  else configs.value.unshift(next)
+  ElMessage.success(next.type === 'AR' ? `配置已保存，编号：${next.no}` : '返款账单配置已保存')
   detailVisible.value=false
 }
 function generate(row){ ElMessage.success(`已为 ${row.customer} 创建账单生成任务`) }

@@ -1,4 +1,3 @@
-import Dexie from "dexie";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn.js";
 import { createApp, h, ref } from "vue";
@@ -6,6 +5,7 @@ import ElementPlus, { ElConfigProvider, ElDatePicker } from "element-plus";
 import zhCn from "element-plus/es/locale/lang/zh-cn.mjs";
 import "element-plus/dist/index.css";
 import BillingApp from "./src/billing/App.vue";
+import { notifyDemoDataChanged, prototypeDb } from "./src/data/prototypeDb.js";
 import "./billing-embedded.css";
 
 dayjs.locale("zh-cn");
@@ -395,24 +395,6 @@ function unmountBillingView() {
 }
 const dateRangePickerApps = new Map();
 
-const prototypeDb = new Dexie("BmsCostCenterPrototype");
-prototypeDb.version(1).stores({
-  sampleFiles: "&id,supplier,board",
-  suppliers: "&code,name,state,*boards",
-  bills: "&id,supplier,board,state,created",
-  costs: "&id,bill,supplier,board,type,status,key",
-  pools: "&id,supplier,fee,status",
-  fees: "&code,board,status",
-  operationLogs: "++id,entityType,entityId,action,createdAt",
-  settings: "&key"
-});
-prototypeDb.version(2).stores({
-  feeAliases: "&id,supplier,board,rawName,feeCode,status,[supplier+board+rawName]"
-});
-prototypeDb.version(3).stores({
-  allocationRules: "&id,board,fee,supplier,status"
-});
-
 const cloneData = value => JSON.parse(JSON.stringify(value));
 const initialData = {
   sampleFiles: cloneData(sampleFiles),
@@ -425,6 +407,7 @@ const initialData = {
   feeAliases: cloneData(feeAliases)
 };
 const dataTableNames = Object.keys(initialData);
+const exportTableNames = [...dataTableNames, "demoRecords"];
 
 function replaceArray(target, source) {
   target.splice(0, target.length, ...cloneData(source));
@@ -1158,18 +1141,18 @@ function toast(message,type="success"){const stack=document.getElementById("toas
 
 function dataToolsModal() {
   state.pendingAction = null;
-  showModal("模拟数据管理", `<div class="inline-note">模拟数据保存在当前浏览器的 IndexedDB 中，不会发送到任何后端服务。</div><div class="data-tool-list"><button class="data-tool-item" data-action="export-prototype-data">${icon("download")}<span><strong>导出模拟数据</strong><small>将当前供应商、账单、成本和分摊结果保存为 JSON</small></span></button><button class="data-tool-item" data-action="import-prototype-data">${icon("upload")}<span><strong>导入模拟数据</strong><small>用已导出的 JSON 覆盖当前浏览器数据</small></span></button><button class="data-tool-item danger" data-action="reset-prototype-data">${icon("rotate-ccw")}<span><strong>恢复初始数据</strong><small>清除当前操作结果并重新载入成本账单样本</small></span></button></div>`, "关闭");
+  showModal("模拟数据管理", `<div class="inline-note">账单系统与成本中心的全部模拟数据均保存在当前浏览器的 IndexedDB 中，不会发送到任何后端服务。</div><div class="data-tool-list"><button class="data-tool-item" data-action="export-prototype-data">${icon("download")}<span><strong>导出模拟数据</strong><small>导出账单、任务、配置、供应商、成本和分摊数据</small></span></button><button class="data-tool-item" data-action="import-prototype-data">${icon("upload")}<span><strong>导入模拟数据</strong><small>用已导出的 JSON 覆盖当前浏览器数据</small></span></button><button class="data-tool-item danger" data-action="reset-prototype-data">${icon("rotate-ccw")}<span><strong>恢复初始数据</strong><small>清除当前操作结果并重新载入全部原型样本</small></span></button></div>`, "关闭");
 }
 
 async function exportPrototypeData() {
   const data = {};
-  for (const tableName of dataTableNames) data[tableName] = await prototypeDb.table(tableName).toArray();
+  for (const tableName of exportTableNames) data[tableName] = await prototypeDb.table(tableName).toArray();
   data.operationLogs = await prototypeDb.operationLogs.toArray();
-  const payload = { format: "bms-cost-center-prototype", version: 2, exportedAt: new Date().toISOString(), data };
+  const payload = { format: "bms-unified-prototype", version: 3, exportedAt: new Date().toISOString(), data };
   const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" }));
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `BMS成本中心模拟数据-${new Date().toISOString().slice(0,10)}.json`;
+  anchor.download = `BMS账单与成本中心模拟数据-${new Date().toISOString().slice(0,10)}.json`;
   anchor.click();
   URL.revokeObjectURL(url);
   toast("模拟数据已导出");
@@ -1177,7 +1160,7 @@ async function exportPrototypeData() {
 
 async function importPrototypeData(file) {
   const payload = JSON.parse(await file.text());
-  if (payload?.format !== "bms-cost-center-prototype" || !payload.data) throw new Error("不是有效的成本中心模拟数据文件");
+  if (!['bms-cost-center-prototype', 'bms-unified-prototype'].includes(payload?.format) || !payload.data) throw new Error("不是有效的 BMS 模拟数据文件");
   for (const tableName of dataTableNames) {
     if (!Array.isArray(payload.data[tableName]) && !["feeAliases", "allocationRules"].includes(tableName)) throw new Error(`模拟数据缺少 ${tableName}`);
   }
@@ -1187,11 +1170,13 @@ async function importPrototypeData(file) {
       const rows = Array.isArray(payload.data[tableName]) ? payload.data[tableName] : initialData[tableName];
       if (rows.length) await prototypeDb.table(tableName).bulkAdd(cloneData(rows));
     }
+    if (Array.isArray(payload.data.demoRecords) && payload.data.demoRecords.length) await prototypeDb.demoRecords.bulkAdd(cloneData(payload.data.demoRecords));
     if (Array.isArray(payload.data.operationLogs) && payload.data.operationLogs.length) await prototypeDb.operationLogs.bulkAdd(cloneData(payload.data.operationLogs).map(({ id, ...row }) => row));
     await prototypeDb.settings.put({ key: "seedVersion", value: 14 });
     await prototypeDb.operationLogs.add({ entityType: "系统", entityId: "成本中心原型", action: "导入模拟数据", createdAt: new Date().toISOString() });
   });
   await hydratePrototypeData();
+  notifyDemoDataChanged();
   closeModal();
   renderView();
   toast("模拟数据已导入，各页面已同步刷新");
@@ -1407,6 +1392,7 @@ async function commitPendingAction() {
   } else if (action.type === "resetData") {
     await seedPrototypeDatabase(true);
     await hydratePrototypeData();
+    notifyDemoDataChanged();
   }
 
   state.pendingAction = null;

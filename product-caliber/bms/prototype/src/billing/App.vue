@@ -13,6 +13,7 @@ import RateConfigView from './views/RateConfigView.vue'
 import RemittanceView from './views/RemittanceView.vue'
 import AdjustmentView from './views/AdjustmentView.vue'
 import ProcessView from './views/ProcessView.vue'
+import { useDemoDataset } from './data/useDemoDataset.js'
 
 const props = defineProps({
   initialMenu: { type: String, default: 'tasks' },
@@ -122,7 +123,7 @@ const pullTypeMeta = {
   INCREMENTAL: '增量',
 }
 
-const taskRecords = ref([
+const taskRecords = useDemoDataset('billingTasks', [
   {
     id: 1,
     taskNo: 'BMS-20260802-00081',

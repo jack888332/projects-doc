@@ -3,10 +3,11 @@ import { computed, reactive, ref } from 'vue'
 import { Search, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import PageHeader from '../components/PageHeader.vue'
+import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const showFx = ref(false)
 const query = reactive({ keyword: '', recoveryStatus: '', refundStatus: '' })
-const packages = ref([
+const packages = useDemoDataset('billingRemittances', [
   { tracking: 'YT682941503GB', order: 'SO-260731-004188', customer: 'OceanGate Logistics', shop: '深圳集运店', signStatus: '正常签收', signedAt: '2026-07-31 16:20', original: 'GBP 286.40', carrier: 'Royal Mail', recoveryStatus: '已回款', refundStatus: '待返款', recoveredAt: '2026-08-01 10:12', refundedAt: '-', recovered: 'GBP 286.40', refunded: 'GBP 0.00', method: '银行转账', serialNo: 'RC-20260801-0184', recoveryRate: '9.462800', mode: '回款返款', billNo: 'RFB-OG4155-20260728-912c', refundable: 'GBP 273.20', fx: 'CNY +18.42' },
   { tracking: '1Z999AA10123456784', order: 'SO-260731-004221', customer: 'TopKing Supply', shop: '义乌集运店', signStatus: '正常签收', signedAt: '2026-07-31 11:08', original: 'USD 421.80', carrier: 'UPS', recoveryStatus: '已回款', refundStatus: '已返款', recoveredAt: '2026-08-01 09:42', refundedAt: '2026-08-02 08:30', recovered: 'USD 421.80', refunded: 'USD 401.60', mode: '签收返款', billNo: 'RFB-TK9012-20260721-a11f', refundable: 'USD 401.60', fx: 'CNY -6.81' },
   { tracking: 'CA849204178CN', order: 'SO-260730-003952', customer: 'NorthWind Cargo', shop: '上海集运店', signStatus: '正常签收', signedAt: '2026-07-30 18:14', original: 'CAD 198.50', carrier: 'Canada Post', recoveryStatus: '待回款', refundStatus: '待返款', recoveredAt: '-', refundedAt: '-', recovered: 'CAD 0.00', refunded: 'CAD 0.00', mode: '回款返款', billNo: '-', refundable: 'CAD 188.58', fx: '-' },

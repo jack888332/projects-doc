@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Delete, Download, EditPen, Plus, RefreshRight, Search, Setting, Upload, View } from '@element-plus/icons-vue'
 import PageHeader from '../components/PageHeader.vue'
+import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const props = defineProps({ mode: { type: String, required: true } })
 const baseTab = ref('fees')
@@ -20,40 +21,40 @@ const meta = computed(() => ({
   migration: { eyebrow: 'TEST DATA MIGRATION', title: '数据迁移' },
 }[props.mode]))
 
-const feeRows = ref([
+const feeRows = useDemoDataset('billingFeeItems', [
   { code: 'FREIGHT_BASE', name: '基础运费', type: '应收类', scenes: '集运订单、同行订单', object: '业务订单', sources: 'OFP订单费项', status: '启用', references: 8, integrity: '完整' },
   { code: 'COD_RETURN', name: '应返货款', type: '代付类', scenes: 'COD返款', object: '尾程包裹', sources: '订单费项报表', status: '启用', references: 4, integrity: '完整' },
   { code: 'COD_SERVICE', name: '代收服务费', type: '应收扣减类', scenes: 'COD返款', object: '尾程包裹', sources: 'OFP包裹费', status: '启用', references: 3, integrity: '完整' },
   { code: 'CLAIM_REFERENCE', name: '理赔参考金额', type: '非费项', scenes: '理赔核对', object: '业务订单', sources: '理赔单', status: '停用', references: 1, integrity: '待完善' },
 ])
-const sceneRows = ref([
+const sceneRows = useDemoDataset('billingScenes', [
   { scene: '集运订单', fee: '基础运费', dataset: 'OFP_ORDER_FEE', table: 'sale_order_fee_detail', amountField: 'base_freight', currencyField: 'currency', timing: '跟随账单配置', priority: 10, status: '启用', integrity: '完整' },
   { scene: 'COD返款', fee: '应返货款', dataset: 'OFP_PACKAGE_FEE', table: 'sale_order_package_fee', amountField: 'recovery_money', currencyField: 'cod_currency', timing: '签收时间', priority: 10, status: '启用', integrity: '完整' },
   { scene: 'COD返款', fee: '代收服务费', dataset: 'OFP_PACKAGE_FEE', table: 'sale_order_package_fee', amountField: 'service_fee', currencyField: 'fee_currency', timing: '新增时间', priority: 20, status: '启用', integrity: '完整' },
 ])
-const sourceRows = ref([
+const sourceRows = useDemoDataset('billingSources', [
   { code: 'OFP_ORDER_FEE', name: 'OFP订单费用数据集', system: 'OFP', database: 'ofp_ofdb1', table: 'sale_order_fee_detail', relation: 'sale_order_no', nodes: '出库、订单完结', timing: '履约节点', window: '账期 + 2天', pageSize: 1000, status: '启用', references: 12 },
   { code: 'OFP_PACKAGE_FEE', name: 'OFP包裹费用数据集', system: 'OFP', database: 'ofp_ofdb1', table: 'sale_order_package_fee', relation: 'tracking_no', nodes: '签收', timing: '签收/新增', window: '最近30天', pageSize: 1000, status: '启用', references: 6 },
   { code: 'OFP_CLAIM', name: 'OFP理赔数据集', system: 'OFP', database: 'ofp_ofdb1', table: 'claim_order', relation: 'sale_order_no', nodes: '理赔完成', timing: '理赔完成时间', window: '最近90天', pageSize: 500, status: '停用', references: 1 },
 ])
-const templateRows = ref([
+const templateRows = useDemoDataset('billingCurrencyTemplates', [
   { no: 'CUR-TPL-001', name: '欧美客户默认模板', default: 'USD', mapping: '基础运费→USD；操作费→USD；附加费→CNY', status: '启用', operator: '谭清辉', updatedAt: '2026-08-01 15:42' },
   { no: 'CUR-TPL-002', name: '英国客户模板', default: 'GBP', mapping: '全部应收费项→GBP', status: '启用', operator: '郑雅雯', updatedAt: '2026-07-28 11:05' },
 ])
-const exportRows = ref([
+const exportRows = useDemoDataset('billingExports', [
   { no: 'EXP-20260802-0018', billType: '应收账单', purpose: '导出给客户', fileType: '压缩包', bills: 8, success: 7, failed: 1, status: '部分成功', progress: 100, creator: '谭清辉', createdAt: '2026-08-02 10:02', finishedAt: '2026-08-02 10:05', expiresAt: '2026-08-03 10:05' },
   { no: 'EXP-20260802-0017', billType: '应收账单', purpose: '导出给内部', fileType: '表格文件', bills: 12, success: 12, failed: 0, status: '导出成功', progress: 100, creator: '郑雅雯', createdAt: '2026-08-02 09:46', finishedAt: '2026-08-02 09:48', expiresAt: '2026-08-03 09:48' },
   { no: 'EXP-20260802-0016', billType: '返款账单', purpose: '导出给客户', fileType: '表格文件', bills: 1, success: 0, failed: 0, status: '导出中', progress: 62, creator: '谭清辉', createdAt: '2026-08-02 09:31', finishedAt: '-', expiresAt: '-' },
   { no: 'EXP-20260802-0015', billType: '返款账单', purpose: '导出给客户', fileType: '压缩包', bills: 5, success: 0, failed: 0, status: '待执行', progress: 0, creator: '谭清辉', createdAt: '2026-08-02 09:26', finishedAt: '-', expiresAt: '-' },
   { no: 'EXP-20260801-0041', billType: '应收账单', purpose: '导出给客户', fileType: '压缩包', bills: 6, success: 0, failed: 6, status: '导出失败', progress: 100, creator: '郑雅雯', createdAt: '2026-08-01 17:10', finishedAt: '2026-08-01 17:12', expiresAt: '-' },
 ])
-const auditRows = ref([
+const auditRows = useDemoDataset('billingAudits', [
   { module: '账单配置', objectType: '客户账单配置', objectNo: 'BC-OG4155-AR@V13', action: '启用新版本', operator: '谭清辉', time: '2026-08-02 09:28:16', reason: '英国线路改为月结', result: '成功', relation: 'OG4155', before: '{"version":"V12","status":"生效"}', after: '{"version":"V13","status":"生效"}' },
   { module: '应收账单', objectType: '应收账单', objectNo: 'ARB-TK9012-20260725-41b7', action: '审核通过', operator: '郑雅雯', time: '2026-08-02 09:14:08', reason: '金额与汇率核对完成', result: '成功', relation: 'TK9012', before: '{"status":"待审核"}', after: '{"status":"待结清","notification":"已通知"}' },
   { module: '调账中心', objectType: '调账记录', objectNo: 'ADJ-c412-9071', action: '审核通过', operator: '陈嘉明', time: '2026-08-02 08:52:41', reason: '服务费率更正凭证有效', result: '成功', relation: 'RFB-TK9012-20260721-a11f', before: '{"status":"待审核"}', after: '{"status":"审核通过"}' },
   { module: '汇率配置', objectType: '基准汇率', objectNo: 'CAD-CNY@20260802', action: '确认生效', operator: '谭清辉', time: '2026-08-02 08:40:03', reason: '汇率值超出允许范围', result: '阻断', relation: 'CAD/CNY', before: '{}', after: '{}' },
 ])
-const compareRows = ref([
+const compareRows = useDemoDataset('billingComparisons', [
   { order: 'SO-260731-004188', finance: true, system: true, result: '一致', financeFees: 8, systemFees: 8, diff: '0.00 CNY' },
   { order: 'SO-260731-004221', finance: true, system: false, result: '系统侧缺单', financeFees: 6, systemFees: 0, diff: '421.80 USD' },
   { order: 'SO-260730-003952', finance: true, system: true, result: '费项差异', financeFees: 7, systemFees: 6, diff: '18.50 CAD' },

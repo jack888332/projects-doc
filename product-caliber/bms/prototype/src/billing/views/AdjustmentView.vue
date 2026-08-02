@@ -3,10 +3,11 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Delete, Download, EditPen, Search, UploadFilled, View } from '@element-plus/icons-vue'
 import PageHeader from '../components/PageHeader.vue'
+import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const query = reactive({ keyword: '', status: '', type: '' })
 const selectedRows = ref([])
-const records = ref([
+const records = useDemoDataset('billingAdjustments', [
   { no: 'ADJ-9f7c-1842', submittedAt: '2026-08-02 09:42', type: '应收调账', status: '待审核', party: 'OceanGate Logistics', billNo: 'ARB-OG4155-20260701-f802', fee: '基础运费', object: '业务订单', order: 'SO-260731-004188', tracking: 'YT682941503GB', reason: '重量复核差异', beforeCurrency: 'GBP', delta: -12.6, afterAmount: 114.2, assignedBill: 'ARB-OG4155-20260701-f802', afterCurrency: 'GBP', rate: 1, registrant: '谭清辉' },
   { no: 'ADJ-c412-9071', submittedAt: '2026-08-02 08:15', type: '返款调账', status: '审核通过', party: 'TopKing Supply', billNo: 'RFB-TK9012-20260721-a11f', fee: '代收服务费', object: '尾程包裹', order: 'SO-260731-004221', tracking: '1Z999AA10123456784', reason: '服务费率更正', beforeCurrency: 'USD', delta: 3.2, afterAmount: 9.4, assignedBill: 'RFB-TK9012-20260721-a11f', afterCurrency: 'USD', rate: 1, registrant: '郑雅雯' },
   { no: 'ADJ-5de8-6320', submittedAt: '2026-08-01 16:38', type: '成本金额冲正', status: '审核驳回', party: 'FastLine UK', billNo: 'CB-FLU-202607-0041', fee: '尾程派送费', object: '尾程包裹', order: 'SO-260729-003605', tracking: 'RM84720193GB', reason: '供应商重复收费', beforeCurrency: 'GBP', delta: -18.4, afterAmount: 0, assignedBill: 'CB-FLU-202607-0041', afterCurrency: 'GBP', rate: 1, registrant: '谭清辉' },

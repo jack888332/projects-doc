@@ -2,8 +2,11 @@
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Download, RefreshRight, Search, Setting, View } from '@element-plus/icons-vue'
-import PageHeader from '../components/PageHeader.vue'
 import BillDetailPanel from '../components/BillDetailPanel.vue'
+import MetricGrid from '../components/MetricGrid.vue'
+import PageHeader from '../components/PageHeader.vue'
+import StatusTag from '../components/StatusTag.vue'
+import TablePagination from '../components/TablePagination.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const props = defineProps({ billType: { type: String, required: true } })
@@ -107,7 +110,7 @@ async function handleBillAction(name) {
       </el-form>
     </section>
 
-    <div class="module-kpis four reference-kpis"><div v-for="item in summary" :key="item.label" :class="['module-kpi', item.tone]"><span>{{ item.label }}</span><strong>{{ item.value }}</strong><small>{{ item.extra }}</small></div></div>
+    <MetricGrid class="reference-kpis" :items="summary" />
 
     <div class="status-tabs-row"><button v-for="status in statuses" :key="status" :class="{ active: activeStatus === status }" @click="activeStatus = status">{{ status }}</button></div>
 
@@ -116,8 +119,8 @@ async function handleBillAction(name) {
       <el-table :data="filteredBills" class="clean-table" row-key="billNo" border @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="44" fixed />
         <el-table-column prop="billNo" label="账单编号" width="205" fixed />
-        <el-table-column label="账单状态" width="100"><template #default="scope"><span :class="['status-tag', scope.row.status === '已结清' ? 'success' : scope.row.status === '已作废' ? 'neutral' : scope.row.status === '待结清' ? 'running' : 'warning']">{{ scope.row.status }}</span></template></el-table-column>
-        <el-table-column prop="closeStatus" label="账期收口" width="90"><template #default="scope"><span :class="['status-tag', scope.row.closeStatus === '已收口' ? 'success' : 'warning']">{{ scope.row.closeStatus }}</span></template></el-table-column>
+        <el-table-column label="账单状态" width="100"><template #default="scope"><StatusTag :label="scope.row.status" /></template></el-table-column>
+        <el-table-column prop="closeStatus" label="账期收口" width="90"><template #default="scope"><StatusTag :label="scope.row.closeStatus" /></template></el-table-column>
         <el-table-column prop="processingState" label="处理状态" width="125"><template #default="scope">{{ scope.row.processingState || '-' }}</template></el-table-column>
         <el-table-column v-if="!isReceivable" prop="refundMode" label="返款模式" width="100" />
         <el-table-column :label="isReceivable ? '费项结算币种金额' : '货款结算币种金额'" width="250"><template #default="scope"><div class="amount-lines"><span>{{ isReceivable ? '应收' : '原始货款' }} <b>{{ money(isReceivable ? scope.row.amount : scope.row.original) }} {{ scope.row.currency }}</b></span><span>{{ isReceivable ? '已核销' : '扣除费项' }} {{ money(isReceivable ? scope.row.paid : scope.row.deduction) }} {{ scope.row.currency }}</span><span>{{ isReceivable ? '未核销' : '待返货款' }} <b>{{ money(scope.row.amount - scope.row.paid) }} {{ scope.row.currency }}</b></span></div></template></el-table-column>
@@ -126,7 +129,7 @@ async function handleBillAction(name) {
         <el-table-column v-if="isReceivable" prop="dueAt" label="信用期结束日" width="120" /><el-table-column v-if="isReceivable" prop="overdueDays" label="逾期天数" width="90" /><el-table-column prop="notice" label="通知状态" width="95" />
         <el-table-column label="操作" width="150" fixed="right"><template #default="scope"><el-button link type="primary" :icon="View" @click="openDetail(scope.row)">详情</el-button><el-dropdown v-if="!['已结清','已作废'].includes(scope.row.status) && !scope.row.processingState" trigger="click" @command="(command) => { openDetail(scope.row); handleBillAction(command) }"><el-button link type="primary">更多</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item v-if="scope.row.status==='待审核' && scope.row.closeStatus==='未收口'" command="期末收口">期末收口</el-dropdown-item><el-dropdown-item command="账单重算">账单重算</el-dropdown-item></el-dropdown-menu></template></el-dropdown></template></el-table-column>
       </el-table>
-      <div class="table-pagination"><span>共 {{ filteredBills.length }} 条</span><el-pagination layout="sizes, prev, pager, next, jumper" :total="filteredBills.length" :page-size="20" /></div>
+      <TablePagination :total="filteredBills.length" />
     </section>
 
     <el-drawer v-model="detailVisible" size="86%" class="detail-drawer module-drawer" :close-on-click-modal="false">

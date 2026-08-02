@@ -13,6 +13,9 @@ import RateConfigView from './views/RateConfigView.vue'
 import RemittanceView from './views/RemittanceView.vue'
 import AdjustmentView from './views/AdjustmentView.vue'
 import ProcessView from './views/ProcessView.vue'
+import StackedCell from './components/StackedCell.vue'
+import StatusTag from './components/StatusTag.vue'
+import TablePagination from './components/TablePagination.vue'
 import { useDemoDataset } from './data/useDemoDataset.js'
 
 const props = defineProps({
@@ -687,7 +690,7 @@ function viewResult(row) {
           <el-table :data="filteredTasks" class="clean-table" row-key="taskNo">
             <el-table-column prop="taskNo" label="任务编号" width="185" fixed />
             <el-table-column label="任务状态" width="98">
-              <template #default="scope"><span :class="['status-tag', taskStatus(scope.row).className]">{{ taskStatus(scope.row).label }}</span></template>
+              <template #default="scope"><StatusTag :label="taskStatus(scope.row).label" :tone="taskStatus(scope.row).className" /></template>
             </el-table-column>
             <el-table-column prop="createdAt" label="任务创建时间" width="160" />
             <el-table-column prop="duration" label="执行耗时" width="90" />
@@ -699,10 +702,10 @@ function viewResult(row) {
             <el-table-column label="触发方式" width="112"><template #default="scope">{{ display(triggerMeta, scope.row.triggerType) }}</template></el-table-column>
             <el-table-column label="数据拉取类型" width="104"><template #default="scope">{{ display(pullTypeMeta, scope.row.pullType) }}</template></el-table-column>
             <el-table-column label="账单配置" min-width="185">
-              <template #default="scope"><div class="main-cell"><strong>{{ scope.row.configNo }}</strong><small>{{ scope.row.configType }} · {{ scope.row.configVersion }}</small></div></template>
+              <template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="`${scope.row.configType} · ${scope.row.configVersion}`" /></template>
             </el-table-column>
             <el-table-column label="客户" min-width="190">
-              <template #default="scope"><div class="main-cell"><strong>{{ scope.row.customerName }}</strong><small>{{ scope.row.customerNo }} / {{ scope.row.memberCode }}</small></div></template>
+              <template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="`${scope.row.customerNo} / ${scope.row.memberCode}`" /></template>
             </el-table-column>
             <el-table-column prop="shop" label="店铺" width="120" />
             <el-table-column prop="period" label="账期" width="188" />
@@ -716,7 +719,7 @@ function viewResult(row) {
               </template>
             </el-table-column>
           </el-table>
-          <div class="table-pagination"><span>展示 1-{{ filteredTasks.length }} 条</span><el-pagination layout="prev, pager, next" :total="filteredTasks.length" :page-size="10" /></div>
+          <TablePagination :total="filteredTasks.length" :page-size="10" layout="prev, pager, next" :summary="`展示 1-${filteredTasks.length} 条`" />
         </section>
         </template>
         <component v-else-if="currentView" :is="currentView.component" v-bind="currentView.props || {}" />

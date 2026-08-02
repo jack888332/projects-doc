@@ -2,9 +2,14 @@
 import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, RefreshRight, Search } from '@element-plus/icons-vue'
+import MetricGrid from '../components/MetricGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ReceivableConfigEditor from '../components/ReceivableConfigEditor.vue'
 import RefundConfigEditor from '../components/RefundConfigEditor.vue'
+import SegmentedControl from '../components/SegmentedControl.vue'
+import StackedCell from '../components/StackedCell.vue'
+import StatusTag from '../components/StatusTag.vue'
+import TablePagination from '../components/TablePagination.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const activeType = ref('AR')
@@ -24,6 +29,11 @@ const rows = computed(() => configs.value.filter(i => i.type === activeType.valu
   && (!query.customerNo || i.customerNo.includes(query.customerNo)) && (!query.memberCode || i.memberCode.includes(query.memberCode))
   && (!query.status || i.status === query.status)))
 const configured = computed(() => rows.value.length)
+const configSummary = computed(() => [
+  { label: '已配置客户', value: configured.value, extra: '当前筛选范围', tone: 'blue' },
+  { label: '未配置客户', value: 2195 - configured.value, extra: '客户总数 - 已配置客户', tone: 'amber' },
+  { label: '配置总数', value: configured.value, extra: '默认方案数量', tone: 'green' },
+])
 function resetQuery(){ Object.assign(query,{shop:'',customer:'',customerNo:'',memberCode:'',status:''}) }
 function openDetail(row){ selectedConfig.value={...row}; detailVisible.value=true }
 function newConfig(){ openDetail({type:activeType.value,no:'新配置',version:'V1',customer:'',customerNo:'',memberCode:'',shop:'',email:'',currency:'CNY',cycle:activeType.value==='AR'?'月账单':'周账单',sentRule:'账期结束后 1 天',branches:'-',mode:'回款返款',effectStart:'2026-08-03',effectEnd:'长期',operator:'财务管理员',updatedAt:'2026-08-02 10:30',changeReason:'新建配置',status:'启用'}) }
@@ -49,8 +59,8 @@ function generate(row){ ElMessage.success(`已为 ${row.customer} 创建账单�
 <template>
   <div class="module-page live-reference-page">
     <PageHeader eyebrow="" :title="activeType === 'AR' ? '应收账单配置' : '返款账单配置'" />
-    <div class="module-segmented"><button :class="{active:activeType==='AR'}" @click="activeType='AR'">应收账单配置</button><button :class="{active:activeType==='RF'}" @click="activeType='RF'">返款账单配置</button></div>
-    <div class="module-kpis three reference-kpis"><div class="module-kpi blue"><span>已配置客户</span><strong>{{ configured }}</strong><small>当前筛选范围</small></div><div class="module-kpi amber"><span>未配置客户</span><strong>{{ 2195-configured }}</strong><small>客户总数 - 已配置客户</small></div><div class="module-kpi green"><span>配置总数</span><strong>{{ configured }}</strong><small>默认方案数量</small></div></div>
+    <SegmentedControl v-model="activeType" :options="[{ label: '应收账单配置', value: 'AR' }, { label: '返款账单配置', value: 'RF' }]" aria-label="账单配置类型" />
+    <MetricGrid class="reference-kpis" :items="configSummary" :columns="3" />
     <section class="module-panel query-panel">
       <el-form label-position="top" class="reference-query-grid five">
         <el-form-item label="店铺"><el-input v-model="query.shop" placeholder="模糊搜索" clearable /></el-form-item><el-form-item label="客户名称"><el-input v-model="query.customer" placeholder="输入客户名称" clearable /></el-form-item><el-form-item label="客户编码"><el-input v-model="query.customerNo" placeholder="输入客户编码" clearable /></el-form-item><el-form-item label="会员编码"><el-input v-model="query.memberCode" placeholder="输入会员编码" clearable /></el-form-item><el-form-item label="状态"><el-select v-model="query.status" placeholder="全部" clearable><el-option label="启用" value="启用" /><el-option label="停用" value="停用" /></el-select></el-form-item>
@@ -60,9 +70,9 @@ function generate(row){ ElMessage.success(`已为 ${row.customer} 创建账单�
     <section class="module-panel">
       <el-table :data="rows" border row-key="no" class="clean-table">
         <el-table-column type="expand"><template #default="scope"><dl class="inline-detail-grid"><div><dt>配置类型</dt><dd>{{ activeType==='AR'?'应收账单配置':'返款账单配置' }}</dd></div><div><dt>客户</dt><dd>{{ scope.row.customer }} / {{ scope.row.customerNo }}</dd></div><div><dt>账期规则</dt><dd>{{ scope.row.cycle }}</dd></div><div><dt>账单发出时间</dt><dd>{{ scope.row.sentRule }}</dd></div></dl></template></el-table-column>
-        <el-table-column prop="no" label="配置编号" width="245" /><el-table-column prop="version" label="版本" width="72" /><el-table-column prop="customer" label="客户名称" width="180" /><el-table-column prop="customerNo" label="客户编码" width="105" /><el-table-column prop="memberCode" label="会员编码" width="130" /><el-table-column prop="shop" label="店铺" width="170" /><el-table-column prop="email" label="客户邮箱" width="220" /><el-table-column prop="currency" label="默认结算币种" width="125" /><el-table-column prop="cycle" label="账期类型" width="110" /><el-table-column prop="sentRule" label="账单发出时间" width="170" /><el-table-column v-if="activeType==='AR'" prop="branches" label="分支数" width="80" /><el-table-column v-else prop="mode" label="返款模式" width="110" /><el-table-column label="生效周期" width="185"><template #default="scope">{{ scope.row.effectStart }} 至 {{ scope.row.effectEnd }}</template></el-table-column><el-table-column label="最近操作" width="170"><template #default="scope"><div class="main-cell"><strong>{{ scope.row.operator }}</strong><small>{{ scope.row.updatedAt }}</small></div></template></el-table-column><el-table-column label="状态" width="80"><template #default="scope"><span :class="['status-tag',scope.row.status==='启用'?'success':'neutral']">{{ scope.row.status }}</span></template></el-table-column><el-table-column label="操作" width="180" fixed="right"><template #default="scope"><el-button link type="primary" @click="openDetail(scope.row)">编辑</el-button><el-button link type="primary" @click="generate(scope.row)">生成账单</el-button></template></el-table-column>
+        <el-table-column prop="no" label="配置编号" width="245" /><el-table-column prop="version" label="版本" width="72" /><el-table-column prop="customer" label="客户名称" width="180" /><el-table-column prop="customerNo" label="客户编码" width="105" /><el-table-column prop="memberCode" label="会员编码" width="130" /><el-table-column prop="shop" label="店铺" width="170" /><el-table-column prop="email" label="客户邮箱" width="220" /><el-table-column prop="currency" label="默认结算币种" width="125" /><el-table-column prop="cycle" label="账期类型" width="110" /><el-table-column prop="sentRule" label="账单发出时间" width="170" /><el-table-column v-if="activeType==='AR'" prop="branches" label="分支数" width="80" /><el-table-column v-else prop="mode" label="返款模式" width="110" /><el-table-column label="生效周期" width="185"><template #default="scope">{{ scope.row.effectStart }} 至 {{ scope.row.effectEnd }}</template></el-table-column><el-table-column label="最近操作" width="170"><template #default="scope"><StackedCell :primary="scope.row.operator" :secondary="scope.row.updatedAt" /></template></el-table-column><el-table-column label="状态" width="80"><template #default="scope"><StatusTag :label="scope.row.status" /></template></el-table-column><el-table-column label="操作" width="180" fixed="right"><template #default="scope"><el-button link type="primary" @click="openDetail(scope.row)">编辑</el-button><el-button link type="primary" @click="generate(scope.row)">生成账单</el-button></template></el-table-column>
       </el-table>
-      <div class="table-pagination"><span>共 {{ rows.length }} 条</span><el-pagination layout="sizes, prev, pager, next, jumper" :total="rows.length" :page-size="20" /></div>
+      <TablePagination :total="rows.length" />
     </section>
     <el-drawer v-model="detailVisible" size="86%" class="billing-config-drawer" :close-on-click-modal="false">
       <template #header><div class="drawer-title"><span>{{ selectedConfig?.no==='新配置'?'新建账单配置':'编辑账单配置' }}</span><small>{{ selectedConfig?.type==='AR'?'应收账单配置':'返款账单配置' }}</small></div></template>

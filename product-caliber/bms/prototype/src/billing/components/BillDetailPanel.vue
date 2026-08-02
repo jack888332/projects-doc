@@ -2,6 +2,8 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Download, EditPen, Search } from '@element-plus/icons-vue'
+import StatusTag from './StatusTag.vue'
+import TablePagination from './TablePagination.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const props = defineProps({
@@ -168,8 +170,8 @@ function submitGenerationTask() {
       <div class="bill-detail-identity">
         <div class="bill-detail-title-line">
           <strong>{{ bill.billNo }}</strong>
-          <span :class="['status-tag', statusClass]">{{ bill.status }}</span>
-          <span v-if="bill.processingState" class="status-tag running">{{ bill.processingState }}</span>
+          <StatusTag :label="bill.status" :tone="statusClass" />
+          <StatusTag v-if="bill.processingState" :label="bill.processingState" tone="running" />
         </div>
         <div class="bill-detail-meta">
           <span class="period-chip">{{ bill.periodType }} <i></i> {{ bill.periodStart }} ~ {{ bill.periodEnd }}</span>
@@ -205,7 +207,7 @@ function submitGenerationTask() {
       <h3>费项结算币种金额</h3>
       <div class="currency-bucket-grid">
         <article v-for="bucket in arCurrencyBuckets" :key="bucket.currency" class="currency-bucket">
-          <div class="currency-bucket-head"><strong>{{ bucket.currency }}</strong><span :class="['status-tag', bucket.state === '已核销' ? 'success' : 'neutral']">{{ bucket.state }}</span></div>
+          <div class="currency-bucket-head"><strong>{{ bucket.currency }}</strong><StatusTag :label="bucket.state" :tone="bucket.state === '已核销' ? 'success' : 'neutral'" /></div>
           <dl><div><dt>应收金额</dt><dd>{{ money(bucket.due) }}</dd></div><div><dt>实收金额</dt><dd>{{ money(bucket.settled) }}</dd></div><div><dt>待收金额</dt><dd>{{ money(bucket.pending) }}</dd></div></dl>
           <el-button type="primary" plain :disabled="Boolean(bill.processingState)" @click="emit('action', `${bucket.currency}费用核销`)">费用核销</el-button>
         </article>
@@ -220,7 +222,7 @@ function submitGenerationTask() {
       </article>
       <article class="refund-money-panel">
         <div class="money-panel-heading"><h3>货款结算币种金额</h3><small>按账单下所有返款币种维度汇总展示</small></div>
-        <div class="currency-bucket-head"><strong>{{ bill.currency }}</strong><span class="status-tag warning">待核销</span></div>
+        <div class="currency-bucket-head"><strong>{{ bill.currency }}</strong><StatusTag label="待核销" tone="warning" /></div>
         <dl class="money-metrics five"><div><dt>原始货款金额</dt><dd>{{ money(bill.original) }}</dd></div><div><dt>扣除费项金额</dt><dd>{{ money(bill.deduction) }}</dd></div><div><dt>应返货款金额</dt><dd>{{ money(bill.amount) }}</dd></div><div><dt>已返货款金额</dt><dd>{{ money(bill.paid) }}</dd></div><div><dt>待返货款金额</dt><dd>{{ money(bill.amount - bill.paid) }}</dd></div></dl>
         <el-button type="primary" :disabled="Boolean(bill.processingState)" @click="emit('action', `${bill.currency}货款核销`)">核销</el-button>
       </article>
@@ -255,7 +257,10 @@ function submitGenerationTask() {
           <el-table v-else :data="arVerticalFeeRows" border class="fee-vertical-table">
             <el-table-column prop="feeNo" label="费用编号" width="190" /><el-table-column prop="businessNo" label="业务单号" width="220" /><el-table-column prop="lastMileNo" label="尾程运单号" width="180" /><el-table-column prop="fee" label="费项" /><el-table-column prop="currency" label="币种" width="90" /><el-table-column label="结算金额" align="right"><template #default="scope">{{ money(scope.row.amount) }} {{ scope.row.currency }}</template></el-table-column>
           </el-table>
-          <div class="fee-detail-pagination"><span>共 {{ feeView === 'horizontal' ? filteredArOrderFeeRows.length : arVerticalFeeRows.length }} 条</span><el-pagination layout="sizes, prev, pager, next, jumper" :total="feeView === 'horizontal' ? filteredArOrderFeeRows.length : arVerticalFeeRows.length" :page-size="20" /></div>
+          <TablePagination
+            class="fee-detail-pagination"
+            :total="feeView === 'horizontal' ? filteredArOrderFeeRows.length : arVerticalFeeRows.length"
+          />
         </div>
       </el-tab-pane>
       <el-tab-pane label="调账记录" name="adjustments"><el-table v-if="adjustments.length" :data="adjustments" border><el-table-column prop="no" label="调账单号" width="180" /><el-table-column prop="status" label="审核状态" /><el-table-column prop="fee" label="费项" /><el-table-column prop="objectNo" label="挂靠对象编号" width="220" /><el-table-column prop="currency" label="币种" /><el-table-column label="金额变幅" align="right"><template #default="scope">{{ money(scope.row.delta) }}</template></el-table-column><el-table-column prop="adjustedAt" label="调账时间" width="155" /></el-table><el-empty v-else description="暂无调账记录" /></el-tab-pane>
@@ -281,7 +286,7 @@ function submitGenerationTask() {
       <section v-if="generationStep === 0" class="generation-step-panel">
         <div class="generation-mode-banner">
           <div><strong>{{ generationMode === 'SUPPLEMENT' ? '保留原账单，沿用原配置' : '按新版配置重新拆单' }}</strong><span>{{ generationMode === 'SUPPLEMENT' ? '新增费项写入同一账单的新结果版本，不改变账单编号。' : '系统先生成候选账单，任务整体成功后才作废原账单集合。' }}</span></div>
-          <span :class="['status-tag', generationMode === 'SUPPLEMENT' ? 'running' : 'warning']">{{ generationMode === 'SUPPLEMENT' ? '普通操作' : '高风险操作' }}</span>
+          <StatusTag :label="generationMode === 'SUPPLEMENT' ? '普通操作' : '高风险操作'" :tone="generationMode === 'SUPPLEMENT' ? 'running' : 'warning'" />
         </div>
         <dl class="generation-context-grid">
           <div><dt>目标账单</dt><dd>{{ bill.billNo }}</dd></div><div><dt>客户 / 账单类型</dt><dd>{{ bill.customer }} / {{ isReceivable ? '应收账单' : '返款账单' }}</dd></div>

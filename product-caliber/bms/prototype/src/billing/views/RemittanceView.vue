@@ -2,8 +2,12 @@
 import { computed, reactive, ref } from 'vue'
 import { Search, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import PageHeader from '../components/PageHeader.vue'
 import BillDetailPanel from '../components/BillDetailPanel.vue'
+import MetricGrid from '../components/MetricGrid.vue'
+import ModuleToolbar from '../components/ModuleToolbar.vue'
+import PageHeader from '../components/PageHeader.vue'
+import StackedCell from '../components/StackedCell.vue'
+import StatusTag from '../components/StatusTag.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 import { prototypeDb } from '../../data/prototypeDb.js'
 
@@ -21,7 +25,12 @@ const rows = computed(() => packages.value.filter((item) => {
   const text = `${item.tracking}${item.order}${item.customer}${item.billNo}`.toLowerCase()
   return (!query.keyword || text.includes(query.keyword.toLowerCase())) && (!query.recoveryStatus || item.recoveryStatus === query.recoveryStatus) && (!query.refundStatus || item.refundStatus === query.refundStatus)
 }))
-const statusClass = (status) => status.startsWith('已') ? 'success' : status.startsWith('待') ? 'warning' : 'neutral'
+const summary = computed(() => [
+  { label: 'COD 包裹', value: packages.value.length, tone: 'blue' },
+  { label: '已回款', value: packages.value.filter((item) => item.recoveryStatus === '已回款').length, tone: 'green' },
+  { label: '待回款', value: packages.value.filter((item) => item.recoveryStatus === '待回款').length, tone: 'amber' },
+  { label: '待返款', value: packages.value.filter((item) => item.refundStatus === '待返款').length, tone: 'violet' },
+])
 async function openBill(row) {
   const records = await prototypeDb.demoRecords.where('dataset').equals('billingBills').toArray()
   linkedBill.value = records.map((record) => record.value).find((bill) => bill.billNo === row.billNo) || {
@@ -36,12 +45,12 @@ async function openBill(row) {
 <template>
   <div class="module-page">
     <PageHeader eyebrow="" title="回款管理" description="按尾程包裹查看 COD 货款回款、返款结果与汇兑损益锁定快照"><template #actions><el-checkbox v-model="showFx" border>查看汇兑损益</el-checkbox></template></PageHeader>
-    <div class="module-kpis four"><div class="module-kpi blue"><span>COD 包裹</span><strong>{{ packages.length }}</strong></div><div class="module-kpi green"><span>已回款</span><strong>{{ packages.filter(i => i.recoveryStatus === '已回款').length }}</strong></div><div class="module-kpi amber"><span>待回款</span><strong>{{ packages.filter(i => i.recoveryStatus === '待回款').length }}</strong></div><div class="module-kpi violet"><span>待返款</span><strong>{{ packages.filter(i => i.refundStatus === '待返款').length }}</strong></div></div>
+    <MetricGrid :items="summary" />
     <section class="module-panel">
-      <div class="module-toolbar"><div class="module-filters"><el-input v-model="query.keyword" :prefix-icon="Search" placeholder="尾程运单号 / 订单 / 客户 / 返款账单" clearable class="module-search" /><el-select v-model="query.recoveryStatus" placeholder="全部回款状态" clearable><el-option v-for="s in ['已回款','待回款','不回款']" :key="s" :label="s" :value="s" /></el-select><el-select v-model="query.refundStatus" placeholder="全部返款状态" clearable><el-option v-for="s in ['已返款','待返款','不返款']" :key="s" :label="s" :value="s" /></el-select></div><span class="module-result-count">{{ rows.length }} 个尾程包裹</span></div>
+      <ModuleToolbar :result-text="`${rows.length} 个尾程包裹`"><el-input v-model="query.keyword" :prefix-icon="Search" placeholder="尾程运单号 / 订单 / 客户 / 返款账单" clearable class="module-search" /><el-select v-model="query.recoveryStatus" placeholder="全部回款状态" clearable><el-option v-for="s in ['已回款','待回款','不回款']" :key="s" :label="s" :value="s" /></el-select><el-select v-model="query.refundStatus" placeholder="全部返款状态" clearable><el-option v-for="s in ['已返款','待返款','不返款']" :key="s" :label="s" :value="s" /></el-select></ModuleToolbar>
       <el-table :data="rows" class="clean-table" row-key="tracking" border>
-        <el-table-column prop="tracking" label="尾程运单号" width="160" fixed /><el-table-column prop="order" label="所属内部订单" width="155" /><el-table-column label="客户" min-width="180"><template #default="scope"><div class="main-cell"><strong>{{ scope.row.customer }}</strong><small>{{ scope.row.shop }}</small></div></template></el-table-column><el-table-column prop="signStatus" label="签收状态" width="95" /><el-table-column prop="signedAt" label="签收时间" width="155" /><el-table-column prop="original" label="货款原始金额" width="120" align="right" /><el-table-column prop="carrier" label="尾程派送商" width="130" />
-        <el-table-column label="回款状态" width="90"><template #default="scope"><span :class="['status-tag', statusClass(scope.row.recoveryStatus)]">{{ scope.row.recoveryStatus }}</span></template></el-table-column><el-table-column label="返款状态" width="90"><template #default="scope"><span :class="['status-tag', statusClass(scope.row.refundStatus)]">{{ scope.row.refundStatus }}</span></template></el-table-column><el-table-column prop="recoveredAt" label="回款时间" width="150" /><el-table-column prop="method" label="回款方式" width="100" /><el-table-column prop="serialNo" label="回款流水号" width="160" /><el-table-column prop="recoveryCurrency" label="回款币种" width="90" /><el-table-column label="回款金额" width="115" align="right"><template #default="scope">{{ scope.row.recoveryAmount.toFixed(2) }}</template></el-table-column><el-table-column prop="recoveryRate" label="回款汇率" width="100" /><el-table-column prop="refundedAt" label="返款时间" width="150" /><el-table-column prop="refunded" label="实返货款金额" width="120" align="right" /><el-table-column prop="mode" label="返款模式" width="100" /><el-table-column prop="billNo" label="关联返款账单" width="205" /><el-table-column prop="refundable" label="应返货款金额" width="120" align="right" />
+        <el-table-column prop="tracking" label="尾程运单号" width="160" fixed /><el-table-column prop="order" label="所属内部订单" width="155" /><el-table-column label="客户" min-width="180"><template #default="scope"><StackedCell :primary="scope.row.customer" :secondary="scope.row.shop" /></template></el-table-column><el-table-column prop="signStatus" label="签收状态" width="95" /><el-table-column prop="signedAt" label="签收时间" width="155" /><el-table-column prop="original" label="货款原始金额" width="120" align="right" /><el-table-column prop="carrier" label="尾程派送商" width="130" />
+        <el-table-column label="回款状态" width="90"><template #default="scope"><StatusTag :label="scope.row.recoveryStatus" /></template></el-table-column><el-table-column label="返款状态" width="90"><template #default="scope"><StatusTag :label="scope.row.refundStatus" /></template></el-table-column><el-table-column prop="recoveredAt" label="回款时间" width="150" /><el-table-column prop="method" label="回款方式" width="100" /><el-table-column prop="serialNo" label="回款流水号" width="160" /><el-table-column prop="recoveryCurrency" label="回款币种" width="90" /><el-table-column label="回款金额" width="115" align="right"><template #default="scope">{{ scope.row.recoveryAmount.toFixed(2) }}</template></el-table-column><el-table-column prop="recoveryRate" label="回款汇率" width="100" /><el-table-column prop="refundedAt" label="返款时间" width="150" /><el-table-column prop="refunded" label="实返货款金额" width="120" align="right" /><el-table-column prop="mode" label="返款模式" width="100" /><el-table-column prop="billNo" label="关联返款账单" width="205" /><el-table-column prop="refundable" label="应返货款金额" width="120" align="right" />
         <el-table-column v-if="showFx" prop="fx" label="汇兑损益" width="105" align="right" class-name="fx-column" label-class-name="fx-column-header" />
         <el-table-column label="操作" width="95" fixed="right"><template #default="scope"><el-button link type="primary" :icon="View" :disabled="scope.row.billNo === '-'" @click="openBill(scope.row)">账单</el-button></template></el-table-column>
       </el-table>

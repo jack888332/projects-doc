@@ -13,6 +13,10 @@ const feeView = ref('horizontal')
 const feeAmountDimension = ref('settlement')
 const feeBusinessNo = ref('')
 const showUnboundFees = ref(false)
+const previewVisible = ref(false)
+const previewAction = ref('')
+const rateEditorVisible = ref(false)
+const editableRates = ref([])
 
 watch(() => [props.bill.billNo, props.isReceivable], () => {
   activeTab.value = props.isReceivable ? 'rates' : 'info'
@@ -68,10 +72,21 @@ const deductionDetailRows = useDemoDataset('billingDeductionDetails', [
 ])
 const writeoffRows = useDemoDataset('billingWriteoffs', [
   { billNo: 'PCB-OG0347-20260526', no: 'WO-20260530-001', type: '返款核销', currency: 'TWD', amount: 2101, time: '2026/05/30 15:26', operator: '财务管理员' },
+  { billNo: 'ARB-OG0360-20260601-81FF', no: 'WO-20260718-003', type: '应收核销', currency: 'CNY', amount: 8000, time: '2026/07/18 14:12', operator: '财务管理员' },
+], 2)
+const adjustmentRows = useDemoDataset('billingBillAdjustmentLinks', [
+  { billNo: 'ARB-OG0370-20260707-81FF', no: 'ADJ-AR-260715-001', type: '应收调账', status: '审核通过', fee: '派送附加费', objectNo: 'PF607701342355197952', currency: 'CNY', delta: 18, adjustedAt: '2026/07/15 10:24' },
+  { billNo: 'PCB-OG0370-20260721', no: 'ADJ-RF-260728-004', type: '返款调账', status: '待审核', fee: '代收服务费', objectNo: 'SO-260721-004221', currency: 'CNY', delta: -320, adjustedAt: '2026/07/28 16:02' },
 ])
 const refundDetails = computed(() => refundDetailRows.value.filter((row) => row.billNo === props.bill.billNo))
 const deductionDetails = computed(() => deductionDetailRows.value.filter((row) => row.billNo === props.bill.billNo))
 const writeoffs = computed(() => writeoffRows.value.filter((row) => row.billNo === props.bill.billNo))
+const adjustments = computed(() => adjustmentRows.value.filter((row) => row.billNo === props.bill.billNo))
+
+function openPreview(action) { previewAction.value = action; previewVisible.value = true }
+function confirmPreview() { previewVisible.value = false; emit('action', previewAction.value) }
+function openRateEditor() { editableRates.value = arRates.value.map((row) => ({ ...row })); rateEditorVisible.value = true }
+function saveRates() { rateEditorVisible.value = false; emit('action', '保存账单特调汇率') }
 </script>
 
 <template>
@@ -85,17 +100,26 @@ const writeoffs = computed(() => writeoffRows.value.filter((row) => row.billNo =
         <div class="bill-detail-meta">
           <span class="period-chip">{{ bill.periodType }} <i></i> {{ bill.periodStart }} ~ {{ bill.periodEnd }}</span>
           <span>{{ bill.customer }}</span><i></i><span>{{ bill.memberCode || bill.customerNo }}</span><i></i><span>{{ bill.shop }}</span><template v-if="isReceivable"><i></i><span>{{ bill.sector }}</span></template><i></i><span>{{ bill.country }}</span>
+          <i></i><span>账期收口：{{ bill.closeStatus }}</span>
         </div>
         <small v-if="!isReceivable" class="refund-mode-note">{{ bill.refundMode }}：{{ bill.refundMode === '回款返款' ? '先回收，后返还' : '先返还，后回收' }}</small>
       </div>
       <div class="bill-detail-actions">
         <template v-if="isReceivable">
-          <el-button @click="emit('action', '审核通过')">审核通过</el-button>
+          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口'" @click="emit('action', '审核通过')">审核通过</el-button>
+          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '未收口'" @click="openPreview('期末收口')">期末收口</el-button>
+          <el-button v-if="bill.status === '待审核'" @click="openPreview('补充生成')">补充生成</el-button>
+          <el-button v-if="bill.status === '待审核' && !bill.issued" @click="openPreview('替换生成')">替换生成</el-button>
+          <el-button v-if="!['已结清','已作废'].includes(bill.status)" @click="openPreview('账单重算')">账单重算</el-button>
           <el-button type="primary" plain :icon="Download" @click="emit('action', '导出账单')">导出账单</el-button>
         </template>
         <template v-else>
-          <el-button v-if="bill.status === '待审核'" @click="emit('action', '审核通过')">审核通过</el-button>
-          <el-button v-else @click="emit('action', '退回待审核')">退回待审核</el-button>
+          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口'" @click="emit('action', '审核通过')">审核通过</el-button>
+          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '未收口'" @click="openPreview('期末收口')">期末收口</el-button>
+          <el-button v-if="bill.status === '待结清'" @click="emit('action', '退回待审核')">退回待审核</el-button>
+          <el-button v-if="bill.status === '待审核'" @click="openPreview('补充生成')">补充生成</el-button>
+          <el-button v-if="bill.status === '待审核' && !bill.issued" @click="openPreview('替换生成')">替换生成</el-button>
+          <el-button v-if="!['已结清','已作废'].includes(bill.status)" @click="openPreview('账单重算')">账单重算</el-button>
           <el-button v-if="bill.status === '待结清'" @click="emit('action', '登记返还')">登记返还</el-button>
           <el-button @click="emit('action', '打开调账中心')">调账中心</el-button>
           <el-button type="primary" plain :icon="Download" @click="emit('action', '导出明细')">导出明细</el-button>
@@ -132,7 +156,7 @@ const writeoffs = computed(() => writeoffRows.value.filter((row) => row.billNo =
       <el-tab-pane label="账单汇率" name="rates">
         <div class="bill-detail-table-block"><h4>费项结算币种折算</h4><el-table :data="arRates" border><el-table-column prop="settlement" label="费项结算币种" /><el-table-column prop="target" label="财务本位币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column prop="rate" label="锁定汇率" align="right" /></el-table></div>
         <div class="bill-detail-table-block"><h4>费项原始币种折算</h4><el-table :data="arRates" border><el-table-column prop="settlement" label="费项结算币种" /><el-table-column prop="target" label="费项原始币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column prop="rate" label="锁定汇率" align="right" /></el-table></div>
-        <el-button :icon="EditPen" @click="emit('action', '编辑账单汇率')">编辑汇率</el-button>
+        <el-button :icon="EditPen" :disabled="!['待审核'].includes(bill.status)" @click="openRateEditor">编辑特调汇率</el-button>
       </el-tab-pane>
       <el-tab-pane label="费用汇总" name="summary"><el-table :data="arFeeSummary" border><el-table-column prop="fee" label="费项" /><el-table-column prop="currency" label="结算币种" /><el-table-column label="应收金额" align="right"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column label="已核销金额" align="right"><template #default="scope">{{ money(scope.row.written) }}</template></el-table-column><el-table-column label="待核销金额" align="right"><template #default="scope">{{ money(scope.row.pending) }}</template></el-table-column></el-table></el-tab-pane>
       <el-tab-pane label="费用明细" name="details">
@@ -160,17 +184,29 @@ const writeoffs = computed(() => writeoffRows.value.filter((row) => row.billNo =
           <div class="fee-detail-pagination"><span>共 {{ feeView === 'horizontal' ? filteredArOrderFeeRows.length : arVerticalFeeRows.length }} 条</span><el-pagination layout="sizes, prev, pager, next, jumper" :total="feeView === 'horizontal' ? filteredArOrderFeeRows.length : arVerticalFeeRows.length" :page-size="20" /></div>
         </div>
       </el-tab-pane>
-      <el-tab-pane label="调账记录" name="adjustments"><el-empty description="暂无调账记录" /></el-tab-pane>
-      <el-tab-pane label="核销记录" name="writeoffs"><el-empty description="暂无核销记录" /></el-tab-pane>
+      <el-tab-pane label="调账记录" name="adjustments"><el-table v-if="adjustments.length" :data="adjustments" border><el-table-column prop="no" label="调账单号" width="180" /><el-table-column prop="status" label="审核状态" /><el-table-column prop="fee" label="费项" /><el-table-column prop="objectNo" label="挂靠对象编号" width="220" /><el-table-column prop="currency" label="币种" /><el-table-column label="金额变幅" align="right"><template #default="scope">{{ money(scope.row.delta) }}</template></el-table-column><el-table-column prop="adjustedAt" label="调账时间" width="155" /></el-table><el-empty v-else description="暂无调账记录" /></el-tab-pane>
+      <el-tab-pane label="核销记录" name="writeoffs"><el-table v-if="writeoffs.length" :data="writeoffs" border><el-table-column prop="no" label="核销编号" /><el-table-column prop="type" label="核销类型" /><el-table-column prop="currency" label="币种" /><el-table-column label="核销金额"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column prop="time" label="核销时间" /><el-table-column prop="operator" label="操作人" /></el-table><el-empty v-else description="暂无核销记录" /></el-tab-pane>
     </el-tabs>
 
     <el-tabs v-else v-model="activeTab" class="bill-detail-tabs">
-      <el-tab-pane label="账单信息" name="info"><dl class="bill-info-grid"><div><dt>账单编号</dt><dd>{{ bill.billNo }}</dd></div><div><dt>账单状态</dt><dd>{{ bill.status }}</dd></div><div><dt>客户</dt><dd>{{ bill.customer }}</dd></div><div><dt>返款模式</dt><dd>{{ bill.refundMode }}</dd></div><div><dt>模式说明</dt><dd>{{ bill.refundMode }}：{{ bill.refundMode === '回款返款' ? '先回收，后返还' : '先返还，后回收' }}</dd></div><div><dt>账期类型</dt><dd>{{ bill.periodType }}</dd></div><div><dt>账期起始日</dt><dd>{{ bill.periodStart }}</dd></div><div><dt>账期结束日</dt><dd>{{ bill.periodEnd }}</dd></div></dl></el-tab-pane>
+      <el-tab-pane label="账单信息" name="info"><dl class="bill-info-grid"><div><dt>账单编号</dt><dd>{{ bill.billNo }}</dd></div><div><dt>账单状态</dt><dd>{{ bill.status }}</dd></div><div><dt>账期收口状态</dt><dd>{{ bill.closeStatus }}</dd></div><div><dt>客户</dt><dd>{{ bill.customer }}</dd></div><div><dt>返款模式</dt><dd>{{ bill.refundMode }}</dd></div><div><dt>模式说明</dt><dd>{{ bill.refundMode }}：{{ bill.refundMode === '回款返款' ? '先回收，后返还' : '先返还，后回收' }}</dd></div><div><dt>账期类型</dt><dd>{{ bill.periodType }}</dd></div><div><dt>账期起始日</dt><dd>{{ bill.periodStart }}</dd></div><div><dt>账期结束日</dt><dd>{{ bill.periodEnd }}</dd></div></dl></el-tab-pane>
       <el-tab-pane label="账单汇率" name="rates"><el-table :data="[{ source: bill.currency, target: 'CNY', direction: `${bill.currency} → CNY`, rate: '4.200000', state: '已锁定' }]" border><el-table-column prop="source" label="货款结算币种" /><el-table-column prop="target" label="财务本位币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column prop="rate" label="锁定汇率" /><el-table-column prop="state" label="状态" /></el-table></el-tab-pane>
       <el-tab-pane label="返款明细" name="refunds"><el-table :data="refundDetails" border><el-table-column prop="waybill" label="尾程运单号" width="150" /><el-table-column prop="order" label="所属内部订单" width="155" /><el-table-column prop="signedAt" label="签收时间" width="150" /><el-table-column label="原始货款"><template #default="scope">{{ money(scope.row.original) }} {{ scope.row.currency }}</template></el-table-column><el-table-column label="应返货款"><template #default="scope">{{ money(scope.row.refundable) }} {{ scope.row.currency }}</template></el-table-column><el-table-column label="已返货款"><template #default="scope">{{ money(scope.row.returned) }} {{ scope.row.currency }}</template></el-table-column><el-table-column label="待返货款"><template #default="scope">{{ money(scope.row.pending) }} {{ scope.row.currency }}</template></el-table-column><el-table-column prop="state" label="核销状态" /></el-table></el-tab-pane>
       <el-tab-pane label="扣减费项明细" name="deductions"><el-table v-if="deductionDetails.length" :data="deductionDetails" border><el-table-column prop="feeNo" label="费用编号" width="190" /><el-table-column prop="fee" label="扣减费项" /><el-table-column prop="order" label="业务订单号" /><el-table-column prop="currency" label="币种" /><el-table-column label="扣减金额"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column prop="state" label="处理状态" /></el-table><el-empty v-else description="当前账单无扣减费项" /></el-tab-pane>
-      <el-tab-pane label="关联调账" name="adjustments"><el-empty description="暂无关联调账" /></el-tab-pane>
+      <el-tab-pane label="关联调账" name="adjustments"><el-table v-if="adjustments.length" :data="adjustments" border><el-table-column prop="no" label="调账单号" width="180" /><el-table-column prop="status" label="审核状态" /><el-table-column prop="fee" label="费项" /><el-table-column prop="objectNo" label="挂靠对象编号" width="220" /><el-table-column prop="currency" label="币种" /><el-table-column label="金额变幅" align="right"><template #default="scope">{{ money(scope.row.delta) }}</template></el-table-column><el-table-column prop="adjustedAt" label="调账时间" width="155" /></el-table><el-empty v-else description="暂无关联调账" /></el-tab-pane>
       <el-tab-pane label="核销记录" name="writeoffs"><el-table :data="writeoffs" border><el-table-column prop="no" label="核销编号" /><el-table-column prop="type" label="核销类型" /><el-table-column prop="currency" label="币种" /><el-table-column label="核销金额"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column prop="time" label="核销时间" /><el-table-column prop="operator" label="操作人" /></el-table></el-tab-pane>
     </el-tabs>
+
+    <el-dialog v-model="previewVisible" :title="`${previewAction}预览`" width="720px" align-center append-to-body>
+      <dl class="bill-info-grid"><div><dt>账单编号</dt><dd>{{ bill.billNo }}</dd></div><div><dt>客户</dt><dd>{{ bill.customer }}</dd></div><div><dt>当前账单状态</dt><dd>{{ bill.status }}</dd></div><div><dt>当前收口状态</dt><dd>{{ bill.closeStatus }}</dd></div><div><dt>影响范围</dt><dd>当前账单及其账期内未归属费项</dd></div><div><dt>生成结果</dt><dd>{{ previewAction === '替换生成' ? '原账单作废并创建新账单' : previewAction === '期末收口' ? '锁定账期并允许审核' : '创建账单计算任务' }}</dd></div></dl>
+      <el-alert v-if="previewAction === '替换生成'" title="替换生成仅适用于未发出的待审核账单，确认后原账单不可继续使用。" type="warning" :closable="false" />
+      <template #footer><el-button @click="previewVisible=false">取消</el-button><el-button type="primary" @click="confirmPreview">确认执行</el-button></template>
+    </el-dialog>
+
+    <el-dialog v-model="rateEditorVisible" title="编辑账单特调汇率" width="760px" align-center append-to-body>
+      <el-alert title="仅修改当前待审核账单的锁定汇率，不回写汇率配置。" type="info" :closable="false" />
+      <el-table :data="editableRates" border style="margin-top:16px"><el-table-column prop="settlement" label="费项结算币种" /><el-table-column prop="target" label="财务本位币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column label="锁定汇率"><template #default="scope"><el-input-number v-model="scope.row.rate" :precision="6" :step="0.000001" :min="0.000001" controls-position="right" /></template></el-table-column></el-table>
+      <template #footer><el-button @click="rateEditorVisible=false">取消</el-button><el-button type="primary" @click="saveRates">保存特调汇率</el-button></template>
+    </el-dialog>
   </div>
 </template>

@@ -53,7 +53,7 @@ defineExpose({ validate })
     <section class="rule-card">
       <header class="rule-head"><strong>COD包裹货款代收条款</strong><el-switch v-model="form.enabled" /></header>
       <div class="config-no-bar"><span>配置编号</span><b>{{ previewNo }}</b><small>{{ config.no === '新配置' ? '首次保存将生成返款配置 v1' : '当前版本保存后自动递增' }}</small></div>
-      <div class="setting-row"><div class="setting-meta"><b>返款模式 <i>*</i></b></div><el-select v-model="form.refundMode"><el-option label="回款返款" value="RECEIVED" /><el-option label="签收返款" value="SIGNED" disabled /></el-select></div>
+      <div class="setting-row"><div class="setting-meta"><b>返款模式 <i>*</i></b></div><el-select v-model="form.refundMode"><el-option label="回款返款" value="RECEIVED" /><el-option label="签收返款" value="SIGNED" /></el-select></div>
       <div class="setting-row"><div class="setting-meta"><b>账期类型 <i>*</i></b></div><el-select v-model="form.billingPeriodType"><el-option label="周" value="WEEK" /><el-option label="半周" value="HALF_WEEK" /></el-select></div>
       <div class="setting-row"><div class="setting-meta"><b>账期起始日 <i v-if="form.billingPeriodType==='HALF_WEEK'">*</i></b><small>半周账期需选择每周两个起始日，两个独立账期均不得少于 3 天</small></div><el-select v-model="form.startDays" multiple :multiple-limit="2" :disabled="form.billingPeriodType!=='HALF_WEEK'" :placeholder="form.billingPeriodType==='HALF_WEEK'?'请选择两个起始日':'仅半周账期需要配置'"><el-option v-for="item in weekdays" :key="item.value" :label="item.label" :value="item.value" /></el-select></div>
       <div class="setting-row"><div class="setting-meta"><b>账单发出时间是账期结束后第...天 <i>*</i></b><small>预计在该天完成账单复核，旨在错峰复核账单</small></div><el-input-number v-model="form.sendAfterDays" :min="0" controls-position="right" /></div>

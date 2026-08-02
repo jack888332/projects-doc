@@ -790,6 +790,8 @@ function viewResult(row) {
               <div class="bill-relations">
                 <div><span>原账单清单</span><strong>{{ selectedTask.originalBills.join('、') || '不适用' }}</strong></div>
                 <div><span>新账单清单</span><strong>{{ selectedTask.newBills.join('、') || '未生成新账单' }}</strong></div>
+                <div><span>替换影响</span><strong>{{ selectedTask.actualMode === 'REPLACE' ? '原账单作废；费项归属迁移至新账单' : '不适用' }}</strong></div>
+                <div><span>重算范围</span><strong>{{ selectedTask.recalculateScope || '当前任务账期及目标账单内费项' }}</strong></div>
               </div>
             </template>
 

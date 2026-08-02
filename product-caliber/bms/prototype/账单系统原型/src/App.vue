@@ -4,9 +4,15 @@ import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowDown, Bell, CircleCheck, Clock, Coin, Delete, DocumentChecked,
-  Download, Failed, Fold, Histogram, List, Monitor, Operation,
+  Download, Failed, Fold, List, Monitor, Operation,
   Refresh, RefreshRight, Search, Setting, Tickets, User, View,
 } from '@element-plus/icons-vue'
+import BillsView from './views/BillsView.vue'
+import BillingConfigView from './views/BillingConfigView.vue'
+import RateConfigView from './views/RateConfigView.vue'
+import RemittanceView from './views/RemittanceView.vue'
+import AdjustmentView from './views/AdjustmentView.vue'
+import ProcessView from './views/ProcessView.vue'
 
 const activeMenu = ref('tasks')
 const detailVisible = ref(false)
@@ -32,13 +38,43 @@ const taskQuery = reactive({
   period: [],
 })
 
-const menus = [
-  { key: 'dashboard', label: '账单总览', icon: Histogram, disabled: true },
-  { key: 'config', label: '账单配置', icon: Setting, disabled: true },
-  { key: 'bills', label: '应收账单', icon: DocumentChecked, disabled: true },
-  { key: 'tasks', label: '任务列表', icon: List },
-  { key: 'writeoff', label: '核销管理', icon: Coin, disabled: true },
+const menuGroups = [
+  { label: '财务日常', items: [
+    { key: 'receivable', label: '应收账单', icon: DocumentChecked },
+    { key: 'refund', label: '返款账单', icon: Tickets },
+    { key: 'remittance', label: '回款管理', icon: Coin },
+    { key: 'adjustments', label: '调账中心', icon: Operation },
+  ] },
+  { label: '核心配置', items: [
+    { key: 'config', label: '账单配置', icon: Setting },
+    { key: 'rates', label: '汇率配置', icon: Coin },
+  ] },
+  { label: '过程管控', items: [
+    { key: 'tasks', label: '生成任务', icon: List },
+    { key: 'base', label: '基础配置', icon: Setting },
+    { key: 'exports', label: '导出管理', icon: Download },
+    { key: 'audit', label: '内部审计', icon: View },
+  ] },
+  { label: '辅助测试', items: [
+    { key: 'compare', label: '报表比对', icon: Search },
+    { key: 'migration', label: '数据迁移', icon: Refresh },
+  ] },
 ]
+const menus = menuGroups.flatMap((group) => group.items)
+
+const viewRegistry = {
+  receivable: { component: BillsView, props: { billType: 'AR' } },
+  refund: { component: BillsView, props: { billType: 'RF' } },
+  remittance: { component: RemittanceView },
+  adjustments: { component: AdjustmentView },
+  config: { component: BillingConfigView },
+  rates: { component: RateConfigView },
+  base: { component: ProcessView, props: { mode: 'base' } },
+  exports: { component: ProcessView, props: { mode: 'exports' } },
+  audit: { component: ProcessView, props: { mode: 'audit' } },
+  compare: { component: ProcessView, props: { mode: 'compare' } },
+  migration: { component: ProcessView, props: { mode: 'migration' } },
+}
 
 const statusMeta = {
   PENDING: { label: '待执行', className: 'info' },
@@ -380,6 +416,7 @@ const taskRecords = ref([
 ])
 
 const currentMenu = computed(() => menus.find((item) => item.key === activeMenu.value))
+const currentView = computed(() => viewRegistry[activeMenu.value])
 const isFeePoolFilter = computed(() => taskQuery.executionLevel === 'FEE_POOL')
 
 const filteredTasks = computed(() => taskRecords.value.filter((item) => {
@@ -521,19 +558,21 @@ function viewResult(row) {
       </div>
 
       <nav class="main-nav" aria-label="账单系统菜单">
-        <div v-if="!collapsed" class="nav-section-label">账单系统</div>
-        <button
-          v-for="item in menus"
-          :key="item.key"
-          class="nav-item"
-          :class="{ active: activeMenu === item.key, disabled: item.disabled }"
-          :title="collapsed ? item.label : ''"
-          @click="!item.disabled && (activeMenu = item.key)"
-        >
-          <el-icon><component :is="item.icon" /></el-icon>
-          <span v-if="!collapsed">{{ item.label }}</span>
-          <i v-if="item.key === 'tasks' && !collapsed" class="nav-count">{{ taskRecords.filter((item) => ['PENDING', 'RUNNING', 'FAILED'].includes(item.status)).length }}</i>
-        </button>
+        <template v-for="group in menuGroups" :key="group.label">
+          <div v-if="!collapsed" class="nav-section-label">{{ group.label }}</div>
+          <button
+            v-for="item in group.items"
+            :key="item.key"
+            class="nav-item"
+            :class="{ active: activeMenu === item.key }"
+            :title="collapsed ? item.label : ''"
+            @click="activeMenu = item.key"
+          >
+            <el-icon><component :is="item.icon" /></el-icon>
+            <span v-if="!collapsed">{{ item.label }}</span>
+            <i v-if="item.key === 'tasks' && !collapsed" class="nav-count">{{ taskRecords.filter((task) => ['PENDING', 'RUNNING', 'FAILED'].includes(task.status)).length }}</i>
+          </button>
+        </template>
       </nav>
 
       <div class="sidebar-spacer" />
@@ -564,6 +603,7 @@ function viewResult(row) {
       </header>
 
       <main class="page-main">
+        <template v-if="activeMenu === 'tasks'">
         <div class="page-heading">
           <div><div class="eyebrow">BMS TASKS</div><h1>BMS任务</h1></div>
           <div class="heading-actions">
@@ -669,6 +709,8 @@ function viewResult(row) {
           </el-table>
           <div class="table-pagination"><span>展示 1-{{ filteredTasks.length }} 条</span><el-pagination layout="prev, pager, next" :total="filteredTasks.length" :page-size="10" /></div>
         </section>
+        </template>
+        <component v-else-if="currentView" :is="currentView.component" v-bind="currentView.props || {}" />
       </main>
     </section>
 

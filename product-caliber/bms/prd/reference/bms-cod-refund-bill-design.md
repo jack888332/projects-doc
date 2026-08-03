@@ -92,6 +92,8 @@ COD 货款代收流程可理解为：
 
 ## 5. 推荐流程
 
+返款账单的订单标识口径与应收账单保持一致：业务单号取 OFP `sale_order_header.delivery_order_code`；尾程单号通过独立 CXMS 连接，按 OFP/CXMS `warehouse_code` 相等且 `delivery_order_code = erp_order_no` 查询有效 `sub_waybill_no`，按 CXMS ID 升序去重拼接。返款导出或按尾程号定位明细时，使用 `bill_order_waybill_snapshot` 中的单个子运单精确匹配。
+
 ```plantuml
 @startuml
 title COD 返款账单与应收账单拆分流程

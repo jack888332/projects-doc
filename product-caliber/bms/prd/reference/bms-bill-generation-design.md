@@ -80,7 +80,7 @@ CREATE TABLE `fee_source_datasource` (
 
 管理范围：
 
-1. 一条数据源配置代表一个可读数据库连接，例如 `OFP_DB`、`ERP_DB`。
+1. 一条数据源配置代表一个可读数据库连接，例如 `OFP_DB`、`CXMS_DB`、`ERP_DB`。
 2. 数据源配置只负责“怎么连接”，不负责“取哪个费项”。
 3. 费项取数字段、过滤条件、增量字段放在 `fee_source_rule`。
 4. `fee_index` 只保存费项身份和业务含义，不保存 URL、账号、密码。
@@ -99,6 +99,8 @@ INSERT INTO `fee_source_datasource` (
   1, 'system', 'system'
 );
 ```
+
+尾程包裹查询必须另配 `CXMS_DB`。当 OFP 数据库账号同时具备 CXMS 只读权限时，`CXMS_DB` 可复用 `OFP_DB` 的驱动、账号、密码及超时配置，但 JDBC URL 和默认库必须指向 `cxms`；应用仍须建立独立连接，禁止在 OFP 查询 SQL 中直接跨库 JOIN。
 
 ### 3.2 fee_source_rule 引用数据源
 
@@ -171,6 +173,16 @@ fee_source_datasource.datasource_code
 1. 提供转板费、退运费、税费、木架费等附加费用。
 2. 通过 `sale_order_id`、`financial_bill_no`、尾程运单号、首程运单号等字段关联订单。
 3. 账单生成后仍可能新增费用，因此必须支持增量归集。
+
+### 4.4 尾程包裹表
+
+来源：`cxms.ob_shipping_package_header`。
+
+1. 业务单号固定取 OFP `sale_order_header.delivery_order_code`。
+2. 先分页读取 OFP，再使用独立 `CXMS_DB` 连接按 `warehouse_code + erp_order_no` 分批查询，关联条件为 OFP `delivery_order_code = erp_order_no` 且双方 `warehouse_code` 相等。
+3. 仅保留 `is_archived = 0` 且属于 `PACKAGE_STATUS` 有效白名单的非空 `sub_waybill_no`，排除 `990=重置装箱`。
+4. 同一业务单的多个子运单按 CXMS `id` 升序、去重后用英文逗号拼接，写入 `fee_detail` 和 `main_order` 的 `varchar(1000)` 快照字段；无匹配时保持空，不回退 OFP 运单号。
+5. 同时按单个子运单写入 `bill_order_waybill_snapshot`，页面精确检索通过该关系表完成，不在逗号字符串上做模糊匹配。
 
 ## 5. 账单归集时间
 

@@ -1513,7 +1513,7 @@ function renderBillDetail(){
     const allocationSet=allocationSets.find(item=>item.id===cost.target);
     const rule=allocationSet?allocationRules.find(ruleItem=>ruleItem.id===allocationSet.ruleId):null;
     const setText=allocationSet?`<button class="count-link mono" data-action="open-bucket" data-id="${allocationSet.id}">${allocationSet.id}</button>`:"-";
-    const ruleText=allocationSet?(allocationSet.treatment === "不分摊"?'<span class="muted">不适用</span>':(rule?`${rule.id}<br><span class="muted">${rule.supplier === "全部供应商" ? "基础规则" : "供应商特调"}</span>`:'<span class="muted">待财务确认</span>')):"-";
+    const ruleText=allocationSet?(allocationSet.treatment === "不分摊"?'<span class="muted">--</span>':(rule?`${rule.id}<br><span class="muted">${rule.supplier === "全部供应商" ? "基础规则" : "供应商特调"}</span>`:'<span class="muted">待财务确认</span>')):"-";
     return `<tr><td>${cost.fee}</td><td>${cost.raw}</td><td>${tag(cost.type,cost.type==="直接成本"?"green":"orange")}</td><td class="num">${cost.detailCount || 1}</td><td class="num strong">${money(cost.amount,cost.currency)}</td><td>${setText}</td><td>${ruleText}</td><td>${status(cost.status)}</td></tr>`;
   }).join("") || `<tr><td colspan="8" class="empty-cell">该账单暂无成本费项</td></tr>`;
   const actions=`<button class="btn">${icon("file-down")}下载原始账单</button>${b.state==="待结清"?`<button class="btn primary" data-action="settle-bill" data-id="${b.id}">${icon("badge-check")}登记结清</button>`:""}`;

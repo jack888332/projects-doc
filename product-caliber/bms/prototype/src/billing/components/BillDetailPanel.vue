@@ -21,9 +21,8 @@ const previewAction = ref('')
 const rateEditorVisible = ref(false)
 const editableRates = ref([])
 const generationVisible = ref(false)
-const generationMode = ref('SUPPLEMENT')
 const generationStep = ref(0)
-const generationForm = reactive({ reason: '', dataCutoff: '2026-08-02 10:30:00', newConfig: '', switchAt: '2026-08-03 00:00:00' })
+const generationForm = reactive({ reason: '', dataCutoff: '2026-08-02 10:30:00', newConfig: 'CURRENT', switchAt: '2026-08-03 00:00:00' })
 
 watch(() => [props.bill.billNo, props.isReceivable], () => {
   activeTab.value = props.isReceivable ? 'rates' : 'info'
@@ -114,7 +113,12 @@ const candidateFees = computed(() => generationCandidateFees.value.filter((row) 
 const selectedCandidateFees = computed(() => candidateFees.value.filter((row) => row.selected))
 const candidateAmount = computed(() => selectedCandidateFees.value.reduce((sum, row) => sum + row.amount, 0))
 const availableReplacementOptions = computed(() => replacementOptions.value.filter((row) => row.billType === billType.value))
-const selectedReplacementOption = computed(() => availableReplacementOptions.value.find((row) => row.value === generationForm.newConfig))
+const generationConfigOptions = computed(() => [
+  { value: 'CURRENT', label: `${currentConfigVersion.value} · 沿用当前账单配置`, state: '当前账单配置', effect: '保持现有口径' },
+  ...availableReplacementOptions.value,
+])
+const selectedReplacementOption = computed(() => generationConfigOptions.value.find((row) => row.value === generationForm.newConfig))
+const mayReplaceExistingBills = computed(() => generationForm.newConfig !== 'CURRENT')
 const replacementOldRows = computed(() => replacementPreviewRows.value.filter((row) => row.billType === billType.value && row.side === 'OLD').map((row) => ({
   ...row,
   billNo: props.bill.billNo,
@@ -143,24 +147,23 @@ function openPreview(action) { previewAction.value = action; previewVisible.valu
 function confirmPreview() { previewVisible.value = false; emit('action', previewAction.value) }
 function openRateEditor() { editableRates.value = arRates.value.map((row) => ({ ...row })); rateEditorVisible.value = true }
 function saveRates() { rateEditorVisible.value = false; emit('action', '保存账单特调汇率') }
-function openGeneration(mode) {
-  generationMode.value = mode
+function openGeneration() {
   generationStep.value = 0
   generationForm.reason = ''
   generationForm.dataCutoff = '2026-08-02 10:30:00'
   generationForm.switchAt = '2026-08-03 00:00:00'
-  generationForm.newConfig = availableReplacementOptions.value[0]?.value || ''
+  generationForm.newConfig = 'CURRENT'
   generationVisible.value = true
 }
 function nextGenerationStep() {
   if (generationStep.value === 0 && !generationForm.reason.trim()) return ElMessage.warning('请填写本次生成原因')
-  if (generationMode.value === 'REPLACE' && generationStep.value === 0 && !generationForm.newConfig) return ElMessage.warning('请选择新版账单配置')
-  if (generationMode.value === 'SUPPLEMENT' && generationStep.value === 1 && !selectedCandidateFees.value.length) return ElMessage.warning('至少选择一条待补充费项')
+  if (generationStep.value === 0 && !generationForm.newConfig) return ElMessage.warning('请选择本次采用的账单配置')
+  if (!mayReplaceExistingBills.value && generationStep.value === 1 && !selectedCandidateFees.value.length) return ElMessage.warning('至少选择一条待归集费项')
   generationStep.value += 1
 }
 function submitGenerationTask() {
   generationVisible.value = false
-  emit('action', generationMode.value === 'SUPPLEMENT' ? '创建补充生成任务' : '创建替换生成任务')
+  emit('action', '创建账单生成任务')
 }
 </script>
 
@@ -183,18 +186,14 @@ function submitGenerationTask() {
       <div class="bill-detail-actions">
         <template v-if="isReceivable">
           <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口' && !bill.processingState" @click="emit('action', '审核通过')">审核通过</el-button>
-          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '未收口' && !bill.processingState" @click="openPreview('期末收口')">期末收口</el-button>
-          <el-button v-if="bill.status === '待审核' && !bill.processingState" @click="openGeneration('SUPPLEMENT')">补充生成</el-button>
-          <el-button v-if="bill.status === '待审核' && !bill.issued && !bill.processingState" @click="openGeneration('REPLACE')">替换生成</el-button>
+          <el-button v-if="bill.status === '待审核' && !bill.processingState" @click="openGeneration">账单生成</el-button>
           <el-button v-if="!['已结清','已作废'].includes(bill.status) && !bill.processingState" @click="openPreview('账单重算')">账单重算</el-button>
           <el-button type="primary" plain :icon="Download" @click="emit('action', '导出账单')">导出账单</el-button>
         </template>
         <template v-else>
           <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口' && !bill.processingState" @click="emit('action', '审核通过')">审核通过</el-button>
-          <el-button v-if="bill.status === '待审核' && bill.closeStatus === '未收口' && !bill.processingState" @click="openPreview('期末收口')">期末收口</el-button>
           <el-button v-if="bill.status === '待结清' && !bill.processingState" @click="emit('action', '退回待审核')">退回待审核</el-button>
-          <el-button v-if="bill.status === '待审核' && !bill.processingState" @click="openGeneration('SUPPLEMENT')">补充生成</el-button>
-          <el-button v-if="bill.status === '待审核' && !bill.issued && !bill.processingState" @click="openGeneration('REPLACE')">替换生成</el-button>
+          <el-button v-if="bill.status === '待审核' && !bill.processingState" @click="openGeneration">账单生成</el-button>
           <el-button v-if="!['已结清','已作废'].includes(bill.status) && !bill.processingState" @click="openPreview('账单重算')">账单重算</el-button>
           <el-button v-if="bill.status === '待结清' && !bill.processingState" @click="emit('action', '登记返还')">登记返还</el-button>
           <el-button @click="emit('action', '打开调账中心')">调账中心</el-button>
@@ -276,39 +275,39 @@ function submitGenerationTask() {
       <el-tab-pane label="核销记录" name="writeoffs"><el-table :data="writeoffs" border><el-table-column prop="no" label="核销编号" /><el-table-column prop="type" label="核销类型" /><el-table-column prop="currency" label="币种" /><el-table-column label="核销金额"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column prop="time" label="核销时间" /><el-table-column prop="operator" label="操作人" /></el-table></el-tab-pane>
     </el-tabs>
 
-    <el-dialog v-model="generationVisible" :title="generationMode === 'SUPPLEMENT' ? '账单补充生成' : '账单替换生成'" width="1040px" align-center append-to-body :close-on-click-modal="false" class="generation-dialog">
+    <el-dialog v-model="generationVisible" title="账单生成" width="1040px" align-center append-to-body :close-on-click-modal="false" class="generation-dialog">
       <el-steps :active="generationStep" finish-status="success" align-center class="generation-steps">
-        <el-step title="确认处理条件" />
-        <el-step :title="generationMode === 'SUPPLEMENT' ? '选择补充费项' : '核对替换推演'" />
+        <el-step title="设置生成条件" />
+        <el-step title="核对判定依据" />
         <el-step title="创建任务" />
       </el-steps>
 
       <section v-if="generationStep === 0" class="generation-step-panel">
         <div class="generation-mode-banner">
-          <div><strong>{{ generationMode === 'SUPPLEMENT' ? '保留原账单，沿用原配置' : '按新版配置重新拆单' }}</strong><span>{{ generationMode === 'SUPPLEMENT' ? '新增费项写入同一账单的新结果版本，不改变账单编号。' : '系统先生成候选账单，任务整体成功后才作废原账单集合。' }}</span></div>
-          <StatusTag :label="generationMode === 'SUPPLEMENT' ? '普通操作' : '高风险操作'" :tone="generationMode === 'SUPPLEMENT' ? 'running' : 'warning'" />
+          <div><strong>系统执行时判定生成方式</strong><span>财务只需确认配置和数据范围；系统取得执行权后再判定首次生成、补充生成或替换生成。</span></div>
+          <StatusTag label="实际方式待判定" tone="running" />
         </div>
         <dl class="generation-context-grid">
           <div><dt>目标账单</dt><dd>{{ bill.billNo }}</dd></div><div><dt>客户 / 账单类型</dt><dd>{{ bill.customer }} / {{ isReceivable ? '应收账单' : '返款账单' }}</dd></div>
           <div><dt>实际账期</dt><dd>{{ bill.periodStart }} 至 {{ bill.periodEnd }}</dd></div><div><dt>当前收口状态</dt><dd>{{ bill.closeStatus }}</dd></div>
           <div><dt>原配置</dt><dd>{{ currentConfigLabel }} · {{ currentConfigVersion }}</dd></div><div><dt>当前结果版本</dt><dd>{{ currentResultVersion }}</dd></div>
         </dl>
-        <div v-if="generationMode === 'REPLACE'" class="generation-checks">
+        <div v-if="mayReplaceExistingBills" class="generation-checks">
           <div><span class="check-mark">✓</span><strong>账单状态为待审核</strong><small>符合替换条件</small></div>
           <div><span class="check-mark">✓</span><strong>账单尚未发出</strong><small>发出时间为空</small></div>
           <div><span class="check-mark">✓</span><strong>不存在资金事实</strong><small>无核销、回款或返款</small></div>
           <div><span class="check-mark">✓</span><strong>范围未被其它任务占用</strong><small>允许创建替换批次</small></div>
         </div>
         <el-form label-position="top" class="generation-form-grid">
-          <el-form-item v-if="generationMode === 'REPLACE'" label="新版账单配置"><el-select v-model="generationForm.newConfig"><el-option v-for="item in availableReplacementOptions" :key="item.value" :label="item.label" :value="item.value"><span>{{ item.label }}</span><small class="option-meta">{{ item.state }} · {{ item.effect }}</small></el-option></el-select></el-form-item>
-          <el-form-item v-if="generationMode === 'REPLACE'" label="配置切换时点 T"><el-date-picker v-model="generationForm.switchAt" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" /></el-form-item>
+          <el-form-item label="本次采用的账单配置"><el-select v-model="generationForm.newConfig"><el-option v-for="item in generationConfigOptions" :key="item.value" :label="item.label" :value="item.value"><span>{{ item.label }}</span><small class="option-meta">{{ item.state }} · {{ item.effect }}</small></el-option></el-select></el-form-item>
+          <el-form-item v-if="mayReplaceExistingBills" label="配置切换时点 T"><el-date-picker v-model="generationForm.switchAt" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" /></el-form-item>
           <el-form-item label="数据截止点"><el-date-picker v-model="generationForm.dataCutoff" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" /></el-form-item>
-          <el-form-item label="生成原因" :class="{ 'span-2': generationMode === 'SUPPLEMENT' }"><el-input v-model="generationForm.reason" type="textarea" :rows="2" :placeholder="generationMode === 'SUPPLEMENT' ? '说明新增或更正费项的来源' : '说明改用新版配置的原因'" /></el-form-item>
+          <el-form-item label="生成原因" :class="{ 'span-2': !mayReplaceExistingBills }"><el-input v-model="generationForm.reason" type="textarea" :rows="2" placeholder="说明本次生成账单的原因" /></el-form-item>
         </el-form>
       </section>
 
-      <section v-else-if="generationStep === 1 && generationMode === 'SUPPLEMENT'" class="generation-step-panel">
-        <el-alert title="仅展示原配置范围内、尚未归入有效账单的新费项或更正费项；不会读取后来生效的新配置。" type="info" :closable="false" />
+      <section v-else-if="generationStep === 1 && !mayReplaceExistingBills" class="generation-step-panel">
+        <el-alert title="系统执行时将根据是否已有可沿用的待审核账单，判定为首次生成或补充生成。" type="info" :closable="false" />
         <div class="generation-summary-row"><div><span>待选择费项</span><strong>{{ candidateFees.length }}</strong></div><div><span>已选择</span><strong>{{ selectedCandidateFees.length }}</strong></div><div><span>预计金额变化</span><strong>{{ money(candidateAmount) }} {{ bill.currency }}</strong></div><div><span>结果处理</span><strong>新增结果版本</strong></div></div>
         <el-table :data="candidateFees" border class="generation-table">
           <el-table-column label="纳入" width="64" align="center"><template #default="scope"><el-checkbox v-model="scope.row.selected" /></template></el-table-column>
@@ -317,7 +316,7 @@ function submitGenerationTask() {
       </section>
 
       <section v-else-if="generationStep === 1" class="generation-step-panel">
-        <el-alert title="以下结果为新版配置推演。候选账单在任务成功前不可见、不可审核，也不会提前释放原费项占用。" type="warning" :closable="false" />
+        <el-alert title="新版配置可能改变账单范围或分组。系统执行时若不能沿用原账单，将判定为替换生成；候选账单在任务成功前不可见。" type="warning" :closable="false" />
         <div class="replacement-config-line"><span>原配置：<strong>{{ currentConfigVersion }}</strong></span><span>新版配置：<strong>{{ selectedReplacementOption?.label }}</strong></span><span>切换时点：<strong>{{ generationForm.switchAt }}</strong></span></div>
         <div class="replacement-columns">
           <div><h4>待替换账单集合</h4><el-table :data="replacementOldRows" border><el-table-column prop="billNo" label="原账单" min-width="210" /><el-table-column prop="group" label="分组范围" min-width="170" /><el-table-column prop="config" label="配置" width="80" /><el-table-column prop="feeCount" label="费项" width="70" /><el-table-column label="金额" width="130" align="right"><template #default="scope">{{ money(scope.row.amount) }} {{ scope.row.currency }}</template></el-table-column></el-table></div>
@@ -328,17 +327,16 @@ function submitGenerationTask() {
 
       <section v-else class="generation-step-panel generation-confirm-panel">
         <div class="confirm-icon">✓</div><h3>任务信息已准备完成</h3>
-        <p>{{ generationMode === 'SUPPLEMENT' ? '提交后创建账单生成任务，实际生成方式将在任务取得执行权后确定。' : '提交后创建替换批次并锁定待替换范围，只有候选集合整体成功才切换新旧账单。' }}</p>
-        <dl class="generation-context-grid confirm-grid"><div><dt>执行级别</dt><dd>账单计算</dd></div><div><dt>计算类型</dt><dd>账单生成</dd></div><div><dt>发起意图</dt><dd>{{ generationMode === 'SUPPLEMENT' ? '补充生成' : '替换生成' }}</dd></div><div><dt>实际生成方式</dt><dd>{{ generationMode === 'SUPPLEMENT' ? '待判定' : '替换生成' }}</dd></div><div><dt>数据截止点</dt><dd>{{ generationForm.dataCutoff }}</dd></div><div><dt>操作原因</dt><dd>{{ generationForm.reason }}</dd></div></dl>
-        <el-alert v-if="generationMode === 'REPLACE'" title="任务创建后，原账单将显示“替换待处理”并禁止审核、发送、补充生成、再次替换、重算和核销。" type="warning" :closable="false" />
+        <p>提交后创建账单生成任务。账单生成方式将在任务取得执行权、检查现有账单和配置影响后确定。</p>
+        <dl class="generation-context-grid confirm-grid"><div><dt>任务类型</dt><dd>账单生成</dd></div><div><dt>账单生成方式</dt><dd>待判定</dd></div><div><dt>数据截止点</dt><dd>{{ generationForm.dataCutoff }}</dd></div><div><dt>操作原因</dt><dd>{{ generationForm.reason }}</dd></div></dl>
+        <el-alert v-if="mayReplaceExistingBills" title="若系统判定为替换生成，原账单将在候选账单集合整体成功后才作废并切换。" type="warning" :closable="false" />
       </section>
 
       <template #footer><el-button @click="generationVisible=false">取消</el-button><el-button v-if="generationStep > 0" @click="generationStep--">上一步</el-button><el-button v-if="generationStep < 2" type="primary" @click="nextGenerationStep">下一步</el-button><el-button v-else type="primary" @click="submitGenerationTask">创建任务</el-button></template>
     </el-dialog>
 
     <el-dialog v-model="previewVisible" :title="`${previewAction}预览`" width="720px" align-center append-to-body>
-      <dl class="bill-info-grid"><div><dt>账单编号</dt><dd>{{ bill.billNo }}</dd></div><div><dt>客户</dt><dd>{{ bill.customer }}</dd></div><div><dt>当前账单状态</dt><dd>{{ bill.status }}</dd></div><div><dt>当前收口状态</dt><dd>{{ bill.closeStatus }}</dd></div><div><dt>影响范围</dt><dd>当前账单及其账期内未归属费项</dd></div><div><dt>生成结果</dt><dd>{{ previewAction === '替换生成' ? '原账单作废并创建新账单' : previewAction === '期末收口' ? '锁定账期并允许审核' : '创建账单计算任务' }}</dd></div></dl>
-      <el-alert v-if="previewAction === '替换生成'" title="替换生成仅适用于未发出的待审核账单，确认后原账单不可继续使用。" type="warning" :closable="false" />
+      <dl class="bill-info-grid"><div><dt>账单编号</dt><dd>{{ bill.billNo }}</dd></div><div><dt>客户</dt><dd>{{ bill.customer }}</dd></div><div><dt>当前账单状态</dt><dd>{{ bill.status }}</dd></div><div><dt>当前收口状态</dt><dd>{{ bill.closeStatus }}</dd></div><div><dt>影响范围</dt><dd>当前账单及其账期内已归属费项</dd></div><div><dt>处理结果</dt><dd>创建账单重算任务</dd></div></dl>
       <template #footer><el-button @click="previewVisible=false">取消</el-button><el-button type="primary" @click="confirmPreview">确认执行</el-button></template>
     </el-dialog>
 

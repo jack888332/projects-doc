@@ -87,7 +87,7 @@ COALESCE(h.check_time, h.measure_time, h.signed_time)
      - `additional.time.field.sign`
    - 支持值：
      - `create_time`
-   - 附加费查询固定追加条件：`sale_order_additional_matter.fee_pay_status = waiting_pay`。
+   - 附加费查询固定追加条件：`sale_order_additional_matter.fee_pay_status = waiting_pay`，且 `fee_pay_method` 仅允许 `collect_payment`（到付）、`account_period_payment`（账期支付）、`other`（其他）。
 
 3. 限制：
    - 同一个账单配置命中的附加费规则，当前只支持 `a.create_time` 作为增量时间字段。
@@ -118,17 +118,14 @@ orderIds -> sale_order_additional_matter
 4. 历史失败遗留的 `GENERATING` 应收账单，仅允许同一任务且未核销时恢复；必须在重新扫描来源数据之前清理残留数据并回退来源标记。
 5. 不允许直接把 `GENERATING` 加入普通增量状态集合，防止在半成品账单上重复追加。
 
-### 2.5 数据源配置表还没有真正参与运行时查询
+### 2.5 数据源配置运行时连接
 
-设计里已有 `fee_source_datasource`，`fee_source_rule.datasource_code` 也存在，但当前 SQL 硬编码：
+账单生成、应收来源补全和 COD 返款来源补全统一从 `fee_source_datasource` 解析连接：
 
-```sql
-ofp_ofdb1.sale_order_header
-ofp_ofdb1.sale_order_header_extend
-ofp_ofdb1.sale_order_additional_matter
-```
+- `OFP_DB`：读取 `sale_order_header`、`sale_order_header_extend`、`sale_order_additional_matter`。
+- `CXMS_DB`：独立连接读取 `ob_shipping_package_header`，不得与 OFP SQL 直接跨库 JOIN。
 
-短期能跑，长期不利于通用化。
+业务单号固定使用 OFP `delivery_order_code`。尾程包裹先以 `warehouse_code + delivery_order_code` 分组，再按仓库、每批最多 300 个 ERP 单号查询 CXMS；Java 侧按 CXMS `id` 升序聚合有效 `sub_waybill_no`。两个连接的密码只从配置表读取，不输出到日志或接口。
 
 ### 2.6 任务缺少账单配置快照
 
@@ -340,10 +337,12 @@ member_code / user_id
 SELECT
   h.id,
   h.order_code,
+  h.delivery_order_code,
   h.sc_id,
   h.shop_id,
   h.member_code,
   h.country_code,
+  h.warehouse_code,
   h.dest_warehouse_code,
   h.measure_time,
   h.signed_time,
@@ -371,6 +370,8 @@ WHERE h.sc_id = ?
 - `sale_order_header_extend.bms_bill_no IS NULL`
 - 按 `contract_node` 动态切换时间字段
 - 去掉固定 `LIMIT 5000`，改为分页循环拉取
+
+OFP 每页查询完成后，再由独立 CXMS 查询组件补齐尾程子运单。CXMS 条件必须同时包含 `warehouse_code = ?`、`erp_order_no IN (...)`、`is_archived = 0` 和有效状态白名单；结果按 `warehouse_code, erp_order_no, id` 排序。无有效子运单时尾程字段写空，不回退 `sale_order_header.waybill_no`。应收与 COD 返款共用同一查询组件和聚合口径。
 
 ### 6.2 源订单和扩展表打标字段
 
@@ -769,7 +770,7 @@ public BillGenerateRespDTO generate(req) {
 | 6 | 来源 SQL 快照准确性 | 已落地待验证 | 主订单/理赔 SQL 已按默认+分支配置组分段记录，附加费 SQL 已在实际订单 ID 集合确定后追加回写；分页 SQL 记录首个 offset，并在注释中保留 windowDays/pageSize/offset 递增口径。 | 联调验证任务详情中 `order_source_sql` / `additional_source_sql` 能覆盖默认、分支、附加费和理赔来源排查。 | P1 |
 | 7 | 附加费增量归集 | 已落地待验证 | 账单任务已独立扫描 `bms_after_bill_added_flag = 1 AND bms_billed_flag = 0` 的附加费，按默认/分支规则互斥归属，仅生成增量附加费明细并使用 `ADDITIONAL_INCREMENT` 打标；当前账期账单不可追加时会寻找最近可追加账单。 | 联调验证已出账订单新增附加费、跨账期追加、无可追加账单失败重试、重复扫描幂等场景。 | P0 |
 | 8 | 附加费时间字段口径统一 | 部分落地 | 文档中同时出现“固定 `create_time`”和“优先 `handle_time`，否则 `create_time`”两种口径。 | 明确一期只支持 `create_time`，或正式支持 `handle_time/create_time` 优先级，并同步公共配置和规则校验。 | P1 |
-| 9 | 数据源配置运行时生效 | 部分落地 | `fee_source_rule.datasource_code` 已查询，但运行时仍固定从 Disconf `DS_ds0_conf.properties` 推导 OFP 源库连接。 | 让 `fee_source_datasource` 参与连接解析，按 `datasource_code` 选择数据源，避免代码硬编码源库。 | P1 |
+| 9 | 数据源配置运行时生效 | 已落地（订单链路） | 账单生成、应收补全及 COD 返款补全已从 `fee_source_datasource` 解析 `OFP_DB`/`CXMS_DB`；其他费项来源仍按既有规则推进通用化。 | 后续将所有非订单来源统一收敛到 `datasource_code` 连接解析。 | P1 |
 | 10 | 复杂 SQL 迁移到 XML | 未开始 | `BillGenerateMapper` 仍存在 `@SelectProvider` 和 Provider 拼 SQL，不符合 BMS Mapper 规范。 | 将复杂查询迁移到 `sqlmap/BillGenerateMapper.xml`，使用 `<sql>`、`<include>`、`<if>` 和显式 `resultMap`。 | P1 |
 | 11 | 业务数据载体去 Map 化 | 未开始 | 订单宽表、附加费、理赔、任务构建等大量使用 `Map<String, Object>`，字段可读性和编译期校验不足。 | 新增明确 DTO/Row 类，如 `OrderWideRowDTO`、`AdditionalFeeSourceRowDTO`、`ClaimSourceRowDTO`。 | P1 |
 | 12 | 源订单数据隔离条件收紧 | 待确认 | 源订单查询使用 `(h.sc_id = ? OR h.sc_id IS NULL)`，可能放宽供应链隔离。 | 确认历史源数据是否存在 `sc_id IS NULL`；若无业务必要，改为严格 `h.sc_id = ?`。 | P0 |

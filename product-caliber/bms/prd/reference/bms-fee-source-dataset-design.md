@@ -25,6 +25,8 @@
 
 默认查询策略：`query_window_days = 1` 按自然日拆分，`query_page_size = 500` 分页拉取。不同来源数据集可以单独调整，避免所有来源共用一份隐藏配置。
 
+账单订单宽表使用 `OFP_DB`；尾程包裹补全使用独立 `CXMS_DB`。CXMS 补全是订单查询后的批量关联步骤，不作为单条费项 SQL 的跨库 JOIN。两个数据源可使用同一只读账号，但必须分别配置 JDBC URL、默认数据库和查询超时。
+
 ## 页面调整
 
 `/billing/feeItem` 增加“数据源规则”页签，用于维护 `fee_source_dataset`。

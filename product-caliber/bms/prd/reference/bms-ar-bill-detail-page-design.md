@@ -203,6 +203,8 @@ CREATE TABLE bill_exchange_rate_snapshot (
 - 费用币种
 - 是否有凭证
 
+尾程单号查询按单个 CXMS `sub_waybill_no` 精确匹配，新账单通过 `bill_order_waybill_snapshot` 关系快照过滤；未回填关系快照的历史账单仅允许使用 `FIND_IN_SET` 做完整分段兜底，禁止包含匹配，避免 `WB1` 误命中 `WB10`。
+
 表格字段：
 
 - 费项
@@ -223,6 +225,8 @@ CREATE TABLE bill_exchange_rate_snapshot (
 - 录入时间
 - 录入人
 - 操作：订单费用重新生成
+
+业务主单号展示 OFP `delivery_order_code`；尾程运单号展示同一业务单全部有效 CXMS 子运单，按包裹 ID 升序并以英文逗号分隔。无匹配时展示空值。
 
 ### 5.3 Tab：本期调账
 

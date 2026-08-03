@@ -53,9 +53,14 @@ button.module-kpi:hover { background: #f8fafc; border-color: #cbd6e5; }
 .reference-query-grid .el-select, .reference-query-grid .el-date-editor { width: 100%; }
 .query-actions { margin-top: 10px; display: flex; justify-content: flex-end; gap: 8px; }
 .reference-kpis .module-kpi { min-height: 94px; }
-.status-tabs-row { min-height: 40px; display: flex; align-items: center; gap: 6px; overflow-x: auto; }
-.status-tabs-row button { height: 32px; padding: 0 15px; border: 1px solid #d8dee8; border-radius: 4px; color: #596579; background: #fff; white-space: nowrap; cursor: pointer; }
-.status-tabs-row button.active { border-color: var(--primary); color: #fff; background: var(--primary); }
+.status-tabs-row { min-height: 45px; padding: 0 4px; display: flex; align-items: flex-end; gap: 24px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; border-bottom: 1px solid #dfe3ea; background: transparent; }
+.status-tabs-row::-webkit-scrollbar { display: none; }
+.status-tabs-row button { position: relative; flex: 0 0 auto; height: 44px; padding: 0 3px; border: 0; border-radius: 2px 2px 0 0; color: #697386; background: transparent; font-weight: 500; white-space: nowrap; cursor: pointer; transition: color .16s ease, background-color .16s ease; }
+.status-tabs-row button::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--primary); transform: scaleX(0); transform-origin: center; transition: transform .18s ease; }
+.status-tabs-row button:hover { color: var(--primary); background: var(--primary-soft); }
+.status-tabs-row button:focus-visible { outline: 2px solid var(--primary-border); outline-offset: -3px; }
+.status-tabs-row button.active { color: var(--primary); background: transparent; font-weight: 700; }
+.status-tabs-row button.active::after { transform: scaleX(1); }
 .table-reference-toolbar { min-height: 50px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e7eaf0; color: #7c8798; font-size: 11px; }
 .amount-lines { display: flex; flex-direction: column; gap: 3px; color: #707b8d; font-size: 11px; line-height: 1.45; }
 .amount-lines b { color: #2b3850; font-weight: 650; }

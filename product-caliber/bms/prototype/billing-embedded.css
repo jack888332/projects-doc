@@ -134,7 +134,6 @@
   border-radius: 0;
 }
 .billing-content .module-segmented button.active,
-.billing-content .status-tabs-row button.active,
 .billing-content .sub-tab.active,
 .billing-content .fee-view-switch button.active {
   border-color: var(--primary);

@@ -330,7 +330,6 @@ bill_config_id
 
 ```text
 fee_amount 非空且不为 0
-fee_pay_method = account_period_payment
 fee_pay_status in (waiting_pay, waiting_settlement)
 bms_billed_flag = 0
 bms_after_bill_added_flag = 0
@@ -436,7 +435,6 @@ bms_bill_no 为空
 bms_billed_flag = 0
 bms_after_bill_added_flag = 0
 fee_amount 非空且不为 0
-fee_pay_method = account_period_payment
 fee_pay_status in (waiting_pay, waiting_settlement)
 ```
 
@@ -449,7 +447,6 @@ bms_after_bill_added_flag = 1
 bms_billed_flag = 0
 bms_bill_no 为空
 fee_amount 非空且不为 0
-fee_pay_method = account_period_payment
 fee_pay_status in (waiting_pay, waiting_settlement)
 ```
 

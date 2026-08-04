@@ -330,7 +330,8 @@ bill_config_id
 
 ```text
 fee_amount 非空且不为 0
-fee_pay_status = waiting_pay
+fee_pay_method = account_period_payment
+fee_pay_status in (waiting_pay, waiting_settlement)
 bms_billed_flag = 0
 bms_after_bill_added_flag = 0
 ```
@@ -433,7 +434,8 @@ bms_bill_no 为空
 bms_billed_flag = 0
 bms_after_bill_added_flag = 0
 fee_amount 非空且不为 0
-fee_pay_status = waiting_pay
+fee_pay_method = account_period_payment
+fee_pay_status in (waiting_pay, waiting_settlement)
 ```
 
 ### 6.2 出账后新增附加费
@@ -445,7 +447,8 @@ bms_after_bill_added_flag = 1
 bms_billed_flag = 0
 bms_bill_no 为空
 fee_amount 非空且不为 0
-fee_pay_status = waiting_pay
+fee_pay_method = account_period_payment
+fee_pay_status in (waiting_pay, waiting_settlement)
 ```
 
 来源轨迹中的 `collect_type` 记录为：

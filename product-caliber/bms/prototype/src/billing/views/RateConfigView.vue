@@ -19,7 +19,7 @@ const baseRates = useDemoDataset('billingBaseRates', [
 const customerRates = useDemoDataset('billingCustomerRates', [
   { customerNo: 'OG4155', customer: 'OceanGate Logistics', shop: '深圳集运店', pair: 'GBP / CNY', direction: 'GBP -> CNY', method: '百分比缩放', adjustDirection: '上浮', adjustValue: '1.5%', base: 9.4628, result: 9.604742, status: '启用', operator: '谭清辉', updatedAt: '2026-08-02 09:28' },
   { customerNo: 'TK9012', customer: 'TopKing Supply', shop: '义乌集运店', pair: 'USD / CNY', direction: 'USD -> CNY', method: '固定汇率差', adjustDirection: '下浮', adjustValue: '0.0200', base: 7.1846, result: 7.1646, status: '启用', operator: '郑雅雯', updatedAt: '2026-08-01 18:41' },
-  { customerNo: 'NW2048', customer: 'NorthWind Cargo', shop: '上海集运店', pair: 'CAD / CNY', direction: 'CAD -> CNY', method: '固定汇率值', adjustDirection: '直接指定', adjustValue: '5.2500', base: '不适用', result: 5.25, status: '停用', operator: '谭清辉', updatedAt: '2026-07-30 11:02' },
+  { customerNo: 'NW2048', customer: 'NorthWind Cargo', shop: '上海集运店', pair: 'CAD / CNY', direction: 'CAD -> CNY', method: '固定汇率值', adjustDirection: '直接指定', adjustValue: '5.2500', base: '--', result: 5.25, status: '停用', operator: '谭清辉', updatedAt: '2026-07-30 11:02' },
 ], 2)
 const rows = computed(() => {
   const source = activeTab.value === 'base' ? baseRates.value : customerRates.value

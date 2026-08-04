@@ -34,14 +34,10 @@ const lastRefreshedAt = ref('2026-08-02 10:26:18')
 
 const taskQuery = reactive({
   keyword: '',
-  executionLevel: '',
+  taskType: '',
   status: '',
-  calculationType: '',
-  initiateIntent: '',
-  actualMode: '',
-  periodClose: '',
+  generationMode: '',
   triggerType: '',
-  pullType: '',
   configType: '',
   shop: '',
   period: [],
@@ -59,7 +55,7 @@ const menuGroups = [
     { key: 'rates', label: '汇率配置', icon: Coin },
   ] },
   { label: '过程管控', items: [
-    { key: 'tasks', label: '生成任务', icon: List },
+    { key: 'tasks', label: 'BMS任务', icon: List },
     { key: 'base', label: '基础配置', icon: Setting },
     { key: 'exports', label: '导出管理', icon: Download },
     { key: 'audit', label: '内部审计', icon: View },
@@ -92,24 +88,13 @@ const statusMeta = {
   FAILED: { label: '执行失败', className: 'danger' },
 }
 
-const executionLevelMeta = {
+const taskTypeMeta = {
   FEE_POOL: '费项入池',
-  BILL_CALCULATION: '账单计算',
-}
-
-const calculationMeta = {
   BILL_GENERATE: '账单生成',
   BILL_RECALCULATE: '账单重算',
 }
 
-const intentMeta = {
-  FIRST_GENERATE: '首次生成',
-  SUPPLEMENT_GENERATE: '补充生成',
-  PERIOD_CLOSE: '期末收口',
-  REPLACE_GENERATE: '替换生成',
-}
-
-const actualModeMeta = {
+const generationModeMeta = {
   PENDING: '待判定',
   FIRST: '首次生成',
   SUPPLEMENT: '补充生成',
@@ -121,24 +106,25 @@ const triggerMeta = {
   MANUAL: '手动',
 }
 
-const pullTypeMeta = {
-  FULL: '全量',
-  INCREMENTAL: '增量',
-}
+const normalizeTask = (row) => ({
+  status: 'SUCCESS', taskType: 'BILL_GENERATE', currentStage: 'RESULT_SAVE', generationMode: '', closeResult: '不涉及',
+  triggerType: 'MANUAL', configType: '默认配置', customerNo: '-', memberCode: '-', shop: '全部店铺',
+  startedAt: '-', finishedAt: '-', duration: '0秒', operator: 'system', failedStage: '', error: '', advice: '',
+  sourceCount: 0, pooledFeeCount: 0, billCount: 0, netChange: 0, resultConclusion: '-', resultVersion: '-',
+  originalBills: [], newBills: [], sourceSql: '', ...row,
+  period: `${row.periodStart} 至 ${row.periodEnd}`,
+})
 
 const taskRecords = useDemoDataset('billingTasks', [
   {
     id: 1,
     taskNo: 'BMS-20260802-00081',
     status: 'FAILED',
-    executionLevel: 'BILL_CALCULATION',
+    taskType: 'BILL_GENERATE',
     currentStage: 'BILL_CALCULATE',
-    calculationType: 'BILL_GENERATE',
-    initiateIntent: 'PERIOD_CLOSE',
-    actualMode: 'SUPPLEMENT',
-    periodClose: '是',
+    generationMode: 'SUPPLEMENT',
+    closeResult: '未收口',
     triggerType: 'SCHEDULED',
-    pullType: 'INCREMENTAL',
     configNo: 'BC-OG4155-M-US',
     configVersion: 'V12',
     configType: '分支配置',
@@ -148,7 +134,6 @@ const taskRecords = useDemoDataset('billingTasks', [
     shop: '深圳集运店',
     periodStart: '2026-08-01',
     periodEnd: '2026-08-01',
-    period: '2026-08-01 至 2026-08-01',
     dataCutoff: '2026-08-02 02:00:00',
     createdAt: '2026-08-02 02:00:01',
     startedAt: '2026-08-02 02:10:03',
@@ -160,53 +145,34 @@ const taskRecords = useDemoDataset('billingTasks', [
     advice: '核对来源数据完整性；修复后按原任务快照重新执行。若需改变范围或配置，请先删除任务并从业务入口新建任务。',
     sourceCount: 1864,
     pooledFeeCount: 6421,
-    billCount: 0,
-    netChange: 0,
-    resultConclusion: '-',
-    resultVersion: '-',
     originalBills: ['ARB-OG4155-20260801-f31a'],
-    newBills: [],
     scopeKey: 'OG4155|AR|2026-08-01|BC-OG4155-M-US|BILL_GENERATE',
     sourceSql: 'SELECT ... FROM sale_order_fee_detail\nWHERE customer_no = :customerNo\n  AND fee_created_at <= :dataCutoff\n  AND bms_reviewed = 0;',
   },
   {
     id: 2,
     taskNo: 'BMS-20260802-00080',
-    status: 'SUCCESS',
-    executionLevel: 'BILL_CALCULATION',
-    currentStage: 'RESULT_SAVE',
-    calculationType: 'BILL_GENERATE',
-    initiateIntent: 'FIRST_GENERATE',
-    actualMode: 'FIRST',
-    periodClose: '否',
-    triggerType: 'MANUAL',
-    pullType: 'FULL',
+    generationMode: 'FIRST',
     configNo: 'BC-TK9012-D',
     configVersion: 'V8',
-    configType: '默认配置',
     customerName: 'TopKing Supply',
     customerNo: 'TK9012',
     memberCode: 'M-672019',
     shop: '义乌集运店',
     periodStart: '2026-08-01',
     periodEnd: '2026-08-07',
-    period: '2026-08-01 至 2026-08-07',
     dataCutoff: '2026-08-02 09:30:00',
     createdAt: '2026-08-02 09:30:02',
     startedAt: '2026-08-02 09:31:11',
     finishedAt: '2026-08-02 09:34:45',
     duration: '3分34秒',
     operator: '谭清辉',
-    failedStage: '',
-    error: '',
-    advice: '',
     sourceCount: 2540,
     pooledFeeCount: 8220,
     billCount: 2,
     netChange: 483126.58,
     resultConclusion: '首次生成',
     resultVersion: 'RV-20260802-00317',
-    originalBills: [],
     newBills: ['ARB-TK9012-20260801-41b7', 'ARB-TK9012-20260801-8c2a'],
     scopeKey: 'TK9012|AR|2026-08-01/07|BC-TK9012-D|BILL_GENERATE',
     sourceSql: 'SELECT ... FROM sale_order_fee_detail\nWHERE customer_no = :customerNo\n  AND sign_time BETWEEN :periodStart AND :dataCutoff\n  AND bms_reviewed = 0;',
@@ -215,41 +181,22 @@ const taskRecords = useDemoDataset('billingTasks', [
     id: 3,
     taskNo: 'BMS-20260802-00079',
     status: 'RUNNING',
-    executionLevel: 'FEE_POOL',
+    taskType: 'FEE_POOL',
     currentStage: 'FEE_POOL_WRITE',
-    calculationType: '',
-    initiateIntent: '',
-    actualMode: '',
-    periodClose: '',
     triggerType: 'SCHEDULED',
-    pullType: 'INCREMENTAL',
     configNo: 'BC-ADDITIONAL-INCR',
     configVersion: 'V5',
-    configType: '默认配置',
     customerName: '全部客户',
-    customerNo: '-',
-    memberCode: '-',
-    shop: '全部店铺',
     periodStart: '2026-08-02',
     periodEnd: '2026-08-02',
-    period: '2026-08-02 至 2026-08-02',
     dataCutoff: '2026-08-02 10:00:00',
     createdAt: '2026-08-02 10:00:01',
     startedAt: '2026-08-02 10:03:00',
-    finishedAt: '-',
     duration: '8分12秒',
     operator: 'system',
-    failedStage: '',
-    error: '',
-    advice: '',
     sourceCount: 916,
     pooledFeeCount: 342,
-    billCount: 0,
-    netChange: 0,
     resultConclusion: '执行中',
-    resultVersion: '-',
-    originalBills: [],
-    newBills: [],
     scopeKey: 'ALL|ADDITIONAL|2026-08-02 09:00/10:00|V5',
     sourceSql: 'SELECT ... FROM sale_order_additional_fee\nWHERE created_at > :lastCheckpoint\n  AND created_at <= :dataCutoff\n  AND billing_status = :billable;',
   },
@@ -257,99 +204,58 @@ const taskRecords = useDemoDataset('billingTasks', [
     id: 4,
     taskNo: 'BMS-20260802-00077',
     status: 'PENDING',
-    executionLevel: 'BILL_CALCULATION',
+    taskType: 'BILL_RECALCULATE',
     currentStage: 'SCOPE_LOCK',
-    calculationType: 'BILL_RECALCULATE',
-    initiateIntent: '',
-    actualMode: '',
-    periodClose: '',
-    triggerType: 'MANUAL',
-    pullType: '',
     configNo: 'BC-NW2048-W',
     configVersion: 'V9',
-    configType: '默认配置',
     customerName: 'NorthWind Cargo',
     customerNo: 'NW2048',
     memberCode: 'M-204801',
     shop: '上海集运店',
     periodStart: '2026-07-21',
     periodEnd: '2026-07-27',
-    period: '2026-07-21 至 2026-07-27',
     dataCutoff: '2026-08-02 09:48:16',
     createdAt: '2026-08-02 09:48:18',
-    startedAt: '-',
-    finishedAt: '-',
-    duration: '0秒',
     operator: '郑雅雯',
-    failedStage: '',
-    error: '',
-    advice: '',
-    sourceCount: 0,
     pooledFeeCount: 6188,
     billCount: 1,
-    netChange: 0,
     resultConclusion: '排队中',
     resultVersion: 'RV-20260728-00196',
     originalBills: ['ARB-NW2048-20260721-7f3c'],
-    newBills: [],
     scopeKey: 'ARB-NW2048-20260721-7f3c|BILL_RECALCULATE',
     recalculateScope: '特调汇率、已审核调账及币种汇总',
-    sourceSql: '',
   },
   {
     id: 5,
     taskNo: 'BMS-20260802-00072',
-    status: 'SUCCESS',
-    executionLevel: 'BILL_CALCULATION',
-    currentStage: 'RESULT_SAVE',
-    calculationType: 'BILL_GENERATE',
-    initiateIntent: 'PERIOD_CLOSE',
-    actualMode: 'SUPPLEMENT',
-    periodClose: '是',
-    triggerType: 'MANUAL',
-    pullType: 'INCREMENTAL',
+    generationMode: 'SUPPLEMENT',
+    closeResult: '已收口',
     configNo: 'BC-HL2388-WEEK',
     configVersion: 'V6',
-    configType: '默认配置',
     customerName: 'Hualei Express',
     customerNo: 'HL2388',
     memberCode: 'M-238801',
     shop: '广州同行店',
     periodStart: '2026-07-27',
     periodEnd: '2026-08-02',
-    period: '2026-07-27 至 2026-08-02',
     dataCutoff: '2026-08-02 08:35:00',
     createdAt: '2026-08-02 08:35:03',
     startedAt: '2026-08-02 08:35:18',
     finishedAt: '2026-08-02 08:36:09',
     duration: '51秒',
     operator: '郑雅雯',
-    failedStage: '',
-    error: '',
-    advice: '',
     sourceCount: 642,
-    pooledFeeCount: 0,
     billCount: 1,
-    netChange: 0,
     resultConclusion: '无需补充',
     resultVersion: '未新增结果版本',
     originalBills: ['ARB-HL2388-20260727-3d90'],
-    newBills: [],
     scopeKey: 'HL2388|AR|2026-07-27/08-02|BC-HL2388-WEEK|BILL_GENERATE',
     sourceSql: 'SELECT ... FROM peer_order_fee_detail\nWHERE customer_no = :customerNo\n  AND fee_created_at <= :dataCutoff\n  AND bms_reviewed = 0;',
   },
   {
     id: 6,
     taskNo: 'BMS-20260801-00068',
-    status: 'SUCCESS',
-    executionLevel: 'BILL_CALCULATION',
-    currentStage: 'RESULT_SAVE',
-    calculationType: 'BILL_GENERATE',
-    initiateIntent: 'REPLACE_GENERATE',
-    actualMode: 'REPLACE',
-    periodClose: '否',
-    triggerType: 'MANUAL',
-    pullType: 'FULL',
+    generationMode: 'REPLACE',
     configNo: 'BC-OG4155-M-UK',
     configVersion: 'V13',
     configType: '分支配置',
@@ -359,16 +265,12 @@ const taskRecords = useDemoDataset('billingTasks', [
     shop: '深圳集运店',
     periodStart: '2026-07-01',
     periodEnd: '2026-07-31',
-    period: '2026-07-01 至 2026-07-31',
     dataCutoff: '2026-08-01 18:19:00',
     createdAt: '2026-08-01 18:19:03',
     startedAt: '2026-08-01 18:19:28',
     finishedAt: '2026-08-01 18:25:06',
     duration: '5分38秒',
     operator: '谭清辉',
-    failedStage: '',
-    error: '',
-    advice: '',
     sourceCount: 3188,
     pooledFeeCount: 11290,
     billCount: 3,
@@ -384,24 +286,14 @@ const taskRecords = useDemoDataset('billingTasks', [
     id: 7,
     taskNo: 'BMS-20260801-00064',
     status: 'FAILED',
-    executionLevel: 'FEE_POOL',
+    taskType: 'FEE_POOL',
     currentStage: 'SOURCE_FILTER',
-    calculationType: '',
-    initiateIntent: '',
-    actualMode: '',
-    periodClose: '',
     triggerType: 'SCHEDULED',
-    pullType: 'INCREMENTAL',
     configNo: 'BC-ADDITIONAL-INCR',
     configVersion: 'V5',
-    configType: '默认配置',
     customerName: '全部客户',
-    customerNo: '-',
-    memberCode: '-',
-    shop: '全部店铺',
     periodStart: '2026-08-01',
     periodEnd: '2026-08-01',
-    period: '2026-08-01 至 2026-08-01',
     dataCutoff: '2026-08-01 23:00:00',
     createdAt: '2026-08-01 23:00:01',
     startedAt: '2026-08-01 23:01:11',
@@ -411,23 +303,41 @@ const taskRecords = useDemoDataset('billingTasks', [
     failedStage: 'SOURCE_FILTER',
     error: '来源库连接超时，系统自动重试后仍未恢复。',
     advice: '该费项入池任务由系统负责恢复，财务无需重新执行或删除。',
-    sourceCount: 0,
-    pooledFeeCount: 0,
-    billCount: 0,
-    netChange: 0,
     resultConclusion: '系统恢复中',
-    resultVersion: '-',
-    originalBills: [],
-    newBills: [],
     scopeKey: 'ALL|ADDITIONAL|2026-08-01 22:00/23:00|V5',
     sourceSql: 'SELECT ... FROM sale_order_additional_fee\nWHERE created_at > :lastCheckpoint\n  AND created_at <= :dataCutoff;',
   },
-])
+].map(normalizeTask), 5)
+
+const sourceScansByTaskId = {
+  1: [
+    { dataset: '订单费用明细', method: '增量', range: '(2026-08-01 02:00:00, 2026-08-02 02:00:00]', previousWatermark: '2026-08-01 02:00:00 / 记录 918842', cutoff: '2026-08-02 02:00:00', pulled: 1320, matched: 1186, result: '成功', failure: '-' },
+    { dataset: '订单附加费', method: '增量', range: '(2026-08-01 02:00:00, 2026-08-02 02:00:00]', previousWatermark: '2026-08-01 02:00:00 / 记录 28416', cutoff: '2026-08-02 02:00:00', pulled: 544, matched: 517, result: '成功', failure: '-' },
+  ],
+  2: [
+    { dataset: '订单费用明细', method: '全量', range: '[2026-08-01 00:00:00, 2026-08-02 09:30:00]', previousWatermark: '无有效水位', cutoff: '2026-08-02 09:30:00', pulled: 1984, matched: 1742, result: '成功', failure: '-' },
+    { dataset: '订单附加费', method: '增量', range: '(2026-08-01 09:30:00, 2026-08-02 09:30:00]', previousWatermark: '2026-08-01 09:30:00 / 记录 28107', cutoff: '2026-08-02 09:30:00', pulled: 556, matched: 498, result: '成功', failure: '-' },
+  ],
+  3: [
+    { dataset: '订单附加费', method: '增量', range: '(2026-08-02 09:00:00, 2026-08-02 10:00:00]', previousWatermark: '2026-08-02 09:00:00 / 记录 28601', cutoff: '2026-08-02 10:00:00', pulled: 916, matched: 342, result: '执行中', failure: '-' },
+  ],
+  5: [
+    { dataset: '同行订单费用明细', method: '增量', range: '(2026-08-02 07:35:00, 2026-08-02 08:35:00]', previousWatermark: '2026-08-02 07:35:00 / 记录 72628', cutoff: '2026-08-02 08:35:00', pulled: 642, matched: 0, result: '成功', failure: '-' },
+  ],
+  6: [
+    { dataset: '订单费用明细', method: '全量', range: '[2026-07-01 00:00:00, 2026-08-01 18:19:00]', previousWatermark: '配置版本变化，原水位失效', cutoff: '2026-08-01 18:19:00', pulled: 2624, matched: 2410, result: '成功', failure: '-' },
+    { dataset: '订单附加费', method: '增量', range: '(2026-07-31 18:19:00, 2026-08-01 18:19:00]', previousWatermark: '2026-07-31 18:19:00 / 记录 27954', cutoff: '2026-08-01 18:19:00', pulled: 564, matched: 521, result: '成功', failure: '-' },
+  ],
+  7: [
+    { dataset: '订单附加费', method: '增量', range: '(2026-08-01 22:00:00, 2026-08-01 23:00:00]', previousWatermark: '2026-08-01 22:00:00 / 记录 28068', cutoff: '2026-08-01 23:00:00', pulled: 0, matched: 0, result: '失败', failure: '来源库连接超时' },
+  ],
+}
 
 const currentMenu = computed(() => menus.find((item) => item.key === activeMenu.value))
 const currentGroup = computed(() => menuGroups.find((group) => group.items.some((item) => item.key === activeMenu.value)))
 const currentView = computed(() => viewRegistry[activeMenu.value])
-const isFeePoolFilter = computed(() => taskQuery.executionLevel === 'FEE_POOL')
+const canFilterGenerationMode = computed(() => !taskQuery.taskType || taskQuery.taskType === 'BILL_GENERATE')
+const selectedSourceScans = computed(() => sourceScansByTaskId[selectedTask.value?.id] || [])
 
 const filteredTasks = computed(() => taskRecords.value.filter((item) => {
   const keyword = `${item.taskNo}${item.configNo}${item.customerName}${item.customerNo}${item.memberCode}${item.shop}`.toLowerCase()
@@ -435,14 +345,10 @@ const filteredTasks = computed(() => taskRecords.value.filter((item) => {
     || (dayjs(item.periodStart).isAfter(dayjs(taskQuery.period[0]).subtract(1, 'day'))
       && dayjs(item.periodEnd).isBefore(dayjs(taskQuery.period[1]).add(1, 'day')))
   return (!taskQuery.keyword || keyword.includes(taskQuery.keyword.toLowerCase()))
-    && (!taskQuery.executionLevel || item.executionLevel === taskQuery.executionLevel)
+    && (!taskQuery.taskType || item.taskType === taskQuery.taskType)
     && (!taskQuery.status || item.status === taskQuery.status)
-    && (!taskQuery.calculationType || item.calculationType === taskQuery.calculationType)
-    && (!taskQuery.initiateIntent || item.initiateIntent === taskQuery.initiateIntent)
-    && (!taskQuery.actualMode || item.actualMode === taskQuery.actualMode)
-    && (!taskQuery.periodClose || item.periodClose === taskQuery.periodClose)
+    && (!taskQuery.generationMode || item.generationMode === taskQuery.generationMode)
     && (!taskQuery.triggerType || item.triggerType === taskQuery.triggerType)
-    && (!taskQuery.pullType || item.pullType === taskQuery.pullType)
     && (!taskQuery.configType || item.configType === taskQuery.configType)
     && (!taskQuery.shop || item.shop === taskQuery.shop)
     && periodMatched
@@ -463,10 +369,11 @@ const snapshotJson = computed(() => JSON.stringify({
   executionSnapshot: {
     scopeKey: selectedTask.value?.scopeKey,
     dataCutoff: selectedTask.value?.dataCutoff,
-    executionLevel: selectedTask.value?.executionLevel,
-    calculationType: selectedTask.value?.calculationType || 'N/A',
+    taskType: selectedTask.value?.taskType,
+    generationMode: selectedTask.value?.generationMode || 'N/A',
     targetBills: selectedTask.value?.originalBills,
     recalculateScope: selectedTask.value?.recalculateScope || 'N/A',
+    sourceScanMethods: selectedSourceScans.value.map((item) => `${item.dataset}: ${item.method}`),
   },
   businessSnapshotReferences: {
     billConfig: `${selectedTask.value?.configNo}@${selectedTask.value?.configVersion}`,
@@ -477,7 +384,7 @@ const snapshotJson = computed(() => JSON.stringify({
 }, null, 2))
 
 function display(meta, value) {
-  return value ? (meta[value] || value) : '不适用'
+  return value ? (meta[value] || value) : '--'
 }
 
 function taskStatus(row) {
@@ -493,19 +400,16 @@ function setSummaryFilter(key) {
   taskQuery.status = key
 }
 
-function handleExecutionLevelChange(value) {
-  if (value === 'FEE_POOL') {
-    taskQuery.calculationType = ''
-    taskQuery.initiateIntent = ''
-    taskQuery.actualMode = ''
-    taskQuery.periodClose = ''
+function handleTaskTypeChange(value) {
+  if (value !== 'BILL_GENERATE') {
+    taskQuery.generationMode = ''
   }
 }
 
 function resetFilters() {
   Object.assign(taskQuery, {
-    keyword: '', executionLevel: '', status: '', calculationType: '',
-    initiateIntent: '', actualMode: '', periodClose: '', triggerType: '', pullType: '',
+    keyword: '', taskType: '', status: '', generationMode: '',
+    triggerType: '',
     configType: '', shop: '', period: [],
   })
 }
@@ -522,7 +426,7 @@ function openDetail(row, tab = 'overview') {
 }
 
 async function rerunTask(row) {
-  if (row.executionLevel !== 'BILL_CALCULATION' || row.status !== 'FAILED') return
+  if (row.taskType === 'FEE_POOL' || row.status !== 'FAILED') return
   await ElMessageBox.confirm(
     '任务将沿用原执行快照、处理范围和数据截止点继续处理。确认重新执行？',
     '重新执行任务',
@@ -536,7 +440,7 @@ async function rerunTask(row) {
 }
 
 async function deleteTask(row) {
-  const canDelete = row.executionLevel === 'BILL_CALCULATION' && ['PENDING', 'FAILED'].includes(row.status)
+  const canDelete = row.taskType !== 'FEE_POOL' && ['PENDING', 'FAILED'].includes(row.status)
   if (!canDelete) return
   await ElMessageBox.confirm(
     `删除后任务将移出列表并释放占用范围。任务编号 ${row.taskNo} 的删除审计仍会保留。`,
@@ -628,14 +532,11 @@ function viewResult(row) {
           <div class="filter-toolbar task-filter-toolbar">
             <div class="filter-group primary-filters">
               <el-input v-model="taskQuery.keyword" :prefix-icon="Search" placeholder="任务编号 / 配置 / 客户 / 会员编码" clearable class="keyword-input wide" />
-              <el-select v-model="taskQuery.executionLevel" placeholder="全部执行级别" clearable @change="handleExecutionLevelChange">
-                <el-option v-for="(label, key) in executionLevelMeta" :key="key" :label="label" :value="key" />
+              <el-select v-model="taskQuery.taskType" placeholder="全部任务类型" clearable @change="handleTaskTypeChange">
+                <el-option v-for="(label, key) in taskTypeMeta" :key="key" :label="label" :value="key" />
               </el-select>
               <el-select v-model="taskQuery.status" placeholder="全部任务状态" clearable>
                 <el-option v-for="(meta, key) in statusMeta" :key="key" :label="meta.label" :value="key" />
-              </el-select>
-              <el-select v-model="taskQuery.calculationType" placeholder="全部计算类型" clearable :disabled="isFeePoolFilter">
-                <el-option v-for="(label, key) in calculationMeta" :key="key" :label="label" :value="key" />
               </el-select>
             </div>
             <div class="filter-actions">
@@ -645,20 +546,11 @@ function viewResult(row) {
           </div>
 
           <div v-show="advancedVisible" class="advanced-filters">
-            <el-select v-model="taskQuery.initiateIntent" placeholder="全部发起意图" clearable :disabled="isFeePoolFilter">
-              <el-option v-for="(label, key) in intentMeta" :key="key" :label="label" :value="key" />
-            </el-select>
-            <el-select v-model="taskQuery.actualMode" placeholder="全部实际生成方式" clearable :disabled="isFeePoolFilter">
-              <el-option v-for="(label, key) in actualModeMeta" :key="key" :label="label" :value="key" />
-            </el-select>
-            <el-select v-model="taskQuery.periodClose" placeholder="是否期末收口" clearable :disabled="isFeePoolFilter">
-              <el-option label="是" value="是" /><el-option label="否" value="否" />
+            <el-select v-model="taskQuery.generationMode" placeholder="全部账单生成方式" clearable :disabled="!canFilterGenerationMode">
+              <el-option v-for="(label, key) in generationModeMeta" :key="key" :label="label" :value="key" />
             </el-select>
             <el-select v-model="taskQuery.triggerType" placeholder="全部触发方式" clearable>
               <el-option v-for="(label, key) in triggerMeta" :key="key" :label="label" :value="key" />
-            </el-select>
-            <el-select v-model="taskQuery.pullType" placeholder="全部拉取类型" clearable>
-              <el-option v-for="(label, key) in pullTypeMeta" :key="key" :label="label" :value="key" />
             </el-select>
             <el-select v-model="taskQuery.configType" placeholder="全部配置类型" clearable>
               <el-option label="默认配置" value="默认配置" /><el-option label="分支配置" value="分支配置" />
@@ -694,13 +586,9 @@ function viewResult(row) {
             </el-table-column>
             <el-table-column prop="createdAt" label="任务创建时间" width="160" />
             <el-table-column prop="duration" label="执行耗时" width="90" />
-            <el-table-column label="执行级别" width="96"><template #default="scope">{{ display(executionLevelMeta, scope.row.executionLevel) }}</template></el-table-column>
-            <el-table-column label="计算类型" width="92"><template #default="scope">{{ display(calculationMeta, scope.row.calculationType) }}</template></el-table-column>
-            <el-table-column label="发起意图" width="94"><template #default="scope">{{ display(intentMeta, scope.row.initiateIntent) }}</template></el-table-column>
-            <el-table-column label="实际生成方式" width="110"><template #default="scope">{{ display(actualModeMeta, scope.row.actualMode) }}</template></el-table-column>
-            <el-table-column prop="periodClose" label="期末收口" width="86"><template #default="scope">{{ scope.row.periodClose || '不适用' }}</template></el-table-column>
+            <el-table-column label="任务类型" width="100"><template #default="scope">{{ display(taskTypeMeta, scope.row.taskType) }}</template></el-table-column>
+            <el-table-column label="账单生成方式" width="116"><template #default="scope">{{ display(generationModeMeta, scope.row.generationMode) }}</template></el-table-column>
             <el-table-column label="触发方式" width="112"><template #default="scope">{{ display(triggerMeta, scope.row.triggerType) }}</template></el-table-column>
-            <el-table-column label="数据拉取类型" width="104"><template #default="scope">{{ display(pullTypeMeta, scope.row.pullType) }}</template></el-table-column>
             <el-table-column label="账单配置" min-width="185">
               <template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="`${scope.row.configType} · ${scope.row.configVersion}`" /></template>
             </el-table-column>
@@ -713,9 +601,9 @@ function viewResult(row) {
             <el-table-column label="操作" width="220" fixed="right">
               <template #default="scope">
                 <el-button link type="primary" :icon="View" @click="openDetail(scope.row)">详情</el-button>
-                <el-button v-if="scope.row.status === 'SUCCESS' && scope.row.executionLevel === 'BILL_CALCULATION'" link type="primary" :icon="DocumentChecked" @click="viewResult(scope.row)">关联结果</el-button>
-                <el-button v-if="scope.row.status === 'FAILED' && scope.row.executionLevel === 'BILL_CALCULATION'" link type="warning" :icon="RefreshRight" @click="rerunTask(scope.row)">重新执行</el-button>
-                <el-button v-if="['PENDING', 'FAILED'].includes(scope.row.status) && scope.row.executionLevel === 'BILL_CALCULATION'" link type="danger" :icon="Delete" @click="deleteTask(scope.row)">删除</el-button>
+                <el-button v-if="scope.row.status === 'SUCCESS' && scope.row.taskType !== 'FEE_POOL'" link type="primary" :icon="DocumentChecked" @click="viewResult(scope.row)">关联结果</el-button>
+                <el-button v-if="scope.row.status === 'FAILED' && scope.row.taskType !== 'FEE_POOL'" link type="warning" :icon="RefreshRight" @click="rerunTask(scope.row)">重新执行</el-button>
+                <el-button v-if="['PENDING', 'FAILED'].includes(scope.row.status) && scope.row.taskType !== 'FEE_POOL'" link type="danger" :icon="Delete" @click="deleteTask(scope.row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -736,11 +624,11 @@ function viewResult(row) {
           <div class="task-identity">
             <span :class="['status-dot', taskStatus(selectedTask).className]" />
             <strong>{{ taskStatus(selectedTask).label }}</strong>
-            <small>{{ display(executionLevelMeta, selectedTask.executionLevel) }} · {{ display(triggerMeta, selectedTask.triggerType) }}</small>
+            <small>{{ display(taskTypeMeta, selectedTask.taskType) }} · {{ display(triggerMeta, selectedTask.triggerType) }}</small>
           </div>
           <div class="drawer-actions">
-            <el-button v-if="selectedTask.status === 'FAILED' && selectedTask.executionLevel === 'BILL_CALCULATION'" type="primary" :icon="RefreshRight" @click="rerunTask(selectedTask)">重新执行</el-button>
-            <el-button v-if="['PENDING', 'FAILED'].includes(selectedTask.status) && selectedTask.executionLevel === 'BILL_CALCULATION'" :icon="Delete" @click="deleteTask(selectedTask)">删除</el-button>
+            <el-button v-if="selectedTask.status === 'FAILED' && selectedTask.taskType !== 'FEE_POOL'" type="primary" :icon="RefreshRight" @click="rerunTask(selectedTask)">重新执行</el-button>
+            <el-button v-if="['PENDING', 'FAILED'].includes(selectedTask.status) && selectedTask.taskType !== 'FEE_POOL'" :icon="Delete" @click="deleteTask(selectedTask)">删除</el-button>
           </div>
         </div>
 
@@ -749,13 +637,9 @@ function viewResult(row) {
             <dl class="detail-grid">
               <div><dt>任务编号</dt><dd>{{ selectedTask.taskNo }}</dd></div>
               <div><dt>任务创建时间</dt><dd>{{ selectedTask.createdAt }}</dd></div>
-              <div><dt>执行级别</dt><dd>{{ display(executionLevelMeta, selectedTask.executionLevel) }}</dd></div>
-              <div><dt>计算类型</dt><dd>{{ display(calculationMeta, selectedTask.calculationType) }}</dd></div>
+              <div><dt>任务类型</dt><dd>{{ display(taskTypeMeta, selectedTask.taskType) }}</dd></div>
               <div><dt>触发方式</dt><dd>{{ display(triggerMeta, selectedTask.triggerType) }}</dd></div>
-              <div><dt>发起意图</dt><dd>{{ display(intentMeta, selectedTask.initiateIntent) }}</dd></div>
-              <div><dt>实际生成方式</dt><dd>{{ display(actualModeMeta, selectedTask.actualMode) }}</dd></div>
-              <div><dt>是否期末收口</dt><dd>{{ selectedTask.periodClose || '不适用' }}</dd></div>
-              <div><dt>数据拉取类型</dt><dd>{{ display(pullTypeMeta, selectedTask.pullType) }}</dd></div>
+              <div><dt>账单生成方式</dt><dd>{{ display(generationModeMeta, selectedTask.generationMode) }}</dd></div>
               <div><dt>执行开始时间</dt><dd>{{ selectedTask.startedAt }}</dd></div>
               <div><dt>执行耗时</dt><dd>{{ selectedTask.duration }}</dd></div>
             </dl>
@@ -771,7 +655,23 @@ function viewResult(row) {
           </el-tab-pane>
 
           <el-tab-pane label="执行快照" name="snapshot">
-            <h4 class="section-title first-title">任务执行快照</h4>
+            <h4 class="section-title first-title">来源扫描记录</h4>
+            <el-table v-if="selectedSourceScans.length" :data="selectedSourceScans" border class="source-scan-table">
+              <el-table-column prop="dataset" label="来源数据集" min-width="130" fixed="left" />
+              <el-table-column prop="method" label="扫描方式" width="86">
+                <template #default="scope"><el-tag :type="scope.row.method === '全量' ? 'warning' : 'success'" effect="plain">{{ scope.row.method }}</el-tag></template>
+              </el-table-column>
+              <el-table-column prop="range" label="扫描范围" min-width="270" />
+              <el-table-column prop="previousWatermark" label="上次成功水位" min-width="230" />
+              <el-table-column prop="cutoff" label="本次数据截止点" min-width="170" />
+              <el-table-column label="拉取 / 命中" width="110">
+                <template #default="scope">{{ scope.row.pulled.toLocaleString() }} / {{ scope.row.matched.toLocaleString() }}</template>
+              </el-table-column>
+              <el-table-column prop="result" label="扫描结果" width="86" />
+              <el-table-column prop="failure" label="失败原因" min-width="150" />
+            </el-table>
+            <div v-else class="na-box">不适用：账单重算不读取来源数据，也不产生来源扫描记录。</div>
+            <h4 class="section-title">任务执行快照</h4>
             <pre class="json-box">{{ snapshotJson }}</pre>
             <h4 class="section-title">来源查询语句（SQL）</h4>
             <pre v-if="selectedTask.sourceSql" class="json-box sql-box">{{ selectedTask.sourceSql }}</pre>
@@ -791,9 +691,9 @@ function viewResult(row) {
             <template v-if="selectedTask.originalBills.length || selectedTask.newBills.length">
               <h4 class="section-title">账单结果关系</h4>
               <div class="bill-relations">
-                <div><span>原账单清单</span><strong>{{ selectedTask.originalBills.join('、') || '不适用' }}</strong></div>
+                <div><span>原账单清单</span><strong>{{ selectedTask.originalBills.join('、') || '--' }}</strong></div>
                 <div><span>新账单清单</span><strong>{{ selectedTask.newBills.join('、') || '未生成新账单' }}</strong></div>
-                <div><span>替换影响</span><strong>{{ selectedTask.actualMode === 'REPLACE' ? '原账单作废；费项归属迁移至新账单' : '不适用' }}</strong></div>
+                <div><span>替换影响</span><strong>{{ selectedTask.generationMode === 'REPLACE' ? '原账单作废；费项归属迁移至新账单' : '--' }}</strong></div>
                 <div><span>重算范围</span><strong>{{ selectedTask.recalculateScope || '当前任务账期及目标账单内费项' }}</strong></div>
               </div>
             </template>

@@ -336,6 +336,8 @@ bms_billed_flag = 0
 bms_after_bill_added_flag = 0
 ```
 
+归集自 `sale_order_additional_matter` 的费项默认挂靠 `LAST_PACKAGE`（尾程包裹）；费项主档明确配置为非历史默认值 `ORDER` 的其他挂靠对象时，以主档配置为准。
+
 理赔当前核心条件：
 
 ```text

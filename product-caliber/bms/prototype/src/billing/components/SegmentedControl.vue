@@ -11,13 +11,14 @@ const optionLabel = (option) => typeof option === 'object' ? option.label : opti
 </script>
 
 <template>
-  <div class="module-segmented" role="group" :aria-label="ariaLabel">
+  <div class="module-segmented" role="tablist" :aria-label="ariaLabel">
     <button
       v-for="option in options"
       :key="optionValue(option)"
       type="button"
+      role="tab"
       :class="{ active: modelValue === optionValue(option) }"
-      :aria-pressed="modelValue === optionValue(option)"
+      :aria-selected="modelValue === optionValue(option)"
       @click="emit('update:modelValue', optionValue(option))"
     >
       {{ optionLabel(option) }}

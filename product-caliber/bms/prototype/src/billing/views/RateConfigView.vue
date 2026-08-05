@@ -1,58 +1,105 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, Delete, Download, EditPen, Plus, RefreshRight, Search } from '@element-plus/icons-vue'
-import ModuleToolbar from '../components/ModuleToolbar.vue'
-import PageHeader from '../components/PageHeader.vue'
-import StackedCell from '../components/StackedCell.vue'
-import StatusTag from '../components/StatusTag.vue'
+import { Delete, Download, EditPen, Plus, RefreshRight, View } from '@element-plus/icons-vue'
+import HoverActionMenu from '../components/HoverActionMenu.vue'
+import TablePagination from '../components/TablePagination.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
-const activeTab = ref('base')
-const query = reactive({ keyword: '', status: '' })
 const baseRates = useDemoDataset('billingBaseRates', [
   { pair: 'USD / CNY', direction: 'USD -> CNY', rate: 7.1846, source: '手动导入', sourceAt: '2026-08-02 09:00', status: '生效', current: '是', operator: '谭清辉' },
   { pair: 'GBP / CNY', direction: 'GBP -> CNY', rate: 9.4628, source: '手动添加', sourceAt: '2026-08-02 09:12', status: '生效', current: '是', operator: '郑雅雯' },
   { pair: 'CAD / CNY', direction: 'CAD -> CNY', rate: 5.2184, source: '手动导入', sourceAt: '2026-08-02 09:00', status: '待确认', current: '否', operator: '谭清辉' },
   { pair: 'AUD / CNY', direction: 'CNY -> AUD', rate: 0.2146, source: '手动添加', sourceAt: '2026-08-01 16:20', status: '停用', current: '否', operator: '郑雅雯' },
 ])
+
 const customerRates = useDemoDataset('billingCustomerRates', [
   { customerNo: 'OG4155', customer: 'OceanGate Logistics', shop: '深圳集运店', pair: 'GBP / CNY', direction: 'GBP -> CNY', method: '百分比缩放', adjustDirection: '上浮', adjustValue: '1.5%', base: 9.4628, result: 9.604742, status: '启用', operator: '谭清辉', updatedAt: '2026-08-02 09:28' },
   { customerNo: 'TK9012', customer: 'TopKing Supply', shop: '义乌集运店', pair: 'USD / CNY', direction: 'USD -> CNY', method: '固定汇率差', adjustDirection: '下浮', adjustValue: '0.0200', base: 7.1846, result: 7.1646, status: '启用', operator: '郑雅雯', updatedAt: '2026-08-01 18:41' },
   { customerNo: 'NW2048', customer: 'NorthWind Cargo', shop: '上海集运店', pair: 'CAD / CNY', direction: 'CAD -> CNY', method: '固定汇率值', adjustDirection: '直接指定', adjustValue: '5.2500', base: '--', result: 5.25, status: '停用', operator: '谭清辉', updatedAt: '2026-07-30 11:02' },
 ], 2)
-const rows = computed(() => {
-  const source = activeTab.value === 'base' ? baseRates.value : customerRates.value
-  return source.filter((item) => {
-    const text = JSON.stringify(item).toLowerCase()
-    return (!query.keyword || text.includes(query.keyword.toLowerCase())) && (!query.status || item.status === query.status)
-  })
-})
 
-async function confirmRate(row) {
-  await ElMessageBox.confirm(`确认 ${row.direction} 汇率 ${row.rate} 生效？`, '确认基准汇率', { type: 'warning' })
-  row.status = '生效'; row.current = '是'; ElMessage.success('基准汇率已确认生效')
+const formatDirection = (direction) => direction.replace('->', '→')
+const formatRate = (rate) => Number(rate).toFixed(6)
+const simpleAction = (name) => ElMessage.success(`${name}已提交`)
+
+async function removeBaseRate(row) {
+  await ElMessageBox.confirm(`确认删除 ${formatDirection(row.direction)} 的基准汇率？`, '删除基准汇率', { type: 'warning' })
+  baseRates.value.splice(baseRates.value.indexOf(row), 1)
+  ElMessage.success('基准汇率已删除')
 }
 
-function simpleAction(name) { ElMessage.success(`${name}已提交`) }
-function disableCustomerRate(row) { row.status = '停用'; ElMessage.success('客户特调汇率已停用') }
-function removeBaseRate(row) { baseRates.value.splice(baseRates.value.indexOf(row), 1); ElMessage.success('基准汇率已移除') }
+function viewCustomerRate(row) {
+  ElMessage.info(`打开 ${row.customer} 的客户特调汇率明细`)
+}
 </script>
 
 <template>
-  <div class="module-page">
-    <PageHeader eyebrow="" title="汇率配置" description="维护外币到财务本位币的默认汇率及客户维度特调规则">
-      <template #actions><el-button :icon="Download" @click="simpleAction('导入任务')">导入</el-button><el-button :icon="RefreshRight" disabled>抓取</el-button><el-button type="primary" :icon="Plus" @click="simpleAction('新增汇率')">添加</el-button></template>
-    </PageHeader>
-    <el-tabs v-model="activeTab" class="module-tabs" @tab-change="query.status = ''"><el-tab-pane label="基准汇率表" name="base" /><el-tab-pane label="客户特调汇率" name="customer" /></el-tabs>
-    <section class="module-panel">
-      <ModuleToolbar :result-text="`${rows.length} 条汇率配置`"><el-input v-model="query.keyword" :prefix-icon="Search" :placeholder="activeTab === 'base' ? '货币对 / 操作人' : '客户 / 货币对 / 店铺'" clearable class="module-search" /><el-select v-model="query.status" placeholder="全部状态" clearable><el-option v-for="s in (activeTab === 'base' ? ['待确认','生效','停用'] : ['启用','停用'])" :key="s" :label="s" :value="s" /></el-select></ModuleToolbar>
-      <el-table v-if="activeTab === 'base'" :data="rows" class="clean-table" border>
-        <el-table-column prop="pair" label="货币对" width="120" /><el-table-column prop="direction" label="汇兑方向" width="130" /><el-table-column prop="rate" label="基准汇率" width="120" align="right" /><el-table-column prop="source" label="汇率来源" width="105" /><el-table-column prop="sourceAt" label="来源时间" width="160" /><el-table-column label="确认状态" width="90"><template #default="scope"><StatusTag :label="scope.row.status" /></template></el-table-column><el-table-column prop="current" label="当前生效" width="90" /><el-table-column prop="operator" label="最近操作人" /><el-table-column label="操作" width="230" fixed="right"><template #default="scope"><el-button v-if="scope.row.status === '待确认'" link type="primary" :icon="Check" @click="confirmRate(scope.row)">确认</el-button><el-button link type="primary" :icon="EditPen" @click="simpleAction('汇率修改')">修改</el-button><el-button link type="danger" :icon="Delete" @click="removeBaseRate(scope.row)">移除</el-button></template></el-table-column>
-      </el-table>
-      <el-table v-else :data="rows" class="clean-table" border>
-        <el-table-column label="客户" min-width="190"><template #default="scope"><StackedCell :primary="scope.row.customer" :secondary="`${scope.row.customerNo} · ${scope.row.shop}`" /></template></el-table-column><el-table-column prop="pair" label="货币对" width="110" /><el-table-column prop="direction" label="汇兑方向" width="125" /><el-table-column prop="method" label="调整方式" width="110" /><el-table-column prop="adjustDirection" label="调整方向" width="95" /><el-table-column prop="adjustValue" label="调整值" width="105" /><el-table-column prop="base" label="基准汇率" width="105" /><el-table-column prop="result" label="客户汇率" width="120" /><el-table-column label="命中级别" width="110"><template #default>客户特调汇率</template></el-table-column><el-table-column label="状态" width="80"><template #default="scope"><StatusTag :label="scope.row.status" /></template></el-table-column><el-table-column label="最近操作" min-width="155"><template #default="scope"><StackedCell :primary="scope.row.operator" :secondary="scope.row.updatedAt" /></template></el-table-column><el-table-column label="操作" width="190" fixed="right"><template #default="scope"><el-button link type="primary">查看明细</el-button><el-button link type="primary" :icon="EditPen" @click="simpleAction('客户特调修改')">编辑</el-button><el-button v-if="scope.row.status==='启用'" link type="warning" @click="disableCustomerRate(scope.row)">停用</el-button></template></el-table-column>
-      </el-table>
-    </section>
+  <div class="module-page rate-config-page">
+    <div class="rate-config-grid">
+      <section class="rate-panel base-rate-panel">
+        <header class="rate-panel-head">
+          <div>
+            <h2>基准汇率表</h2>
+            <p>维护外币到财务本位币的默认汇率</p>
+          </div>
+          <div class="rate-panel-actions">
+            <el-button :icon="Download" @click="simpleAction('导入任务')">导入</el-button>
+            <el-button :icon="RefreshRight" disabled>抓取</el-button>
+          </div>
+        </header>
+
+        <div class="rate-table-frame">
+          <el-table :data="baseRates" class="clean-table rate-table" border height="100%">
+            <el-table-column label="货币对" min-width="130">
+              <template #default="scope"><strong>{{ formatDirection(scope.row.direction) }}</strong></template>
+            </el-table-column>
+            <el-table-column label="汇率" width="112">
+              <template #default="scope"><strong class="rate-value">{{ formatRate(scope.row.rate) }}</strong></template>
+            </el-table-column>
+            <el-table-column label="操作" width="64" fixed="right">
+              <template #default="scope">
+                <HoverActionMenu>
+                  <el-dropdown-item :icon="EditPen" @click="simpleAction('汇率编辑')">编辑</el-dropdown-item>
+                  <el-dropdown-item class="danger-action" :icon="Delete" @click="removeBaseRate(scope.row)">删除</el-dropdown-item>
+                </HoverActionMenu>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <TablePagination :total="baseRates.length" :page-size="20" layout="prev, pager, next" />
+      </section>
+
+      <section class="rate-panel customer-rate-panel">
+        <header class="rate-panel-head">
+          <div>
+            <h2>客户特调汇率</h2>
+            <p>客户维度覆盖默认汇率</p>
+          </div>
+          <div class="rate-panel-actions">
+            <el-button type="primary" :icon="Plus" @click="simpleAction('新增客户特调汇率')">添加</el-button>
+          </div>
+        </header>
+
+        <div class="rate-table-frame">
+          <el-table :data="customerRates" class="clean-table rate-table" border height="100%">
+            <el-table-column prop="customerNo" label="客户编号" width="130" />
+            <el-table-column prop="customer" label="客户名称" min-width="190" />
+            <el-table-column prop="shop" label="所属店铺" min-width="150" />
+            <el-table-column label="货币对" width="145">
+              <template #default="scope"><strong>{{ formatDirection(scope.row.direction) }}</strong></template>
+            </el-table-column>
+            <el-table-column label="汇率" width="130">
+              <template #default="scope"><strong class="rate-value">{{ formatRate(scope.row.result) }}</strong></template>
+            </el-table-column>
+            <el-table-column label="操作" width="90" fixed="right">
+              <template #default="scope">
+                <el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="viewCustomerRate(scope.row)" />
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <TablePagination :total="customerRates.length" :page-size="20" layout="prev, pager, next" />
+      </section>
+    </div>
   </div>
 </template>

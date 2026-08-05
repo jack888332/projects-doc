@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Download, RefreshRight, Search, Setting, View } from '@element-plus/icons-vue'
 import BillDetailPanel from '../components/BillDetailPanel.vue'
+import HoverActionMenu from '../components/HoverActionMenu.vue'
 import MetricGrid from '../components/MetricGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusTag from '../components/StatusTag.vue'
@@ -123,7 +124,7 @@ async function handleBillAction(name) {
         <el-table-column prop="periodType" label="账期类型" width="90" /><el-table-column prop="periodStart" label="账期起始日" width="112" /><el-table-column prop="periodEnd" label="账期结束日" width="112" />
         <el-table-column v-if="isReceivable" prop="sector" label="业务板块" width="125" /><el-table-column prop="country" :label="isReceivable ? '运抵国' : '目的国'" width="100" /><el-table-column prop="customer" label="客户名称" width="160" show-overflow-tooltip /><el-table-column prop="shop" label="店铺" width="155" show-overflow-tooltip /><el-table-column prop="sentAt" label="账单发出日" width="112" />
         <el-table-column v-if="isReceivable" prop="dueAt" label="信用期结束日" width="120" /><el-table-column v-if="isReceivable" prop="overdueDays" label="逾期天数" width="90" /><el-table-column prop="notice" label="通知状态" width="95" />
-        <el-table-column label="操作" width="150" fixed="right"><template #default="scope"><el-button link type="primary" :icon="View" @click="openDetail(scope.row)">详情</el-button><el-dropdown v-if="!['已结清','已作废'].includes(scope.row.status) && !scope.row.processingState" trigger="click" @command="(command) => { openDetail(scope.row); handleBillAction(command) }"><el-button link type="primary">更多</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="账单重算">账单重算</el-dropdown-item></el-dropdown-menu></template></el-dropdown></template></el-table-column>
+        <el-table-column label="操作" width="112" fixed="right"><template #default="scope"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="openDetail(scope.row)" /><HoverActionMenu v-if="!['已结清','已作废'].includes(scope.row.status) && !scope.row.processingState"><el-dropdown-item :icon="RefreshRight" @click="openDetail(scope.row); handleBillAction('账单重算')">账单重算</el-dropdown-item></HoverActionMenu></div></template></el-table-column>
       </el-table>
       <TablePagination :total="filteredBills.length" />
     </section>

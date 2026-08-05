@@ -13,6 +13,7 @@ import RateConfigView from './views/RateConfigView.vue'
 import RemittanceView from './views/RemittanceView.vue'
 import AdjustmentView from './views/AdjustmentView.vue'
 import ProcessView from './views/ProcessView.vue'
+import HoverActionMenu from './components/HoverActionMenu.vue'
 import StackedCell from './components/StackedCell.vue'
 import StatusTag from './components/StatusTag.vue'
 import TablePagination from './components/TablePagination.vue'
@@ -23,7 +24,8 @@ const props = defineProps({
   embedded: { type: Boolean, default: false },
 })
 
-const activeMenu = ref(props.initialMenu)
+const activeMenu = ref(props.initialMenu === 'base' ? 'tasks' : props.initialMenu)
+const taskPageTab = ref(props.initialMenu === 'base' ? 'base' : 'list')
 const detailVisible = ref(false)
 const detailTab = ref('overview')
 const selectedTask = ref(null)
@@ -55,8 +57,7 @@ const menuGroups = [
     { key: 'rates', label: '汇率配置', icon: Coin },
   ] },
   { label: '过程管控', items: [
-    { key: 'tasks', label: 'BMS任务', icon: List },
-    { key: 'base', label: '基础配置', icon: Setting },
+    { key: 'tasks', label: '生成任务', icon: List },
     { key: 'exports', label: '导出管理', icon: Download },
     { key: 'audit', label: '内部审计', icon: View },
   ] },
@@ -74,7 +75,6 @@ const viewRegistry = {
   adjustments: { component: AdjustmentView },
   config: { component: BillingConfigView },
   rates: { component: RateConfigView },
-  base: { component: ProcessView, props: { mode: 'base' } },
   exports: { component: ProcessView, props: { mode: 'exports' } },
   audit: { component: ProcessView, props: { mode: 'audit' } },
   compare: { component: ProcessView, props: { mode: 'compare' } },
@@ -522,13 +522,15 @@ function viewResult(row) {
         <template v-if="activeMenu === 'tasks'">
         <div class="page-heading">
           <div><div class="eyebrow">BMS TASKS</div><h1>BMS任务</h1></div>
-          <div class="heading-actions">
+          <div v-if="taskPageTab === 'list'" class="heading-actions">
             <el-button :icon="Download">导出任务</el-button>
             <el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button>
           </div>
         </div>
 
-        <section class="panel work-panel">
+        <el-tabs v-model="taskPageTab" class="task-page-tabs">
+          <el-tab-pane label="任务列表" name="list">
+        <section class="panel work-panel task-list-panel">
           <div class="filter-toolbar task-filter-toolbar">
             <div class="filter-group primary-filters">
               <el-input v-model="taskQuery.keyword" :prefix-icon="Search" placeholder="任务编号 / 配置 / 客户 / 会员编码" clearable class="keyword-input wide" />
@@ -598,17 +600,26 @@ function viewResult(row) {
             <el-table-column prop="shop" label="店铺" width="120" />
             <el-table-column prop="period" label="账期" width="188" />
             <el-table-column prop="dataCutoff" label="数据截止点" width="160" />
-            <el-table-column label="操作" width="220" fixed="right">
+            <el-table-column label="操作" width="112" fixed="right">
               <template #default="scope">
-                <el-button link type="primary" :icon="View" @click="openDetail(scope.row)">详情</el-button>
-                <el-button v-if="scope.row.status === 'SUCCESS' && scope.row.taskType !== 'FEE_POOL'" link type="primary" :icon="DocumentChecked" @click="viewResult(scope.row)">关联结果</el-button>
-                <el-button v-if="scope.row.status === 'FAILED' && scope.row.taskType !== 'FEE_POOL'" link type="warning" :icon="RefreshRight" @click="rerunTask(scope.row)">重新执行</el-button>
-                <el-button v-if="['PENDING', 'FAILED'].includes(scope.row.status) && scope.row.taskType !== 'FEE_POOL'" link type="danger" :icon="Delete" @click="deleteTask(scope.row)">删除</el-button>
+                <div class="row-action-cell">
+                  <el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="openDetail(scope.row)" />
+                  <HoverActionMenu v-if="scope.row.taskType !== 'FEE_POOL'">
+                    <el-dropdown-item v-if="scope.row.status === 'SUCCESS'" :icon="DocumentChecked" @click="viewResult(scope.row)">关联结果</el-dropdown-item>
+                    <el-dropdown-item v-if="scope.row.status === 'FAILED'" :icon="RefreshRight" @click="rerunTask(scope.row)">重新执行</el-dropdown-item>
+                    <el-dropdown-item v-if="['PENDING', 'FAILED'].includes(scope.row.status)" class="danger-action" :icon="Delete" @click="deleteTask(scope.row)">删除</el-dropdown-item>
+                  </HoverActionMenu>
+                </div>
               </template>
             </el-table-column>
           </el-table>
           <TablePagination :total="filteredTasks.length" :page-size="10" layout="prev, pager, next" :summary="`展示 1-${filteredTasks.length} 条`" />
         </section>
+          </el-tab-pane>
+          <el-tab-pane label="基础配置" name="base">
+            <ProcessView mode="base" embedded />
+          </el-tab-pane>
+        </el-tabs>
         </template>
         <component v-else-if="currentView" :is="currentView.component" v-bind="currentView.props || {}" />
       </main>

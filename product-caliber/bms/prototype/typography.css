@@ -1,0 +1,84 @@
+:root {
+  --font-family-ui: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+  --font-family-mono: Consolas, "Microsoft YaHei", monospace;
+  --font-size-xs: 12px;
+  --font-size-sm: 12px;
+  --font-size-body: 13px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 28px;
+  --font-size-4xl: 32px;
+  --caption-font-size: var(--font-size-xs);
+  --secondary-font-size: var(--font-size-sm);
+  --content-font-size: var(--font-size-body);
+  --control-font-size: var(--font-size-body);
+  --section-title-font-size: var(--font-size-md);
+  --panel-title-font-size: var(--font-size-lg);
+  --page-title-font-size: var(--font-size-xl);
+  --metric-font-size: var(--font-size-2xl);
+  --table-font-size: var(--font-size-body);
+  --table-secondary-font-size: var(--font-size-sm);
+  --table-line-height: var(--line-height-base);
+  --table-header-height: 44px;
+  --table-row-height-compact: 48px;
+  --table-row-height-default: 60px;
+  --table-row-height-multiline: 64px;
+  --table-row-height-stacked: 84px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-none: 1;
+  --line-height-tight: 1.25;
+  --line-height-base: 1.5;
+  --line-height-relaxed: 1.75;
+  --el-font-family: var(--font-family-ui);
+  --el-font-size-base: var(--font-size-body);
+  --el-font-size-small: var(--control-font-size);
+  --el-font-size-large: var(--control-font-size);
+}
+
+html,
+body {
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-base);
+  letter-spacing: 0;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: var(--control-font-size);
+  line-height: var(--line-height-base);
+  letter-spacing: 0;
+}
+
+:where(
+  .el-button,
+  .el-input__inner,
+  .el-textarea__inner,
+  .el-select__selected-item,
+  .el-select__placeholder,
+  .el-select-dropdown__item,
+  .el-cascader-node__label,
+  .el-date-picker__header-label,
+  .el-form-item__label,
+  .el-radio__label,
+  .el-checkbox__label,
+  .el-tabs__item,
+  .el-dropdown-menu__item,
+  .el-pagination button,
+  .el-pager li
+) {
+  font-size: var(--control-font-size) !important;
+}

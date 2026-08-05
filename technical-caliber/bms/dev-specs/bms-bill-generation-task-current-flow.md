@@ -330,10 +330,12 @@ bill_config_id
 
 ```text
 fee_amount 非空且不为 0
-fee_pay_status = waiting_pay
+fee_pay_status in (waiting_pay, waiting_settlement)
 bms_billed_flag = 0
 bms_after_bill_added_flag = 0
 ```
+
+归集自 `sale_order_additional_matter` 的费项默认挂靠 `LAST_PACKAGE`（尾程包裹）；费项主档明确配置为非历史默认值 `ORDER` 的其他挂靠对象时，以主档配置为准。
 
 理赔当前核心条件：
 
@@ -433,7 +435,7 @@ bms_bill_no 为空
 bms_billed_flag = 0
 bms_after_bill_added_flag = 0
 fee_amount 非空且不为 0
-fee_pay_status = waiting_pay
+fee_pay_status in (waiting_pay, waiting_settlement)
 ```
 
 ### 6.2 出账后新增附加费
@@ -445,7 +447,7 @@ bms_after_bill_added_flag = 1
 bms_billed_flag = 0
 bms_bill_no 为空
 fee_amount 非空且不为 0
-fee_pay_status = waiting_pay
+fee_pay_status in (waiting_pay, waiting_settlement)
 ```
 
 来源轨迹中的 `collect_type` 记录为：

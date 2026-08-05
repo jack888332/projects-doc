@@ -87,7 +87,7 @@ COALESCE(h.check_time, h.measure_time, h.signed_time)
      - `additional.time.field.sign`
    - 支持值：
      - `create_time`
-   - 附加费查询固定追加条件：`sale_order_additional_matter.fee_pay_status = waiting_pay`，且 `fee_pay_method` 仅允许 `collect_payment`（到付）、`account_period_payment`（账期支付）、`other`（其他）。
+   - 附加费查询固定追加条件：`sale_order_additional_matter.fee_pay_status = waiting_pay`，且 `fee_pay_method` 仅允许 `account_period_payment`（账期支付），到付（`collect_payment`）、其他（`other`）不抓取。
 
 3. 限制：
    - 同一个账单配置命中的附加费规则，当前只支持 `a.create_time` 作为增量时间字段。

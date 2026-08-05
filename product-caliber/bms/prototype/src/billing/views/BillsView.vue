@@ -6,6 +6,7 @@ import BillDetailPanel from '../components/BillDetailPanel.vue'
 import HoverActionMenu from '../components/HoverActionMenu.vue'
 import MetricGrid from '../components/MetricGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
+import SegmentedControl from '../components/SegmentedControl.vue'
 import StatusTag from '../components/StatusTag.vue'
 import TablePagination from '../components/TablePagination.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
@@ -20,6 +21,12 @@ const detailVisible = ref(false)
 const selectedBill = ref(null)
 const exportVisible = ref(false)
 const exportPurpose = ref('CUSTOMER')
+const exportFormat = ref('SPLIT')
+const exportFormatOptions = [
+  { label: '拆分式', value: 'SPLIT' },
+  { label: '合并式', value: 'MERGED' },
+]
+const expectedSheetCount = computed(() => exportPurpose.value === 'INTERNAL' && exportFormat.value === 'MERGED' ? 1 : selectedRows.value.length)
 
 const bills = useDemoDataset('billingBills', [
   { type: 'AR', billNo: 'ARB-OG0271-20260731-81FF', status: '待审核', closeStatus: '未收口', issued: false, customer: '渣渣辉3号', customerNo: 'OG0271', memberCode: '700127', shop: '星际货运(中转)', country: '台湾', sector: '默认业务板块', periodType: '日', periodStart: '2026/07/31', periodEnd: '2026/07/31', sentAt: '-', dueAt: '2026/08/03', overdueDays: 0, notice: '-', currency: 'CNY', amount: 68, paid: 0, secondCurrency: 'TWD', secondAmount: -721 },
@@ -65,11 +72,13 @@ function openDetail(row) { selectedBill.value = row; detailVisible.value = true 
 function action(name) { ElMessage.success(`${name}已提交`) }
 function openExport() {
   exportPurpose.value = isReceivable.value ? 'CUSTOMER' : 'CUSTOMER'
+  exportFormat.value = 'SPLIT'
   exportVisible.value = true
 }
 function confirmExport() {
   exportVisible.value = false
-  ElMessage.success(`已创建 ${selectedRows.value.length} 个账单的导出任务`)
+  const formatText = exportPurpose.value === 'INTERNAL' ? `，采用${exportFormat.value === 'SPLIT' ? '拆分式' : '合并式'}` : ''
+  ElMessage.success(`已创建 ${selectedRows.value.length} 个账单的导出任务${formatText}`)
 }
 async function handleBillAction(name) {
   const bill = selectedBill.value
@@ -134,12 +143,19 @@ async function handleBillAction(name) {
       <BillDetailPanel v-if="selectedBill" :bill="selectedBill" :is-receivable="isReceivable" @action="handleBillAction" />
     </el-drawer>
 
-    <el-dialog v-model="exportVisible" title="创建账单导出任务" width="640px" align-center>
+    <el-dialog v-model="exportVisible" title="创建账单导出任务" width="680px" align-center>
       <el-form label-width="110px">
         <el-form-item label="账单类型"><strong>{{ title }}</strong></el-form-item>
         <el-form-item label="账单数量"><strong>{{ selectedRows.length }} 个</strong></el-form-item>
         <el-form-item label="导出用途"><el-radio-group v-model="exportPurpose" :disabled="!isReceivable"><el-radio value="CUSTOMER">导出给客户</el-radio><el-radio v-if="isReceivable" value="INTERNAL">导出给内部</el-radio></el-radio-group></el-form-item>
-        <el-alert :title="isReceivable && exportPurpose==='INTERNAL' ? '内部导出包含账单、费项及核销明细。' : '客户导出按客户拆分文件，并使用当前生效的客户导出配置。'" type="info" :closable="false" />
+        <el-form-item v-if="isReceivable && exportPurpose === 'INTERNAL'" label="内部导出格式">
+          <SegmentedControl v-model="exportFormat" :options="exportFormatOptions" aria-label="内部导出格式" />
+        </el-form-item>
+        <el-form-item v-if="isReceivable && exportPurpose === 'INTERNAL'" label="预计 Sheet"><strong>{{ expectedSheetCount }} 个</strong></el-form-item>
+        <el-alert v-if="isReceivable && exportPurpose === 'INTERNAL' && exportFormat === 'SPLIT'" title="每张账单生成一个 Sheet；账单基本信息写入表头首个单元格的批注。" type="info" :closable="false" />
+        <el-alert v-else-if="isReceivable && exportPurpose === 'INTERNAL'" title="全部账单明细进入同一个 Sheet；账单区块使用交替底色，区块首行首格附账单基本信息批注。" type="info" :closable="false" />
+        <el-alert v-else title="客户导出按客户拆分文件，并使用当前生效的客户导出配置。" type="info" :closable="false" />
+        <el-text v-if="isReceivable && exportPurpose === 'INTERNAL'" type="info" size="small">费项列固定优先展示运费、派送费，其余费项按费项索引顺序排列。</el-text>
       </el-form>
       <template #footer><el-button @click="exportVisible=false">取消</el-button><el-button type="primary" @click="confirmExport">创建导出任务</el-button></template>
     </el-dialog>

@@ -11,6 +11,7 @@
 **/*.out
 **/*.err
 **/*.stackdump
+**/vite-*.txt
 public/
 .vitepress-work/
 .aidocs-cache/

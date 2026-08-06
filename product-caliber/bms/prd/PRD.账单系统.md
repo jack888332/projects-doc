@@ -1568,7 +1568,7 @@ stop
 
 `增量同步水位`与`阶段检查点`用途不同：前者决定下一条新任务从哪里开始同步，后者仅供当前任务失败后从已完成阶段继续执行，两者不得互相替代。
 
-任务锁定规则后，系统先按<a href="#section-9-3-1">9.3.1 配置改了，旧账单怎么办，新费项归谁？</a>确定费项归属配置版本，再按该版本的账期、履约节点、限定情形和新增时间筛选本次可处理的来源数据。各类费项对应的来源表、金额字段、业务类型和首次产生时机见<a href="#section-19-2-3">19.2.3 费项数据源</a>。`BMS检阅标记`只表示来源数据是否已被BMS处理，不表示账单、支付或核销状态。
+任务锁定规则后，系统先按<a href="#section-9-3-1">9.3.1 配置改了，旧账单怎么办，新费项归谁？</a>确定费项归属配置版本，再按该版本的账期、履约节点、限定情形和新增时间筛选本次可处理的来源数据。各类费项对应的来源表、金额字段、业务类型和首次产生时机见<a href="#section-19-2-3">19.2.3 客户侧费项的 OIS 数据源</a>。`BMS检阅标记`只表示来源数据是否已被BMS处理，不表示账单、支付或核销状态。
 
 | 标记值 | 业务含义 | 进入条件 | 后续处理 |
 | :--- | :--- | :--- | :--- |
@@ -1601,7 +1601,7 @@ Locked --> Unreviewed
 筛选和锁定的补充规则如下：
 
 1. 本次可处理的范围仅包括`未处理（null）`和已被本任务锁定的`处理中（locked）`；不再处理`已入池（synced）`行。
-2. 订单类来源按本次任务的账期、履约节点和限定情形筛选；附加费按创建时间筛选尚未处理且可计费的记录。
+2. 订单类来源按本次任务的账期、履约节点和限定情形筛选。`附加费用报表导入`形成的附加费挂靠真实业务订单下的尾程包裹，并按该包裹所属的真实业务订单执行相同筛选；`记账单导入`形成的附加费挂靠虚拟业务订单，不校验订单履约节点，按`ofp_ofdb1.sale_order_additional_matter.create_time`筛选。两类入口的来源事实见<a href="#section-19-2-3-5">19.2.3.5 同一张附加事项表，为什么要区分两种导入？</a>。
 3. 同一来源行只能被一个未结束任务锁定；锁定冲突时，后发任务不得继续处理该行。
 4. 任务自动重试期间，来源行保持`处理中（locked）`并继续归属原任务；任务进入`执行失败`时，未完整入池的写入结果必须撤回，来源行恢复为`未处理（null）`。已经完整入池并建立来源关系的记录保持`已入池（synced）`，不得回退后重复采集。
 
@@ -1623,13 +1623,19 @@ Locked --> Unreviewed
 
 #### 9.5.1 什么能入池，什么只能展示？
 
-可入池的数据源、字段性质、挂靠对象、首次产生时机和横表 / 纵表结构统一按<a href="#section-19-2-3">19.2.3 费项数据源</a>执行。
+OIS 当前保存客户侧费用的表、字段、关联对象和数据结构见<a href="#section-19-2-3">19.2.3 客户侧费项的 OIS 数据源</a>。系统只能从已配置并启用的来源中识别费项。
 
 1. `BMS费项池`是应收、返款和成本账单全部金额明细的统一来源，但不等于账单本身。
 2. 每条费项池记录必须保留费项、挂靠对象、来源记录、来源批次、原始币种、原始金额、费用发生时间和入池时间。
 3. 只用于展示和核对的金额必须标记为`非费项`，不得计入应收、应返或核销汇总。
 4. 成本费项使用独立的成本费项索引和账单归属规则，不参与本章的应收与返款分流。
 5. 财务补录以及已审核的调账、冲正记录必须先形成可追溯的费项池记录，再参与账单计算；不得跳过费项池直接修改账单金额。
+
+来源费用写入费项池时，按 OIS 的实际存储结构处理：
+
+1. 费项横表按“来源记录 + 金额字段”拆分；同一行有多个有效金额字段时，分别形成多条费项池记录。
+2. 费项纵表通常一条有效记录形成一条费项池记录。
+3. 多行横字段混合结构先区分明细记录，再按该记录中的金额字段拆分；每条费项池记录必须保留原明细记录和原金额字段。
 
 <div id="section-9-5-2"></div>
 
@@ -1647,12 +1653,30 @@ Locked --> Unreviewed
 
 每条来源规则都必须回答六个问题：使用哪个来源数据集、从哪张表取值、哪个字段是金额、哪个字段是币种、需要过滤什么数据、如何避免重复。系统只能使用已启用的数据集和场景取值规则，不得在任务执行时临时换表或换金额字段。
 
+页面按两个层级选择来源：
+
+1. `来源数据集`确定本次可以共同查询的主表、关联表、基础过滤条件和可用时间字段。
+2. `取值表`确定实际保存金额和币种的表，可以不同于来源数据集的主表。例如，业务订单身份和出库时间来自订单主表，派送费金额可以来自订单扩展表。
+
+同一张表存在名称相同或相近的金额字段时，启用中的场景取值规则必须明确指定唯一的金额字段和币种字段；任务不得根据字段名称自行猜测。
+
+来源金额没有明确币种时，系统按以下顺序确定默认币种：
+
+1. `代收货款`默认采用目的国币种。
+2. 附加费的`payment_method`表示`货到付款`时，该附加费默认采用目的国币种。
+3. 其它费项默认采用店铺币种。
+4. 目的国币种优先读取来源订单的`ofp_ofdb1.sale_order_header.dest_country_currency_code`；该字段为空时，再按来源订单的运抵国匹配运抵国配置。店铺币种读取来源订单的店铺币种。两者均无法确定时，该费项不得进入`BMS费项池`，并记录币种缺失原因。
+
+以上默认规则只在来源金额未明确币种时启用；来源金额已经具有有效币种时，必须保留并优先使用来源币种，不得由默认币种覆盖。
+
+系统按来源规则选定的时间字段取得实际时间，并把该值写为费项池记录的`费用发生时间`；费项实际写入费项池的时刻记为`入池时间`。账期归属按费用发生时间判断，不按入池时间判断。
+
 页面显示口径如下：
 
 | 配置项 | 页面显示 | 规则 |
 | :--- | :--- | :--- |
 | 来源位置 | 来源数据集、取值表 | 先识别公共数据集，再识别实际取值表。 |
-| 时间口径 | 跟随账单配置或新增时间 | 订单类费项跟随履约节点，附加费使用创建时间。 |
+| 时间口径 | 跟随账单配置或来源创建时间 | 订单类费项跟随履约节点；`附加费用报表导入`形成的附加费跟随尾程包裹所属真实业务订单的履约节点；`记账单导入`形成的附加费使用`ofp_ofdb1.sale_order_additional_matter.create_time`。各来源使用的非金额字段见<a href="#section-19-2-3-3">19.2.3.3 BMS 归集费项时使用哪些非金额字段？</a>。 |
 | 金额口径 | 金额字段、币种字段 | 多币种来源必须具备币种字段或可追溯的默认币种。 |
 | 非费项 | 非费项标记 | 只展示和核对，不进入账单核销汇总。 |
 
@@ -1660,20 +1684,31 @@ Locked --> Unreviewed
 
 #### 9.5.4 费用达到什么条件才能入池？
 
-入池时间必须同时满足账单配置和来源金额稳定条件：
+费用进入`BMS费项池`必须同时满足账单配置和来源金额稳定条件：
 
 1. 订单类费项的履约节点按<a href="#section-7-4">7.4 应收账单配置</a>执行；`订单完结`的判断按<a href="#section-19-2-5">19.2.5 广义签收</a>执行。
 2. 费项金额的稳定边界按<a href="#section-19-2-4">19.2.4 费项重算窗口</a>执行。尚处于重算窗口内的横表来源不得入池。
-3. 返款模式和账期范围按<a href="#section-7-5">7.5 返款账单配置</a>执行；附加费按创建时间筛选尚未处理且可计费的记录。
+3. 返款模式和账期范围按<a href="#section-7-5">7.5 返款账单配置</a>执行；附加费按本节下方的导入入口、挂靠对象和履约节点规则判断能否入池。
 4. 同一来源行、费项和有效版本不得因任务重复触发而重复入池。
 
 写入费项池时还必须满足以下规则：
 
-1. 系统按场景取值规则将横表金额拆分为独立费项池记录；纵表来源按一行一费项写入。
+1. 横表、纵表和多行横字段混合结构按<a href="#section-9-5-1">9.5.1 什么能入池，什么只能展示？</a>拆分为独立费项池记录。
 2. 费项池写入、来源关联和必要汇总全部成功后，来源行才能从`处理中（locked）`更新为`已入池（synced）`。
 3. 任一关键步骤发生异常时，任务不得标记为`执行成功`；来源行按<a href="#section-9-4">9.4 第三步：哪些来源数据可以由本次任务处理？</a>规定的自动重试、`执行失败`或已完整入池结果处理。
 4. 同一请求即使重复执行，同一来源对象、来源行、费项和有效版本也只能保留一条费项池记录。
 5. 后续导入、配置变化或重复任务，不得在无提示、无记录的情况下覆盖已成功入池的历史版本。
+
+附加费用表的两个导入入口还须满足以下规则：
+
+1. 两个入口形成的附加费均须读取`ofp_ofdb1.sale_order_additional_matter.payment_method`。只有`收取方式`为`账期支付`的附加费，才可作为客户应收费项写入`BMS费项池`并参与应收账单计算；其它收取方式不得进入应收归集范围。
+2. `附加费用报表导入`必须提供尾程运单号，并据此定位真实业务订单下的尾程包裹。同一尾程运单号对应多个包裹时，系统必须结合业务订单号、尾程子运单号等信息完成消歧；无法唯一定位尾程包裹时，导入不得成功。
+3. 系统必须校验尾程包裹所属业务订单满足`ofp_ofdb1.sale_order_header.order_type != "BILL"`、订单有效且属于目标客户，才可把附加费挂靠至该尾程包裹；包裹不存在、所属订单不可执行或客户不一致时，导入不得成功。
+4. `附加费用报表导入`形成的费项随尾程包裹所属的真实业务订单参与归集。只有该订单达到应收账单配置要求的`出库`或`订单完结`履约节点，并同时满足限定情形、账期和费项范围等条件后，费项才能进入`BMS费项池`。
+5. `记账单导入`产生的费项挂靠`ofp_ofdb1.sale_order_header.order_type = "BILL"`的虚拟业务订单。该类费项是履约节点的例外来源：导入成功后，以`ofp_ofdb1.sale_order_additional_matter.create_time`作为归集时间，不等待虚拟业务订单出库或完结。
+6. `记账单导入`形成且`收取方式`为`账期支付`的附加费必须归入客户应收账单，并使用客户应收账单配置的`默认方案`。来源创建时间落入默认方案的实际账期，同时满足客户、店铺、费项范围、金额、币种和防重条件时，由后续系统自动发起的`费项入池`任务或`账单生成`任务写入`BMS费项池`并参与账单计算。
+7. 系统必须以`ofp_ofdb1.sale_order_header.order_type = "BILL"`识别虚拟业务订单，不得另设重复表达同一事实的字段，也不得为满足归集条件而伪造虚拟业务订单的出库或完结数据。
+8. `记账单导入`形成的附加费进入费项池后，如对应账期尚无账单，则参与首次生成；如对应账单尚未发出且允许补充，则参与补充生成；其它情形按<a href="#section-9-8">9.8 第七步：账单生成后又有变化，应该走哪条路？</a>承接，不得重复形成应收费项。
 
 <div id="section-9-5-5"></div>
 
@@ -1686,6 +1721,8 @@ Locked --> Unreviewed
 
 每次入池必须记录数据来源、本次处理范围、处理人、处理时间、结果和失败原因，至少包括来源系统、来源表、来源对象、来源行号、来源批次和导入文件。配置或来源规则发生变化时必须形成新版本，不得覆盖费项池原始记录和来源关系。账单结果及后续资金记录的留痕要求见<a href="#section-9-7-1">9.7.1 每个结果为什么都能追溯？</a>和<a href="#section-9-10">9.10 最后一道防线：操作前预览，操作后留痕</a>。
 
+通过附加费用表导入时，每条记录还必须保留导入入口、导入批次、原始行、挂靠对象和导入人员。系统须为原始导入行生成稳定的来源记录标识，并至少按`导入入口 + 文件校验值 + 工作表 + 原始行号`执行防重校验；重复导入同一文件不得形成第二条有效费项。需要更正已入池金额时，按<a href="#section-9-5-2">9.5.2 入池后发现原金额有误，应该怎么办？</a>处理。
+
 <div id="section-9-5-6"></div>
 
 #### 9.5.6 同一费项进入应收账单，还是返款账单？
@@ -1696,6 +1733,7 @@ Locked --> Unreviewed
 2. 正常情况下，返款本金和返款扣减项优先归入返款账单，应收账单只保留关联展示。
 3. 返款账单计算后出现负数时，按<a href="#section-7-5">7.5 返款账单配置</a>执行：选择`顺延到下期返款账单`时形成负数承接记录；选择`反向计入应收账单`时，系统生成一条独立的应收调整费项并关联原返款账单，不得把原扣减费项同时归入两类账单。
 4. `非费项`只用于展示和核对，不进入任何账单的核销范围。
+5. 应收账单计算时，`应收扣减类`和`代收类`费项必须按负数参与汇总，`代付类`费项必须按正数参与汇总；系统不得因来源金额的展示方式改变该财务方向。
 
 <div id="section-9-6"></div>
 
@@ -2156,26 +2194,45 @@ stop
 
 | 配置对象 | 负责定义 | 不负责定义 |
 | :--- | :--- | :--- |
-| 客户侧费项 | 费项编码、名称、费用类型、场景标签、挂靠对象和适用订单来源 | 来源表、金额字段、币种字段和成本费项 |
+| 客户侧费项 | 费项编码、名称、费项类型、场景标签、挂靠对象和适用订单来源 | 来源表、金额字段、币种字段和成本费项 |
 | 场景取值规则 | 某个业务场景使用哪个客户侧费项，以及从哪张表的哪些金额、币种字段取值，如何过滤、去重和排序 | 费项基础资料和公共数据集结构 |
 | 数据源规则 | 来源系统、主表、关联关系、基础过滤、归集时间、查询窗口和支持节点 | 单个费项的金额字段和适用业务场景 |
 
 三类配置可以放在同一工作台中联动查看，但仍必须分别保存、启用、停用和记录版本，不得因为页面合并而混淆各自职责。
 
+来源数据集和取值表的页面使用方式见<a href="#section-9-5-3">9.5.3 系统从哪里取金额和币种？</a>。
+
 <div id="section-9-9-3-2"></div>
 
-##### 9.9.3.2 页面展示什么，可以做什么？
+##### 9.9.3.2 费项索引怎样定义费项类型？
 
-| 页面视角 | 业务字段 | 交互与约束 |
-| :--- | :--- | :--- |
-| 客户侧费项 | 费项编码、费项名称、费用类型、场景标签、挂靠对象<br>适用订单来源、状态、备注、被引用场景数、配置完整性 | 支持新增、编辑和启停；费项编码启用后不得修改；至少存在一条启用且校验通过的场景取值规则时，费项才可参与账单生成。 |
-| 费项详情 | 业务场景、来源数据集、取值表、金额字段、币种字段<br>归集时间、过滤参数、去重规则、优先级、状态 | 支持新增、编辑和启停场景取值规则；同一费项可按不同业务场景绑定不同取值规则。 |
-| 按业务场景配置 | 业务场景、费项编码、费项名称、费用类型、来源数据集<br>取值表、金额字段、币种字段、优先级、状态、配置完整性 | 支持筛选、批量启停、调整优先级和完整性检查；修改费项或数据源时跳转至对应页面。 |
-| 数据源规则 | 数据集编码、名称、来源系统、来源库、主表、关联关系<br>支持节点、归集时间、查询窗口、分页条数、状态、引用规则数 | 支持新增、编辑和启停；修改或停用前必须展示受影响的场景取值规则。 |
+`费项类型`由费项索引配置，用于确定费项进入账单后的业务用途、金额方向和核销边界。该类型不是 OIS 来源数据中的既成分类，也不得仅根据来源字段名、操作名称或资金动作的字面含义推导。
+
+| 费项类型 | 定义 | 适用位置 | 默认金额方向 |
+| :--- | :--- | :--- | :--- |
+| `应收类` | 向客户收取的服务费用 | 应收账单 | 正数 |
+| `应收扣减类` | 用于抵减客户应付金额，不属于正向应收费用 | 应收账单 | 负数 |
+| `应付类` | 应向供应商、承运商或其他服务方支付或确认的成本费用 | 成本账单 | 正数；应收账单和返款账单不使用该类型 |
+| `代收类` | 代客户收取的资金，不等同于服务费收入 | 应收账单或返款账单，按分流规则确定 | 应收账单中记为负数 |
+| `代付类` | 代客户垫付或支付的资金，不等同于服务费收入 | 应收账单或返款账单，按分流规则确定 | 应收账单中记为正数 |
+| `非费项` | 只用于呈现业务事实、返款核对或资金核对信息，不属于账单核销金额 | 返款账单、回款管理等指定位置 | 不参与应收、应返、未收、未返或核销金额汇总 |
+
+`代收类`和`代付类`进入哪类账单，必须按<a href="#section-9-5-6">9.5.6 同一费项进入应收账单，还是返款账单？</a>判定；同一费项不得同时进入应收账单和返款账单。
 
 <div id="section-9-9-3-3"></div>
 
-##### 9.9.3.3 哪些配置不能保存或启用？
+##### 9.9.3.3 页面展示什么，可以做什么？
+
+| 页面视角 | 业务字段 | 交互与约束 |
+| :--- | :--- | :--- |
+| 客户侧费项 | 费项编码、费项名称、费项类型、场景标签、挂靠对象<br>适用订单来源、状态、备注、被引用场景数、配置完整性 | 支持新增、编辑和启停；费项编码启用后不得修改；至少存在一条启用且校验通过的场景取值规则时，费项才可参与账单生成。 |
+| 费项详情 | 业务场景、来源数据集、取值表、金额字段、币种字段<br>归集时间、过滤参数、去重规则、优先级、状态 | 支持新增、编辑和启停场景取值规则；同一费项可按不同业务场景绑定不同取值规则。 |
+| 按业务场景配置 | 业务场景、费项编码、费项名称、费项类型、来源数据集<br>取值表、金额字段、币种字段、优先级、状态、配置完整性 | 支持筛选、批量启停、调整优先级和完整性检查；修改费项或数据源时跳转至对应页面。 |
+| 数据源规则 | 数据集编码、名称、来源系统、来源库、主表、关联关系<br>支持节点、归集时间、查询窗口、分页条数、状态、引用规则数 | 支持新增、编辑和启停；修改或停用前必须展示受影响的场景取值规则。 |
+
+<div id="section-9-9-3-4"></div>
+
+##### 9.9.3.4 哪些配置不能保存或启用？
 
 | 场景取值字段 | 必填性 | 规则 |
 | :--- | :--- | :--- |
@@ -2192,9 +2249,9 @@ stop
 4. `非费项`只能用于展示和核对，不得计入应收、应返、未收、未返或核销汇总金额。
 5. 已被客户级账单配置、BMS任务或历史账单快照引用的规则不得直接删除，只能停用。
 
-<div id="section-9-9-3-4"></div>
+<div id="section-9-9-3-5"></div>
 
-##### 9.9.3.4 谁能修改，修改后影响什么？
+##### 9.9.3.5 谁能修改，修改后影响什么？
 
 | 操作 | 权限角色 | 变更要求 |
 | :--- | :--- | :--- |
@@ -2236,9 +2293,9 @@ stop
 
 ### 10.2 核心设计思路
 
-1. 任何费项都必须有挂靠对象，且只能归属到 `财务账单`、`业务订单`、`尾程包裹`、`首程包裹` 四类之一。
+1. `挂靠对象`是账单视角下一笔费项直接归属的最小业务对象，不等同于 OIS 数据库表之间的关联字段。任何费项都必须有且只能有一个挂靠对象，类型限定为`财务账单`、`业务订单`、`尾程包裹`或`首程包裹`。
 2. 后付费项必须挂靠到特定账单进行结算。
-3. 系统自动算出的费项默认归入应收类。已入池原始金额不得直接修改；差异通过更正费项、调账或冲正处理并保留原始值。
+3. 机算费项默认归入应收类。已入池原始金额不得直接修改；差异通过更正费项、调账或冲正处理并保留原始值。
 4. 需要改造费项报表结构，以支持履约全过程费项与利润分析，并兼容包裹级到订单级的费项汇总链路。
 5. 账期内每日任务把本期后付费项写入`BMS费项池`，不要求提前创建账单。
 6. 财务可在账期结束前或结束后手动生成账单；生成后主状态为`待审核`，账期未结束或数据未完整时收口状态为`未收口`。
@@ -2248,15 +2305,15 @@ stop
 
 ### 10.3 业财一体流程
 
-1. 业务部预设系统自动计算的应收费项。
+1. 业务部预设应收类机算费项。
 2. 财务维护客户侧费项索引与客户级结算条款。
 3. 客户预报、仓库揽收、入库称重、集运请求、尾程核重。
-4. 系统计算线路运费、超材费等标准费项并汇集到订单费项报表。
+4. 线路运费、超材费等机算费项完成计算后汇集到订单费项报表。
 5. 后付模式下，系统先把费项归集到`BMS费项池`；财务可以在账期结束前后手动生成待审核账单。
 6. 常规路径下，账期结束后系统完成期末费项入池和账单收口，账单达到`待审核 + 已收口`后由财务审核；需要提前对账时，财务按<a href="#section-9-7-3">9.7.3 账期还没结束，怎样提前收口并审核？</a>确认截断范围。
 7. 财务批量审核后，账单进入`待结清`，系统按客户级账单配置向客户发出账单。
 8. 客户付款后，财务核实到账并完成结清。
-9. 财务按系统导入模板不定期导入订单费项报表面板文件时，文件数据先落到 `sale_order_package_fee` 的包裹级粒度，再由系统自动汇总到 `sale_order_fee_detail` 的订单级粒度；`sale_order_package_fee` 直接包含回款金额。
+9. 财务按系统导入模板不定期导入订单费项报表面板文件；导入数据的包裹级落表、订单级汇总及回款金额字段见<a href="#section-19-2-3-2">19.2.3.2 各来源表怎样保存并关联业务对象？</a>和<a href="#section-19-2-3-4">19.2.3.4 OIS 有哪些客户侧费用字段？</a>。
 
 <div id="section-10-3-1"></div>
 
@@ -2276,7 +2333,7 @@ skinparam activityDiamondBackgroundColor #FFF4CC
 |系统|
 |业务部|
 start
-:预设系统自动计算的应收费项;
+:预设应收类机算费项;
 note right
 例子：
 * 适配货物：普货
@@ -2337,7 +2394,7 @@ endif
 :跟踪物流轨迹;
 |财务部|
 :陆续接收外部(若干供应商)签发的单证;
-if (费项是否已由系统自动计算或拉取？) then (是)
+if (该费项是否属于机算费项或已被系统拉取？) then (是)
 else (否)
   :凭单证陆续补充应收类或成本类费项;
   note right
@@ -2959,18 +3016,18 @@ Voided --> [*]
 
 [🔗原型链接](http://localhost:4181/#/billing/remittance)
 
-回款管理是包裹视角列表，用于查看所有 COD 包裹的回款状态、返款状态、汇兑损益和对账状态。它只回答一个包裹“是否已回款、是否已返款、是否需要跟踪”，不承载返款账单本身的结算流程；返款账单只作为回款状态判定和追溯依据被关联引用。列表主粒度为尾程包裹，回款明细行数据来自订单费项报表导入后沉淀的 `sale_order_package_fee`。回款管理负责回款 / 返款金额换算、汇率快照和汇兑损益计算，具体口径见<a href="#section-15">15. 金额汇兑</a>。回款管理不提供单独的回款导入入口。
+回款管理是包裹视角列表，用于查看所有 COD 包裹的回款状态、返款状态、汇兑损益和对账状态。它只回答一个包裹“是否已回款、是否已返款、是否需要跟踪”，不承载返款账单本身的结算流程；返款账单只作为回款状态判定和追溯依据被关联引用。列表主粒度为尾程包裹，回款明细来源见<a href="#section-19-2-3-2">19.2.3.2 各来源表怎样保存并关联业务对象？</a>。回款管理负责回款 / 返款金额换算、汇率快照和汇兑损益计算，具体口径见<a href="#section-15">15. 金额汇兑</a>。回款管理不提供单独的回款导入入口。
 
 这一页的核心不是“再算一遍账”，而是把包裹级事实、关联账单结果和对账状态放到同一张列表里，方便财务按包裹追踪全链路。
 
-页面以尾程包裹为主粒度展示回款事实、返款事实和结算结果；回款明细行数据来源于 `sale_order_package_fee`，系统汇总口径对应 `sale_order_fee_detail`。
+页面以尾程包裹为主粒度展示回款事实、返款事实和结算结果。
 
 <div id="section-12-1"></div>
 
 ### 12.1 页面目标
 
 1. 以尾程包裹为主粒度，关联运单和订单信息，集中展示回款状态、返款状态和结算结果。
-2. 回款数据直接来源于订单费项报表导入后的 `sale_order_package_fee` 明细，不在回款管理内二次导入。
+2. 回款管理直接读取订单费项报表已形成的包裹级明细，不在本页面二次导入；来源表和汇总关系见<a href="#section-19-2-3-2">19.2.3.2 各来源表怎样保存并关联业务对象？</a>。
 3. 支持快速识别已回款、待回款、不回款，以及已返款、待返款、不返款，并覆盖所有 COD 包裹的状态跟踪。
 4. 支持从列表直接定位关联返款账单，并追踪核销结果。
 
@@ -3002,7 +3059,7 @@ Voided --> [*]
 2. 回款状态仅取值 `已回款`、`待回款`、`不回款`。
 3. 返款状态仅取值 `已返款`、`待返款`、`不返款`。
 4. 异常签收的 COD 包裹固定为 `不回款` 和 `不返款`。
-5. 正常签收的 COD 包裹，尾程运单号出现在 `ofp_ofdb1.sale_order_package_fee` 且 `ofp_ofdb1.sale_order_package_fee.recovery_money` 非空非零时，回款状态为 `已回款`，否则为 `待回款`。
+5. 正常签收的 COD 包裹，`ofp_ofdb1.sale_order_package_fee.tail_way_bill_no`存在对应尾程运单号，且同一应收行的`ofp_ofdb1.sale_order_package_fee.recovery_money`非空非零时，回款状态为`已回款`，否则为`待回款`。应收行与成本行的区分见<a href="#section-19-2-3-2">19.2.3.2 各来源表怎样保存并关联业务对象？</a>。
 6. 正常签收的 COD 包裹，其所属业务主单挂靠的返款账单已结清时，返款状态反推为 `已返款`，否则为 `待返款`。
 7. 返款模式为签收返款时，先返还后回收。
 8. 返款模式为回款返款时，先回收后返还。
@@ -3649,7 +3706,7 @@ stateDiagram-v2
 
 | 术语 | 定义 | 术语 | 定义 |
 | :--- | :--- | :--- | :--- |
-| 费项 | 进入账单归集的费项明细，来源于自动计算、导入或手工补录。 | 应收账单 | 天马运通向客户收取费项时出示的账单。 |
+| 费项 | 进入账单归集的费用明细，包括机算费项、导入费项和手工补录费项。 | 应收账单 | 天马运通向客户收取费项时出示的账单。 |
 | 返款账单 | COD 包裹代收货款返还给客户时出示的账单。 | 成本账单 | 供应商向我方提供、由财务在 BMS 登记并核对的收费账单，用于归集直接成本和分摊间接成本。 |
 | 待审核 | 账单已经生成，仍在财务内部处理；已收口时可按常规路径审核，未收口时必须先完成提前收口。 | 账期收口状态 | 表示实际账期范围内的数据是否完整，枚举值为`未收口`、`已收口`。 |
 | 提前收口 | 财务在原账期结束前确认以数据截止点截断实际账期，系统完成截断范围校验和收口后再审核。 | 截断账期 | 原完整账期被截短后实际用于账单归集、审核和对账的连续日期范围。 |
@@ -3778,13 +3835,13 @@ skinparam DefaultTextAlignment center
 @endwbs
 ```
 
-预付下的`现付`和`后付`是在运抵国配置面板中设置的运抵国级规则。BMS 只读取 OIS 已沉淀到来源数据中的支付时机结果，用于判断费用是否已通过预付链路完成支付，以及是否还需要进入应收账单。
+预付下的`现付`和`后付`是在运抵国配置面板中设置的运抵国级规则。BMS 只读取 OIS 已沉淀到来源数据中的支付时机结果，用于判断费用是否已通过预付链路完成支付，以及是否还需要进入应收账单。归集时使用的支付状态字段见<a href="#section-19-2-3-3">19.2.3.3 BMS 归集费项时使用哪些非金额字段？</a>。
 
 <div id="section-19-2-2-3"></div>
 
 ##### 19.2.2.3 超材费扣款逻辑示例
 
-超材费用于说明同一费项在不同支付条件下的归属差异。系统计算出超材费后，需要先判断寄方预存款是否足以覆盖该费用；若不能覆盖，再根据费项收取方式判断由收方到付还是寄方后付。
+超材费用于说明同一费项在不同支付条件下的归属差异。超材费作为机算费项产生后，需要先判断寄方预存款是否足以覆盖该费用；若不能覆盖，再根据费项收取方式判断由收方到付还是寄方后付。
 
 ```plantuml
 @startuml
@@ -3796,7 +3853,7 @@ skinparam activityDiamondBackgroundColor #FFF4CC
 start
 :系统根据集运单线路信息确定计费类型/方法;
 :当包裹重量/尺寸被录入 WMS;
-:系统计算若干类费项\n（此处特指：超材附加费/手续费）;
+:生成机算费项\n（此处特指：超材附加费/手续费）;
 note right
 财务本位币：CNY
 end note
@@ -3854,30 +3911,68 @@ endif
 
 <div id="section-19-2-3"></div>
 
-#### 19.2.3 费项数据源
+#### 19.2.3 客户侧费项的 OIS 数据源
+
+本节记录应收账单和返款账单涉及的客户侧费用在 OIS 中的现状，包括存储结构、来源表、关联字段、金额与币种字段、时间与支付字段以及两类附加费导入形成的数据差异。
+
+成本费项不在本节范围内，其来源和导入方式见<a href="./PRD.成本中心.md">《成本中心 PRD》5. 成本费项标准化与供应商账单导入</a>。客户侧费项的业务对象层级见<a href="#section-19-2-1">19.2.1 核心对象关系</a>。
 
 <div id="section-19-2-3-1"></div>
 
-##### 19.2.3.1 提及原因
+##### 19.2.3.1 OIS 怎样存放费用数据？
 
-BMS 费项归集需要先明确每个费项从 OIS 哪个字段或哪类明细读取、归属于哪个业务对象、进入账单时应按什么费项类型处理，以及该字段是否属于系统计算链路、最早在哪个业务时机产生。本节作为`BMS费项池`、应收账单、返款账单和成本账单读取来源数据的产品口径基准。
+OIS 保存费用时存在三种数据结构：
 
-费项挂靠对象用于标识费项归属的最小业务层级，只允许归属于`财务账单`、`业务订单`、`尾程包裹`、`首程包裹`四类之一。当前 OIS 中的集运单按`业务订单`口径处理；表格中的`不限`表示该类来源规则不预先限定单一挂靠层级，进入 BMS 时仍需按实际业务归属落到上述四类挂靠对象之一。
-
-下表中的`费项类型`基于财务视角判定，用于表达该来源金额进入账单后的归集方向、正负方向和核销边界；不得仅按业务字段名、操作名称或资金动作字面含义直接判断。
-
-1. `应收类`：可作为客户应收费用进入应收账单。
-2. `应收扣减类`：用于抵减客户应收金额，不应按正向应收费用重复收取。
-3. `应付类`：仅用于成本账单，表示应向供应商、承运商或其他服务方支付或确认的成本费用；从应收账单和返款账单角度，不存在`应付类`费项。
-4. `代收类`：表示代客户收取的资金，不等同于服务费收入。
-5. `代付类`：表示代客户垫付或支付的资金，不等同于服务费收入。
-6. `非费项`：不纳入任何账单的核销范围，仅在返款账单、回款管理等特定位置作为业务事实、返款核对或资金核对信息呈现。
-
-应收账单生成时，费项金额方向按以下规则处理：`应收扣减类`记为负数，`代收类`记为负数，`代付类`记为正数。也就是说，应收扣减和代收资金用于冲减客户应付金额，代付资金表示客户应补偿我方垫付或支付的金额。
+1. `费项横表`：同一条业务记录通过多个金额字段保存不同费项。费项名称由金额字段决定，例如`freight`表示运费、`warehouse_rental_amount`表示仓租费。
+2. `费项纵表`：一条记录只表达一项费用或一项费用事件，费项名称、金额和币种保存在该记录中。同一业务对象发生多项费用时，通过增加多条记录而非增加新的金额字段表达。
+3. `多行横字段混合结构`：同一业务订单可以对应多条明细记录，每条明细记录中又包含多个固定金额字段。
 
 <div id="section-19-2-3-2"></div>
 
-##### 19.2.3.2 数据源清单
+##### 19.2.3.2 各来源表怎样保存并关联业务对象？
+
+OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中按`业务订单`理解。完整对象层级见<a href="#section-19-2-1">19.2.1 核心对象关系</a>，账单中的费项挂靠规则见<a href="#section-10-2">10.2 核心设计思路</a>。
+
+| 来源表 | 存储方式 | 一条记录表示什么 | 关联字段 | 关联对象 | 补充说明 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `ofp_ofdb1.sale_order_header` | 费项横表 | 一笔业务订单；同一行包含多个订单级金额字段 | `id`、`order_code` | 业务订单 | 保存业务订单主体及部分金额字段；`order_type = "BILL"`的记录为虚拟业务订单。 |
+| `ofp_ofdb1.sale_order_header_extend` | 费项横表 | 一笔业务订单的扩展信息；同一行包含多个扩展金额字段 | `sale_order_id` | 业务订单 | `sale_order_id`关联`sale_order_header.id`，并保存订单完结时间等扩展事实。 |
+| `ofp_ofdb1.sale_order_package_fee` | 多行横字段混合结构 | 一个费用方向下的一笔尾程包裹费用明细；同一业务订单可以对应多条包裹级记录 | `sale_order_id`、`tail_way_bill_no` | 尾程包裹 | 订单费项报表导入后形成的包裹级明细，直接保存包裹级回款金额；`sale_order_id`关联`sale_order_header.id`。主键为`id`，唯一索引为`type + sale_order_id + tail_way_bill_no`，同一尾程包裹可以分别存在应收行和成本行。 |
+| `ofp_ofdb1.sale_order_fee_detail` | 多行横字段混合结构 | 一笔订单费用明细；同一业务订单可以对应多条记录，每条记录仍包含多个金额字段 | `sale_order_id` | 业务订单 | 同一业务订单可以存在多条独立的费用明细记录。 |
+| `ofp_ofdb1.sale_order_additional_matter` | 费项纵表 | 一项附加事项；同一业务订单可以对应多条记录 | `sale_order_id`、`bill_waybill_no`、`sub_bill_waybill_no` | 业务订单或尾程包裹 | `sale_order_id`关联业务订单，收款运单号和子运单号记录附加费涉及的尾程运单；两种导入入口的差异见<a href="#section-19-2-3-5">19.2.3.5 同一张附加事项表，为什么要区分两种导入？</a>。 |
+| `ofp_ofdb1.claim_order` | 业务事件纵表 | 一笔理赔；同一订单编号可以对应多条记录 | `order_code` | 业务订单 | 同一业务订单可以存在多条独立的理赔记录。 |
+
+订单费项报表导入的数据先按尾程包裹粒度写入`ofp_ofdb1.sale_order_package_fee`，再汇总为业务订单粒度的`ofp_ofdb1.sale_order_fee_detail`。前者保留包裹级回款明细，后者承接订单级汇总；两张表不得被理解为两份彼此独立的回款来源。
+
+订单主表和订单扩展表中的金额在订单出库前仍可能变化，金额稳定过程见<a href="#section-19-2-4">19.2.4 费项重算窗口</a>。附加事项和理赔以新增记录表达新增业务事实，不在订单原记录中继续增加金额字段。
+
+<div id="section-19-2-3-3"></div>
+
+##### 19.2.3.3 BMS 归集费项时使用哪些非金额字段？
+
+下表只列 BMS 归集 OIS 费用时正式使用的非金额字段，包括用于判断来源数据能否进入本次范围的过滤字段，以及写入`BMS费项池`后仍需保留的采集字段。同一字段可以同时用于过滤和采集；某张来源表不涉及的分组以`--`表示。金额字段见<a href="#section-19-2-3-4">19.2.3.4 OIS 有哪些客户侧费用字段？</a>，订单或包裹关联字段见<a href="#section-19-2-3-2">19.2.3.2 各来源表怎样保存并关联业务对象？</a>，均不在本表重复列示。
+
+| 来源表 | 归属范围 | 费项识别 | 扫描时间 | 业务状态 | 支付信息 | 金额币种 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `ofp_ofdb1.sale_order_header` | `member_code`<br>`shop_id`<br>`sc_id`<br>`order_type`<br>`country_code`<br>`dest_warehouse_code`<br>`warehouse_code` | -- | `delivery_time` | -- | -- | `currency`<br>`currency_code`<br>`dest_country_currency_code` |
+| `ofp_ofdb1.sale_order_header_extend` | -- | -- | `order_completed_time` | -- | -- | -- |
+| `ofp_ofdb1.sale_order_additional_matter` | -- | `fee_item_type` | `create_time` | -- | `payment_method`<br>`fee_pay_status` | `fee_amount_currency`<br>`convert_fee_amount_currency` |
+| `ofp_ofdb1.claim_order` | `member_code`<br>`user_id`<br>`dealer_shop_id` | -- | `update_time` | `status`<br>`customer_service_audit_status`<br>`finance_audit_status` | `payment_status` | `currency`<br>`real_currency` |
+
+字段使用口径如下：
+
+1. `归属范围`：匹配任务锁定的客户、店铺和供应链，以及账单配置中的业务场景、运抵国和仓库。`order_type = "BILL"`表示虚拟业务订单。
+2. `费项识别`：`sale_order_additional_matter.fee_item_type`用于匹配启用中的客户侧费项及场景取值规则。
+3. `扫描时间`：履约节点为`出库`时使用`delivery_time`，为`订单完结`时使用`order_completed_time`；`记账单导入`形成的直接客户附加费使用`create_time`，其它附加费跟随真实业务订单的履约节点；理赔记录使用`update_time`。
+4. `业务状态`：理赔记录只归集有效且已通过客服、财务审核的数据。
+5. `支付信息`：`payment_method`记录附加费的`收取方式`，是应收归集的必要过滤字段；只有其值表示`账期支付`时，该附加费才进入应收归集范围。`fee_pay_status`和理赔记录的`payment_status`用于排除已经完成支付处理的数据，并随来源记录保留以供追溯。
+6. `金额币种`：`currency`和`currency_code`记录来源订单现有币种信息，`dest_country_currency_code`记录目的国币种。币种字段与来源金额一并采集并保留原值，不参与账期范围判断；来源未明确币种时的默认规则见<a href="#section-9-5-3">9.5.3 系统从哪里取金额和币种？</a>，换算规则见<a href="#section-15">15. 金额汇兑</a>。
+
+<div id="section-19-2-3-4"></div>
+
+##### 19.2.3.4 OIS 有哪些客户侧费用字段？
+
+下表记录 OIS 当前存在的客户侧费用字段及其财务名称、账单挂靠对象、费项类型、是否由系统计算以及最早形成阶段。费项类型由费项索引定义，见<a href="#section-9-9-3-2">9.9.3.2 费项索引怎样定义费项类型？</a>；挂靠对象边界见<a href="#section-10-2">10.2 核心设计思路</a>。附加事项行按`附加费用报表导入`的现有数据关系列示。
 
 <style>
 .fee-source-table {
@@ -3897,6 +3992,7 @@ BMS 费项归集需要先明确每个费项从 OIS 哪个字段或哪类明细�
 }
 .fee-source-table .source-extend { background-color: #f4cccc; }
 .fee-source-table .source-header { background-color: #d9ead3; }
+.fee-source-table .source-package-fee { background-color: #d9eaf7; }
 .fee-source-table .source-fee-detail { background-color: #f4cccc; }
 .fee-source-table .source-claim { background-color: #d9ead3; }
 .fee-source-table .source-additional { background-color: #ffffff; }
@@ -3904,12 +4000,12 @@ BMS 费项归集需要先明确每个费项从 OIS 哪个字段或哪类明细�
 <table class="fee-source-table">
   <thead>
     <tr>
-      <th>数据源</th>
+      <th>OIS 字段或筛选条件</th>
       <th>费项名称</th>
       <th>挂靠对象</th>
-      <th>费项类型</th>
-      <th>是否机算</th>
-      <th>首次产生于哪个业务时机</th>
+      <th>费项类型（费项索引）</th>
+      <th>是否为机算费项</th>
+      <th>最早形成阶段</th>
     </tr>
   </thead>
   <tbody>
@@ -3938,45 +4034,60 @@ BMS 费项归集需要先明确每个费项从 OIS 哪个字段或哪类明细�
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.collection_premium_amount</code></td><td>代收货款手续费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.cod_price</code></td><td>到付金额</td><td>业务订单</td><td>非费项</td><td><code>是</code></td><td>下单核价</td></tr>
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.cod_amount</code></td><td>货到付款手续费</td><td>业务订单</td><td>非费项</td><td><code>是</code></td><td>下单核价</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.recovery_money</code></td><td>实收回款（包裹级）</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td></tr>
     <tr class="source-fee-detail"><td><code>ofp_ofdb1.sale_order_fee_detail.collection</code></td><td>应返货款</td><td>业务订单</td><td>代收类</td><td><code>否</code></td><td>--</td></tr>
     <tr class="source-fee-detail"><td><code>ofp_ofdb1.sale_order_fee_detail.recovery_money</code></td><td>实收回款</td><td>业务订单</td><td>非费项</td><td><code>否</code></td><td>--</td></tr>
     <tr class="source-fee-detail"><td><code>ofp_ofdb1.sale_order_fee_detail.receivable_collection_amount</code></td><td>代收货款手续费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
     <tr class="source-fee-detail"><td><code>ofp_ofdb1.sale_order_fee_detail.resend_fee</code></td><td>重出费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
     <tr class="source-claim"><td><code>ofp_ofdb1.claim_order.claim_amount</code></td><td>理赔费</td><td>业务订单</td><td>应收扣减类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超材费"</code></td><td>超材费</td><td>不限</td><td>应收类</td><td><code>可能</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="转板费"</code></td><td>转板费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="退运费"</code></td><td>退运费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="税金"</code></td><td>税金</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="税费"</code></td><td>税费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="木架费"</code></td><td>木架费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="加收地址附加费"</code></td><td>加收地址附加费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="加固包装费"</code></td><td>加固包装费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="国内转寄"</code></td><td>国内转寄</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="国内到付"</code></td><td>国内到付</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="改单费"</code></td><td>改单费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="分单费"</code></td><td>分单费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="罚款"</code></td><td>罚款</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="店取费"</code></td><td>店取费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="代客收台币"</code></td><td>代客收台币</td><td>不限</td><td>代收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="代客付台币"</code></td><td>代客付台币</td><td>不限</td><td>代付类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超重费"</code></td><td>超重费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超长费"</code></td><td>超长费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超材手续费"</code></td><td>超材手续费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="缠膜费"</code></td><td>缠膜费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="仓租费"</code></td><td>仓租费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="报关费"</code></td><td>报关费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="派送费"</code></td><td>派送费</td><td>不限</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超材费"</code></td><td>超材费</td><td>尾程包裹</td><td>应收类</td><td><code>可能</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="转板费"</code></td><td>转板费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="退运费"</code></td><td>退运费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="税金"</code></td><td>税金</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="税费"</code></td><td>税费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="木架费"</code></td><td>木架费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="加收地址附加费"</code></td><td>加收地址附加费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="加固包装费"</code></td><td>加固包装费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="国内转寄"</code></td><td>国内转寄</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="国内到付"</code></td><td>国内到付</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="改单费"</code></td><td>改单费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="分单费"</code></td><td>分单费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="罚款"</code></td><td>罚款</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="店取费"</code></td><td>店取费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="代客收台币"</code></td><td>代客收台币</td><td>尾程包裹</td><td>代收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="代客付台币"</code></td><td>代客付台币</td><td>尾程包裹</td><td>代付类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超重费"</code></td><td>超重费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超长费"</code></td><td>超长费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超材手续费"</code></td><td>超材手续费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="缠膜费"</code></td><td>缠膜费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="仓租费"</code></td><td>仓租费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="报关费"</code></td><td>报关费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="派送费"</code></td><td>派送费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="其他"</code></td><td>其他</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
   </tbody>
 </table>
 
-说明：
+字段说明：
 
-1. `是否系统计算项 = 是` 表示该费项在当前代码中存在明确的系统计算或汇总链路；`是否系统计算项 = 否` 表示该费项不属于系统计算项，作为历史兼容字段、人工登记字段、后置录入字段或外部导入事实字段，其`首次产生于哪个业务时机`统一记为`--`；`可能`表示该费项在特定场景下可能由系统计算，也可能由人工登记，进入 BMS 时需保留来源记录。这些字段如果位于费项横表，必须在该来源行首次同步前完成录入；首次同步后的新增或修正必须形成新来源记录或调账记录。
-2. 表中“下单核价”早于“业务订单完成核重”；前者对应订单核价阶段的费用测算，后者对应尾程包裹完成核重后触发的费用汇总与回填。
-3. `sale_order_header_extend` 和 `sale_order_header` 中的金额字段是集运单横表来源；同名或近似费项同时存在时，BMS 应按客户侧费项索引和来源规则明确优先级，避免重复归集。
-4. `sale_order_fee_detail` 中的导入字段主要服务订单费用报表导入后的返款、回款和手续费核对；其中应返货款属于代付类资金，实回货款属于返款事实或资金事实，不作为普通应收费项。该表的同一来源行一旦成功同步至 `BMS费项池`，后续导入不得通过补写该行触发重采，必须以新来源记录或调账记录承接。
-5. `sale_order_additional_matter` 通过 `fee_item_type` 区分附加事项费项，除`超材费`可能存在系统计算场景外，其他附加事项均按人工登记口径处理；该类附加事项可能挂靠`业务订单`、`尾程包裹`或`首程包裹`，进入 BMS 时必须保留原始挂靠关系。
-6. `代收货款`、`应返货款`等代收 / 代付资金可以参与返款账单、回款管理或对账展示，但不得进入客户应收账单的普通应收费用合计；`cod_price`、实回货款等非费项核对事实字段仅在返款账单、回款管理等特定位置呈现，不纳入任何账单核销范围。
+1. `是否为机算费项`为`是`，表示当前存在明确的系统计算或汇总过程；为`否`，表示当前没有明确的系统计算过程，数据来自历史兼容字段、人工登记、后置录入或外部导入；为`可能`，表示同名费项在不同业务场景下可能属于机算费项，也可能由人工登记或外部导入产生。
+2. `最早形成阶段`为`--`，表示当前没有统一、明确的形成阶段；`下单核价`早于`业务订单完成核重`，后者发生在尾程包裹完成核重并回填费用之后。
+3. 订单主表和订单扩展表中存在名称相同或相近的费项字段。
+4. 订单费项报表导入后，`sale_order_package_fee.recovery_money`保存尾程包裹级实收回款，`sale_order_fee_detail.recovery_money`保存由包裹明细汇总形成的业务订单级实收回款。两者属于同一来源链的不同粒度，均为返款或资金核对事实，不是普通应收费项；`sale_order_fee_detail.collection`记录的应返货款属于代收类资金。
+5. 附加事项通过`fee_item_type`区分费项；上表所列附加费按`附加费用报表导入`口径挂靠尾程包裹。两种导入入口的差异见<a href="#section-19-2-3-5">19.2.3.5 同一张附加事项表，为什么要区分两种导入？</a>。
+6. `代收货款`和`应返货款`属于代收类资金，用于返款账单、回款管理或对账；`cod_price`和`实收回款`属于非费项核对事实。费项类型和账单用途见<a href="#section-9-9-3-2">9.9.3.2 费项索引怎样定义费项类型？</a>。
+
+<div id="section-19-2-3-5"></div>
+
+##### 19.2.3.5 同一张附加事项表，为什么要区分两种导入？
+
+`附加费用报表导入`和`记账单导入`产生的记录都写入`ofp_ofdb1.sale_order_additional_matter`，但两类费用归属不同的业务对象，采用不同的履约时间口径。
+
+| 导入入口 | 记录什么费用 | 当前挂靠对象 | 可用的时间事实 |
+| :--- | :--- | :--- | :--- |
+| `附加费用报表导入` | 归属于真实尾程包裹的附加费 | 真实业务订单下由尾程运单号对应的尾程包裹 | 可以沿包裹归属读取真实业务订单的出库时间或订单完结时间。 |
+| `记账单导入` | 直接向客户收取、但不归属于真实业务订单的附加费 | `ofp_ofdb1.sale_order_header.order_type = "BILL"`的虚拟业务订单 | 虚拟业务订单没有出库或完结时间；附加事项记录自身具有`create_time`。 |
+
+`ofp_ofdb1.sale_order_header.order_type = "BILL"`用于标记虚拟业务订单。虚拟业务订单只承载来源和客户归属，不代表客户真实下单，也不发生核价、核重、出库、运输或签收。两类附加费如何进入任务处理范围、如何入池和防重，分别见<a href="#section-9-4">9.4 第三步：哪些来源数据可以由本次任务处理？</a>、<a href="#section-9-5-4">9.5.4 费用达到什么条件才能入池？</a>和<a href="#section-9-5-5">9.5.5 怎样防止重复，并查清每笔费用的来源？</a>。
 
 <div id="business-baseline-fee-recalculation-window"></div>
 
@@ -3996,7 +4107,7 @@ BMS 账单生成依赖 OIS 数据源中的费项原始金额。若在订单完�
 
 ##### 19.2.4.2 业务口径
 
-`sale_order_header.calc_fee_status` 可以理解为业务订单的计费状态。对于费项横表而言，业务订单完成出库前，所有自动计算项都可能因为包裹回传、支付变化或补录动作再次发生计算，因此这一阶段的费项金额并不稳定。
+`sale_order_header.calc_fee_status` 可以理解为业务订单的计费状态。对于费项横表而言，业务订单完成出库前，所有机算费项都可能因为包裹回传、支付变化或补录动作再次发生计算，因此这一阶段的费项金额并不稳定。
 
 为了避免 `BMS费项池` 同步之后，费项横表原始金额继续变化，`BMS费项池` 的同步时点应落在业务订单完成出库时。也就是说，出库前允许二次计费，出库后再进入 BMS 同步和后续账单流程。费项横表成功同步后不得再修改、补写或整行重采；后续新发生的费用必须通过新来源记录或调账记录进入 BMS。
 
@@ -4033,7 +4144,7 @@ graph TD
     MORE_CALCED --> |"支付成功且所有包裹都已覆<br>盖计费"| MORE_PAID
 ```
 
-上图说明的是订单从首次计费到二次计费完成的状态流转：只要订单仍可能从 `PAID`、`CALCED` 或 `MORE_CALCED` 回到 `MORE_READY`，就表示费用仍可能被重新计算或补充，不能把当前费项金额视为最终稳定结果。BMS 判断同步时点时，应同时参考本节的重算窗口和<a href="#section-19-2-3">19.2.3 费项数据源</a>中的字段产生时机，避免提前采集仍可能变化的费项金额。
+上图说明的是订单从首次计费到二次计费完成的状态流转：只要订单仍可能从 `PAID`、`CALCED` 或 `MORE_CALCED` 回到 `MORE_READY`，就表示费用仍可能被重新计算或补充，不能把当前费项金额视为最终稳定结果。BMS 判断同步时点时，应同时参考本节的重算窗口和<a href="#section-19-2-3">19.2.3 客户侧费项的 OIS 数据源</a>中的字段产生时机，避免提前采集仍可能变化的费项金额。
 
 <div id="business-baseline-generalized-delivery"></div>
 
@@ -4047,7 +4158,7 @@ graph TD
 
 当<a href="#section-7">7. 客户级账单配置</a>中的应收账单配置将`履约节点`选择为`订单完结`时，任务类型为`费项入池`或`账单生成`的BMS任务，均按`订单完结时间`从数据源筛选本期要归集的订单并形成对应费项。
 
-当前 OIS 数据源 `sale_order_header` 没有`订单完结时间`字段，需要新增该字段，并由 OIS 定时任务维护。该任务根据订单下尾程包裹的 TMS 物流末条轨迹判断是否命中广义签收状态；若订单只有一个尾程包裹，则该包裹命中广义签收后，将末条轨迹时间写入数据源`订单完结时间`；若订单有多个尾程包裹，则必须全部尾程包裹均命中广义签收后，订单才算完结，并将满足条件时的最新末条轨迹时间写入数据源`订单完结时间`。
+当前 OIS 的`ofp_ofdb1.sale_order_header`主表没有订单完结时间字段，订单完结时间记录在`ofp_ofdb1.sale_order_header_extend.order_completed_time`。该字段用于 BMS 归集的口径见<a href="#section-19-2-3-3">19.2.3.3 BMS 归集费项时使用哪些非金额字段？</a>。该字段由 OIS 定时任务维护：任务根据订单下尾程包裹的 TMS 物流末条轨迹判断是否命中广义签收状态；若订单只有一个尾程包裹，则该包裹命中广义签收后，将末条轨迹时间写入`order_completed_time`；若订单有多个尾程包裹，则必须全部尾程包裹均命中广义签收后，订单才算完结，并将满足条件时的最新末条轨迹时间写入`order_completed_time`。
 
 这里的广义签收是判断`订单完结`的业务口径，不是一个新的物流状态，也不等同于狭义的“正常签收”。当订单下全部尾程包裹的履约结果均已足以判断订单可进入应收账单归集时，该订单可视为达到广义签收口径。
 

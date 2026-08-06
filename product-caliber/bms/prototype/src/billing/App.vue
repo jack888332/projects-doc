@@ -1,16 +1,17 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowDown, Bell, CircleCheck, Clock, Coin, Delete, DocumentChecked,
   Download, Expand, Failed, Fold, List, Menu, Operation, QuestionFilled,
-  Refresh, RefreshRight, Search, Setting, Tickets, User, View,
+  DataAnalysis, Refresh, RefreshRight, Search, Setting, Tickets, User, View,
 } from '@element-plus/icons-vue'
 import BillsView from './views/BillsView.vue'
 import BillingConfigView from './views/BillingConfigView.vue'
 import RateConfigView from './views/RateConfigView.vue'
 import RemittanceView from './views/RemittanceView.vue'
+import ReceivableSummaryView from './views/ReceivableSummaryView.vue'
 import AdjustmentView from './views/AdjustmentView.vue'
 import ProcessView from './views/ProcessView.vue'
 import HoverActionMenu from './components/HoverActionMenu.vue'
@@ -24,8 +25,8 @@ const props = defineProps({
   embedded: { type: Boolean, default: false },
 })
 
-const activeMenu = ref(props.initialMenu === 'base' ? 'tasks' : props.initialMenu)
-const taskPageTab = ref(props.initialMenu === 'base' ? 'base' : 'list')
+const activeMenu = ref(props.initialMenu)
+const taskPageTab = ref('list')
 const detailVisible = ref(false)
 const detailTab = ref('overview')
 const selectedTask = ref(null)
@@ -47,6 +48,7 @@ const taskQuery = reactive({
 
 const menuGroups = [
   { label: '财务日常', items: [
+    { key: 'receivableSummary', label: '营收总览', icon: DataAnalysis },
     { key: 'receivable', label: '应收账单', icon: DocumentChecked },
     { key: 'refund', label: '返款账单', icon: Tickets },
     { key: 'remittance', label: '回款管理', icon: Coin },
@@ -58,6 +60,7 @@ const menuGroups = [
   ] },
   { label: '过程管控', items: [
     { key: 'tasks', label: '生成任务', icon: List },
+    { key: 'base', label: '基础配置', icon: Setting },
     { key: 'exports', label: '导出管理', icon: Download },
     { key: 'audit', label: '内部审计', icon: View },
   ] },
@@ -67,14 +70,43 @@ const menuGroups = [
   ] },
 ]
 const menus = menuGroups.flatMap((group) => group.items)
+const billingPaths = {
+  receivableSummary: '/billing/revenue-overview',
+  receivable: '/billing/receivable-bills',
+  refund: '/billing/refund-bills',
+  remittance: '/billing/remittance',
+  adjustments: '/billing/adjustments',
+  config: '/billing/config',
+  rates: '/billing/rates',
+  tasks: '/billing/tasks',
+  base: '/billing/base-config',
+  exports: '/billing/exports',
+  audit: '/billing/audit',
+  compare: '/billing/report-compare',
+  migration: '/billing/data-migration',
+}
+
+function navigateMenu(key) {
+  activeMenu.value = key
+  const path = billingPaths[key]
+  if (path && window.location.hash !== `#${path}`) window.location.hash = path
+}
+
+watch(taskPageTab, (tab) => {
+  if (activeMenu.value !== 'tasks') return
+  const path = tab === 'base' ? billingPaths.base : billingPaths.tasks
+  if (window.location.hash !== `#${path}`) window.location.hash = path
+})
 
 const viewRegistry = {
   receivable: { component: BillsView, props: { billType: 'AR' } },
   refund: { component: BillsView, props: { billType: 'RF' } },
   remittance: { component: RemittanceView },
+  receivableSummary: { component: ReceivableSummaryView },
   adjustments: { component: AdjustmentView },
   config: { component: BillingConfigView },
   rates: { component: RateConfigView },
+  base: { component: ProcessView, props: { mode: 'base' } },
   exports: { component: ProcessView, props: { mode: 'exports' } },
   audit: { component: ProcessView, props: { mode: 'audit' } },
   compare: { component: ProcessView, props: { mode: 'compare' } },
@@ -481,7 +513,7 @@ function viewResult(row) {
             :class="{ active: activeMenu === item.key }"
             :title="collapsed ? item.label : ''"
             :aria-label="item.label"
-            @click="activeMenu = item.key"
+            @click="navigateMenu(item.key)"
           >
             <el-icon><component :is="item.icon" /></el-icon>
             <span v-if="!collapsed">{{ item.label }}</span>

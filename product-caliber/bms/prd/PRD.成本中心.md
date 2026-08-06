@@ -531,6 +531,20 @@ note on link : 进入对账结算
 
 ## 3. 功能清单
 
+成本中心每个菜单页均使用独立且稳定的Hash路径。供应商账单导入和成本账单详情虽然没有独立菜单，也分别拥有可直接访问的页面路径。
+
+| 页面 | 稳定原型路径 |
+| :--- | :--- |
+| 成本总览 | [🔗原型链接](http://localhost:4181/#/cost/overview) |
+| 供应商管理 | [🔗原型链接](http://localhost:4181/#/cost/suppliers) |
+| 成本账单 | [🔗原型链接](http://localhost:4181/#/cost/bills) |
+| 导入供应商账单 | [🔗原型链接](http://localhost:4181/#/cost/bills/import) |
+| 成本账单详情 | `http://localhost:4181/#/cost/bills/{成本账单编号}` |
+| 成本池 | [🔗原型链接](http://localhost:4181/#/cost/pool) |
+| 分摊规则 | [🔗原型链接](http://localhost:4181/#/cost/rules) |
+| 利润分析 | [🔗原型链接](http://localhost:4181/#/cost/profit) |
+| 成本费项索引 | [🔗原型链接](http://localhost:4181/#/cost/fee-index) |
+
 ```plantuml
 @startuml
 rectangle tree [

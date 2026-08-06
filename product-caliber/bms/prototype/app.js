@@ -349,7 +349,80 @@ const summaryLooseField = state.looseFieldConfigs.find(item => item.id === "loos
 if (summaryLooseField) summaryLooseField.standard = "汇总计算参数";
 
 const routeNames = { overview: "成本总览", suppliers: "供应商管理", bills: "成本账单", billImport: "导入供应商账单", billDetail: "成本账单详情", pool: "成本池", rules: "分摊规则", profit: "利润分析", fees: "成本费项索引" };
-const billingRouteNames = { receivable: "应收账单", refund: "返款账单", remittance: "回款管理", adjustments: "调账中心", config: "账单配置", rates: "汇率配置", tasks: "生成任务", exports: "导出管理", audit: "内部审计", compare: "报表比对", migration: "数据迁移" };
+const billingRouteNames = { receivable: "应收账单", refund: "返款账单", remittance: "回款管理", receivableSummary: "营收总览", adjustments: "调账中心", config: "账单配置", rates: "汇率配置", tasks: "生成任务", base: "基础配置", exports: "导出管理", audit: "内部审计", compare: "报表比对", migration: "数据迁移" };
+const billingPaths = {
+  receivableSummary: "/billing/revenue-overview",
+  receivable: "/billing/receivable-bills",
+  refund: "/billing/refund-bills",
+  remittance: "/billing/remittance",
+  adjustments: "/billing/adjustments",
+  config: "/billing/config",
+  rates: "/billing/rates",
+  tasks: "/billing/tasks",
+  base: "/billing/base-config",
+  exports: "/billing/exports",
+  audit: "/billing/audit",
+  compare: "/billing/report-compare",
+  migration: "/billing/data-migration"
+};
+const costPaths = {
+  overview: "/cost/overview",
+  suppliers: "/cost/suppliers",
+  bills: "/cost/bills",
+  billImport: "/cost/bills/import",
+  pool: "/cost/pool",
+  rules: "/cost/rules",
+  profit: "/cost/profit",
+  fees: "/cost/fee-index"
+};
+
+function routePath() {
+  return decodeURIComponent(window.location.hash.replace(/^#/, "").split("?")[0] || "");
+}
+
+function applyRouteFromLocation() {
+  const path = routePath();
+  const billingRoute = Object.entries(billingPaths).find(([, value]) => value === path);
+  if (billingRoute) {
+    state.domain = "billing";
+    state.billingView = billingRoute[0];
+    return true;
+  }
+  if (path === costPaths.billImport) {
+    state.domain = "cost";
+    state.view = "billImport";
+    return true;
+  }
+  if (path.startsWith(`${costPaths.bills}/`)) {
+    state.domain = "cost";
+    state.view = "billDetail";
+    state.selectedBillId = path.slice(`${costPaths.bills}/`.length);
+    state.billDetailTab = "summary";
+    return true;
+  }
+  const costRoute = Object.entries(costPaths).find(([, value]) => value === path);
+  if (costRoute) {
+    state.domain = "cost";
+    state.view = costRoute[0];
+    return true;
+  }
+  return false;
+}
+
+function navigateToPath(path) {
+  const target = `#${path}`;
+  if (window.location.hash === target) {
+    applyRouteFromLocation();
+    renderView();
+    return;
+  }
+  window.location.hash = path;
+}
+
+if (!applyRouteFromLocation()) {
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${billingPaths.receivableSummary}`);
+  applyRouteFromLocation();
+}
 const costNavigation = `
   <button class="nav-item" data-view="overview"><i data-lucide="layout-dashboard"></i><span>成本总览</span></button>
   <div class="nav-group-label">成本管理</div>
@@ -362,6 +435,7 @@ const costNavigation = `
   <button class="nav-item" data-view="fees"><i data-lucide="tags"></i><span>成本费项索引</span></button>`;
 const billingNavigation = `
   <div class="nav-group-label">财务日常</div>
+  <button class="nav-item" data-billing-view="receivableSummary"><i data-lucide="chart-no-axes-combined"></i><span>营收总览</span></button>
   <button class="nav-item" data-billing-view="receivable"><i data-lucide="file-text"></i><span>应收账单</span></button>
   <button class="nav-item" data-billing-view="refund"><i data-lucide="receipt"></i><span>返款账单</span></button>
   <button class="nav-item" data-billing-view="remittance"><i data-lucide="banknote"></i><span>回款管理</span></button>
@@ -371,6 +445,7 @@ const billingNavigation = `
   <button class="nav-item" data-billing-view="rates"><i data-lucide="coins"></i><span>汇率配置</span></button>
   <div class="nav-group-label">过程管控</div>
   <button class="nav-item" data-billing-view="tasks"><i data-lucide="clipboard-list"></i><span>生成任务</span><span class="nav-count warn">4</span></button>
+  <button class="nav-item" data-billing-view="base"><i data-lucide="settings-2"></i><span>基础配置</span></button>
   <button class="nav-item" data-billing-view="exports"><i data-lucide="download"></i><span>导出管理</span></button>
   <button class="nav-item" data-billing-view="audit"><i data-lucide="shield-check"></i><span>内部审计</span></button>
   <div class="nav-group-label">辅助测试</div>
@@ -1057,9 +1132,8 @@ function showDrawer(title, body) {
 function closeDrawer(){document.getElementById("drawer").classList.add("hidden");document.getElementById("drawer-backdrop").classList.add("hidden");}
 function openImportPage(reset = false) {
   if (reset) state.wizardStep = 1;
-  state.view = "billImport";
   closeDrawer();
-  renderView();
+  navigateToPath(costPaths.billImport);
 }
 function destroyDateRangePicker(id) {
   const app = dateRangePickerApps.get(id);
@@ -1692,9 +1766,9 @@ function allocationModal(id){
 }
 
 document.addEventListener("click", async (event) => {
-  const domainBtn=event.target.closest("[data-domain]"); if(domainBtn){state.domain=domainBtn.dataset.domain;state.sidebarOpen=false;document.getElementById("sidebar").classList.remove("open");closeDrawer();closeModal();renderView();return;}
-  const billingViewBtn=event.target.closest("[data-billing-view]"); if(billingViewBtn){state.domain="billing";state.billingView=billingViewBtn.dataset.billingView;state.sidebarOpen=false;document.getElementById("sidebar").classList.remove("open");closeDrawer();renderView();return;}
-  const viewBtn=event.target.closest("[data-view]"); if(viewBtn){state.domain="cost";state.view=viewBtn.dataset.view; state.sidebarOpen=false;document.getElementById("sidebar").classList.remove("open");closeDrawer();renderView();return;}
+  const domainBtn=event.target.closest("[data-domain]"); if(domainBtn){state.sidebarOpen=false;document.getElementById("sidebar").classList.remove("open");closeDrawer();closeModal();navigateToPath(domainBtn.dataset.domain==="billing"?billingPaths.receivableSummary:costPaths.overview);return;}
+  const billingViewBtn=event.target.closest("[data-billing-view]"); if(billingViewBtn){state.sidebarOpen=false;document.getElementById("sidebar").classList.remove("open");closeDrawer();navigateToPath(billingPaths[billingViewBtn.dataset.billingView]);return;}
+  const viewBtn=event.target.closest("[data-view]"); if(viewBtn){state.sidebarOpen=false;document.getElementById("sidebar").classList.remove("open");closeDrawer();navigateToPath(costPaths[viewBtn.dataset.view]);return;}
   const el=event.target.closest("[data-action]"); if(!el)return; const a=el.dataset.action,id=el.dataset.id;
   if(a==="toggle-sidebar"){state.sidebarOpen=!state.sidebarOpen;document.getElementById("sidebar").classList.toggle("open",state.sidebarOpen);}
   else if(a==="open-data-tools") dataToolsModal();
@@ -1703,7 +1777,7 @@ document.addEventListener("click", async (event) => {
   else if(a==="reset-prototype-data"){state.pendingAction={type:"resetData"};showModal("恢复初始模拟数据",`<div class="validation-item warn">${icon("triangle-alert")}当前浏览器中的编辑、导入、结清和分摊结果都会被初始样本覆盖。</div>`,"确认恢复");}
   else if(a==="close-drawer") closeDrawer(); else if(a==="close-modal") closeModal();
   else if(a==="open-import") openImportPage(true);
-  else if(a==="open-supplier") supplierDrawer(id); else if(a==="new-supplier") supplierFormModal(); else if(a==="edit-supplier"){closeDrawer();supplierFormModal(id);} else if(a==="open-bill"){state.selectedBillId=id;state.billDetailTab="summary";state.view="billDetail";closeDrawer();renderView();} else if(a==="back-bills"){state.view="bills";renderView();} else if(a==="bill-detail-tab"){state.billDetailTab=el.dataset.value;renderView();} else if(a==="open-cost") costDrawer(id); else if(a==="open-bucket") bucketDrawer(id);
+  else if(a==="open-supplier") supplierDrawer(id); else if(a==="new-supplier") supplierFormModal(); else if(a==="edit-supplier"){closeDrawer();supplierFormModal(id);} else if(a==="open-bill"){state.selectedBillId=id;state.billDetailTab="summary";closeDrawer();navigateToPath(`${costPaths.bills}/${encodeURIComponent(id)}`);} else if(a==="back-bills"){navigateToPath(costPaths.bills);} else if(a==="bill-detail-tab"){state.billDetailTab=el.dataset.value;renderView();} else if(a==="open-cost") costDrawer(id); else if(a==="open-bucket") bucketDrawer(id);
   else if(a==="select-file"){
     state.selectedFile=id;
     state.importDataTab="table";
@@ -1769,7 +1843,7 @@ document.addEventListener("click", async (event) => {
   else if(a==="run-allocation") allocationModal(id);
   else if(a==="configure-bucket-treatment"){closeDrawer();bucketTreatmentModal(id);}
   else if(a==="configure-bucket"){closeDrawer();bucketRuleModal(id);}
-  else if(a==="allocation-rules"){state.view="rules";renderView();}
+  else if(a==="allocation-rules"){navigateToPath(costPaths.rules);}
   else if(a==="new-allocation-rule") allocationRuleModal(el.dataset.type || state.ruleTab);
   else if(a==="open-rule") ruleDrawer(id);
   else if(a==="edit-rule"){closeDrawer();allocationRuleModal("base",id);}
@@ -2009,6 +2083,12 @@ document.getElementById("drawer-backdrop").addEventListener("click",closeDrawer)
 document.getElementById("modal-backdrop").addEventListener("click",closeModal);
 document.getElementById("prototype-data-file").addEventListener("change",async event=>{const file=event.target.files?.[0];event.target.value="";if(!file)return;try{await importPrototypeData(file);}catch(error){toast(error.message||"模拟数据导入失败","warning");}});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeDrawer();closeModal();}});
+window.addEventListener("hashchange",()=>{
+  if (!applyRouteFromLocation()) return;
+  closeDrawer();
+  closeModal();
+  renderView();
+});
 
 initializePrototypeDatabase().then(renderView).catch(error=>{
   console.error("模拟数据库初始化失败",error);

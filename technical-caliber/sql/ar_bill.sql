@@ -1216,6 +1216,7 @@ CREATE TABLE `bill_export_task` (
   `source_entry` varchar(32) NOT NULL DEFAULT 'LIST' COMMENT '发起入口：DETAIL/LIST',
   `export_purpose` varchar(32) NOT NULL DEFAULT 'CUSTOMER' COMMENT '导出用途：CUSTOMER/INTERNAL',
   `result_file_type` varchar(16) NOT NULL DEFAULT 'ZIP' COMMENT '结果文件类型：XLSX/ZIP',
+  `internal_format` varchar(32) DEFAULT NULL COMMENT '内部导出格式：SPLIT/MERGED/NOT_APPLICABLE，历史任务为空',
   `task_status` varchar(32) NOT NULL COMMENT '任务状态',
   `total_count` int NOT NULL DEFAULT '0' COMMENT '账单总数',
   `processed_count` int NOT NULL DEFAULT '0' COMMENT '已处理数',

@@ -434,7 +434,7 @@ DROP TABLE IF EXISTS `bill_source_collect_mark`;
 CREATE TABLE `bill_source_collect_mark` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `collect_no` varchar(64) NOT NULL COMMENT '归集标记编号',
-  `collect_type` varchar(32) NOT NULL COMMENT '归集类型：MAIN_ORDER主订单，ADDITIONAL_FEE附加费，ADDITIONAL_INCREMENT附加费增量，CLAIM_ORDER理赔，NON_FEE_FETCH非费项已抓取',
+  `collect_type` varchar(32) NOT NULL COMMENT '归集类型：MAIN_ORDER主订单，ADDITIONAL_FEE附加费，ADDITIONAL_INCREMENT附加费增量，CLAIM_ORDER理赔，NON_FEE_FETCH非费项已抓取，LEDGER_ADDITIONAL_FEE记账单附加费',
   `source_system` varchar(64) NOT NULL COMMENT '来源系统，如OFP',
   `source_database` varchar(64) DEFAULT NULL COMMENT '来源库',
   `source_table` varchar(128) NOT NULL COMMENT '来源表',

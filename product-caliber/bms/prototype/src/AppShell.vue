@@ -134,7 +134,7 @@ async function resetData() {
           <button class="sidebar-toggle icon-btn" title="展开或收起菜单" @click="sidebarOpen = !sidebarOpen"><el-icon><Grid /></el-icon></button>
           <span>首页</span><el-icon><ArrowRight /></el-icon><span class="current-route">{{ route.meta.title }}</span>
         </div>
-        <div id="route-page-actions" class="route-page-actions" aria-label="页面操作" />
+        <div id="route-export-actions" class="route-export-actions" aria-label="数据导出" />
       </div>
       <section id="content" class="content"><RouterView /></section>
     </main>

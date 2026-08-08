@@ -99,7 +99,7 @@ function resetFilters() {
 <template>
   <div class="module-page receivable-summary-page">
     <PageHeader>
-      <template #actions>
+      <template #export>
         <el-button :icon="Download" @click="ElMessage.success('导出任务已创建')">导出</el-button>
       </template>
     </PageHeader>

@@ -550,10 +550,8 @@ function viewResult(row) {
       <main class="page-main">
         <template v-if="activeMenu === 'tasks'">
         <PageHeader v-if="taskPageTab === 'list'">
-          <template #actions>
+          <template #export>
             <el-button :icon="Download">导出任务</el-button>
-            <el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button>
-            <el-button class="advanced-filter-toggle" :icon="Operation" @click="advancedVisible = !advancedVisible">{{ advancedVisible ? '隐藏高级筛选项' : '显示高级筛选项' }}</el-button>
           </template>
         </PageHeader>
 
@@ -575,11 +573,14 @@ function viewResult(row) {
               <div class="condition-filter-actions task-filter-actions">
                 <el-button type="primary" @click="applyTaskQuery">查询</el-button>
                 <el-button @click="resetFilters">重置</el-button>
+                <el-button class="advanced-filter-toggle" :icon="Operation" @click="advancedVisible = !advancedVisible">{{ advancedVisible ? '隐藏高级筛选项' : '显示高级筛选项' }}</el-button>
               </div>
             </div>
           </div>
 
           <MetricGrid :items="taskSummary" :columns="5" />
+
+          <div class="table-reference-toolbar"><span>BMS任务</span><div class="table-reference-actions"><el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button></div></div>
 
           <div class="result-summary">
             筛选结果 <strong>{{ filteredTasks.length }}</strong> 条

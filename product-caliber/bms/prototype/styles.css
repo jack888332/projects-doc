@@ -129,9 +129,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
 .route-back .el-icon { width: 14px; height: 14px; }
 .route-crumbs { min-width: 0; flex: 1 1 auto; padding: 0 var(--space-3); display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
 .route-crumbs .current-route { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.route-page-actions { min-width: 0; max-width: 62%; height: 100%; margin-left: auto; padding: 0 var(--space-3) 0 var(--space-2); display: flex; flex: 0 1 auto; align-items: center; justify-content: flex-end; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; }
-.route-page-actions::-webkit-scrollbar { display: none; }
-.route-page-actions .el-button {
+.route-export-actions { min-width: 0; height: 100%; margin-left: auto; padding: 0 var(--space-3) 0 var(--space-2); display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+.route-export-actions .el-button {
   --el-button-bg-color: #fff;
   --el-button-border-color: var(--primary-border);
   --el-button-text-color: var(--primary);
@@ -239,21 +238,21 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
 .fee-filter-grid .filter-actions { justify-content: flex-end; }
 
 .table-wrap { overflow: auto; width: 100%; }
-.data-table { --current-table-row-height: var(--table-row-height-compact); border-collapse: collapse; width: 100%; min-width: 980px; font-family: var(--font-family-ui); font-size: var(--table-font-size); line-height: var(--table-line-height); }
+.data-table { --current-table-row-height: var(--table-row-height-default); border-collapse: collapse; width: 100%; min-width: 980px; font-family: var(--font-family-ui); font-size: var(--table-font-size); line-height: var(--table-line-height); }
 .data-table:has(tbody td br),
 .data-table:has(tbody .fee-name-cell span),
-.data-table:has(tbody small) { --current-table-row-height: var(--table-row-height-multiline); }
+.data-table:has(tbody small) { --current-table-row-height: var(--table-row-height-default); }
 .data-table thead tr,
 .data-table th { height: var(--table-header-height); }
 .data-table tbody tr,
 .data-table td { height: var(--current-table-row-height); }
-.data-table th, .data-table td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border-soft); padding: var(--space-2) var(--space-2); font-family: inherit; font-size: inherit; line-height: inherit; text-align: left !important; white-space: nowrap; vertical-align: middle; }
-.data-table th { background: #f7f7f8; color: #3f4551; font-weight: var(--font-weight-semibold); position: sticky; top: 0; z-index: 1; }
+.data-table th, .data-table td { border-bottom: 1px solid var(--border-soft); border-right: 1px solid var(--border-soft); padding: var(--space-2) var(--space-3); font-family: inherit; font-size: inherit; line-height: inherit; text-align: left !important; white-space: nowrap; vertical-align: middle; }
+.data-table th { background: #f7f8fa; color: #596170; font-weight: var(--font-weight-semibold); position: sticky; top: 0; z-index: 1; }
 .data-table td { font-weight: var(--font-weight-regular); }
 .data-table td :where(a, button, input, select, textarea, span, strong, small, b, em) { font-family: inherit; font-size: inherit; line-height: inherit; }
 .data-table td :where(a, button, strong, b, .strong) { font-weight: var(--font-weight-regular); }
 .data-table td :where(small, .muted, .secondary, .fee-name-cell span) { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
-.data-table tr:hover td { background: #fafafe; }
+.data-table tr:hover td { background: #faf8fb; }
 .data-table td.num { text-align: left !important; font-variant-numeric: tabular-nums; }
 .data-table .link { color: var(--primary); cursor: pointer; }
 .data-table .muted { color: var(--muted); }
@@ -621,7 +620,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
   :root { --sidebar-width: 220px; }
   .route-tabs { height: auto; min-height: var(--route-nav-height); flex-wrap: wrap; }
   .route-crumbs { height: var(--route-nav-height); flex: 1 1 auto; }
-  .route-page-actions { width: 100%; max-width: none; height: var(--route-nav-height); flex: 1 0 100%; justify-content: flex-start; padding: 0 var(--space-3); border-top: 1px solid var(--border-soft); }
+  .route-export-actions { height: var(--route-nav-height); padding: 0 var(--space-3); }
   .top-menu { display: flex; }
   .top-menu button { min-width: 124px; padding: 0 var(--space-3); }
   .sidebar { transform: translateX(-100%); box-shadow: 5px 0 18px rgba(0,0,0,.15); }

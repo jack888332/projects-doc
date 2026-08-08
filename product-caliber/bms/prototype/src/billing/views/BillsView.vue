@@ -101,9 +101,8 @@ async function handleBillAction(name) {
 <template>
   <div class="module-page live-reference-page">
     <PageHeader>
-      <template #actions>
+      <template #export>
         <el-button :icon="Download" :disabled="!selectedRows.length" @click="openExport">导出</el-button>
-        <el-button :icon="Setting">字段显示</el-button>
       </template>
     </PageHeader>
 
@@ -124,7 +123,7 @@ async function handleBillAction(name) {
     <div class="status-tabs-row"><button v-for="status in statuses" :key="status" :class="{ active: activeStatus === status }" @click="activeStatus = status">{{ status }}</button></div>
 
     <section class="module-panel">
-      <div class="table-reference-toolbar"><span>已选 {{ selectedRows.length }} 个账单</span></div>
+      <div class="table-reference-toolbar"><span>已选 {{ selectedRows.length }} 个账单</span><div class="table-reference-actions"><el-button :icon="Setting">字段显示</el-button></div></div>
       <el-table :data="filteredBills" class="clean-table" row-key="billNo" border @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="44" fixed />
         <el-table-column prop="billNo" label="账单编号" width="205" fixed />

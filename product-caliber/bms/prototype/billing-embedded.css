@@ -74,8 +74,7 @@
 }
 
 /* Page-level actions share one compact treatment; the back control stays separate. */
-.route-page-actions .el-button,
-.route-page-actions .el-checkbox.is-bordered {
+.route-export-actions .el-button {
   --el-button-bg-color: #fff;
   --el-button-border-color: var(--border);
   --el-button-text-color: #3c4350;
@@ -98,28 +97,21 @@
   box-shadow: none;
   font-weight: var(--font-weight-regular);
 }
-.route-page-actions .el-button:hover:not(:disabled),
-.route-page-actions .el-checkbox.is-bordered:hover {
+.route-export-actions .el-button:hover:not(:disabled) {
   color: var(--primary-strong);
   border-color: var(--primary);
   background: var(--primary-soft);
 }
-.route-page-actions .el-button--primary:not(.is-link):not(.is-text) {
+.route-export-actions .el-button--primary:not(.is-link):not(.is-text) {
   color: #3c4350;
   border-color: var(--border);
   background: #fff;
   box-shadow: none;
 }
-.route-page-actions .el-button--primary:not(.is-link):not(.is-text):hover:not(:disabled) {
+.route-export-actions .el-button--primary:not(.is-link):not(.is-text):hover:not(:disabled) {
   color: var(--primary-strong);
   border-color: var(--primary);
   background: var(--primary-soft);
-}
-.route-page-actions .el-checkbox.is-bordered .el-checkbox__label {
-  color: inherit;
-}
-.route-page-actions .el-checkbox.is-bordered .el-checkbox__inner {
-  border-color: currentColor;
 }
 .billing-content .el-input__wrapper,
 .billing-content .el-select__wrapper,
@@ -241,27 +233,54 @@
   --el-table-border-color: var(--border-soft);
   --el-table-row-hover-bg-color: #faf8fb;
 }
-.billing-content .el-table { --current-table-row-height: var(--table-row-height-compact); font-family: var(--font-family-ui); font-size: var(--table-font-size); line-height: var(--table-line-height); }
-.billing-content .el-table.clean-table,
-.billing-content .el-table:has(.main-cell) { --current-table-row-height: var(--table-row-height-default); }
-.billing-content .el-table:has(.amount-lines) { --current-table-row-height: var(--table-row-height-stacked); }
-.billing-content .el-table.rate-table { --current-table-row-height: var(--table-row-height-compact); }
-.billing-content .el-table .el-table__header tr,
-.billing-content .el-table .el-table__header th { height: var(--table-header-height); }
-.billing-content .el-table .el-table__body tr,
-.billing-content .el-table .el-table__body td { height: var(--current-table-row-height); }
-.billing-content .el-table .el-table__cell,
-.billing-content .el-table .el-table__cell .cell { text-align: left !important; }
-.billing-content .el-table .el-table__header th { font-family: inherit; font-size: inherit; font-weight: var(--font-weight-semibold); line-height: inherit; }
-.billing-content .el-table .el-table__body td { font-family: inherit; font-size: inherit; font-weight: var(--font-weight-regular); line-height: inherit; }
-.billing-content .el-table .el-table__body td .cell,
-.billing-content .el-table .el-table__body td :where(a, button, input, select, textarea, span, strong, small, b, em) { font-family: inherit; font-size: inherit; line-height: inherit; }
-.billing-content .el-table .el-table__body td :where(a, button, strong, b) { font-weight: var(--font-weight-regular); }
-.billing-content .el-table .el-table__body td :where(small, .secondary) { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
-.billing-content .el-table .el-table__body td .main-cell strong { font-size: var(--table-font-size); font-weight: var(--font-weight-regular); }
-.billing-content .el-table .el-table__body td .main-cell small { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
-.billing-content .el-table .el-table__body td .amount-lines { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
-.billing-content .el-table .el-table__body td .amount-lines b { font-size: var(--table-font-size); font-weight: var(--font-weight-regular); }
+.content .el-table,
+.el-overlay .el-table {
+  width: 100%;
+  --current-table-row-height: var(--table-row-height-default) !important;
+  --el-table-header-bg-color: #f7f8fa;
+  --el-table-header-text-color: #596170;
+  --el-table-text-color: #414957;
+  --el-table-border-color: var(--border-soft);
+  --el-table-row-hover-bg-color: #faf8fb;
+  font-family: var(--font-family-ui);
+  font-size: var(--table-font-size);
+  line-height: var(--table-line-height);
+}
+.content .el-table .el-table__header tr,
+.content .el-table .el-table__header th,
+.el-overlay .el-table .el-table__header tr,
+.el-overlay .el-table .el-table__header th { height: var(--table-header-height); }
+.content .el-table .el-table__body tr,
+.content .el-table .el-table__body td,
+.el-overlay .el-table .el-table__body tr,
+.el-overlay .el-table .el-table__body td { height: var(--current-table-row-height); }
+.content .el-table .el-table__cell,
+.el-overlay .el-table .el-table__cell { padding: 0; }
+.content .el-table .el-table__cell .cell,
+.el-overlay .el-table .el-table__cell .cell {
+  padding: var(--space-2) var(--space-3);
+  text-align: left !important;
+}
+.content .el-table .el-table__header th,
+.el-overlay .el-table .el-table__header th { font-family: inherit; font-size: inherit; font-weight: var(--font-weight-semibold); line-height: inherit; }
+.content .el-table .el-table__body td,
+.el-overlay .el-table .el-table__body td { font-family: inherit; font-size: inherit; font-weight: var(--font-weight-regular); line-height: inherit; }
+.content .el-table .el-table__body td .cell,
+.content .el-table .el-table__body td :where(a, button, input, select, textarea, span, strong, small, b, em),
+.el-overlay .el-table .el-table__body td .cell,
+.el-overlay .el-table .el-table__body td :where(a, button, input, select, textarea, span, strong, small, b, em) { font-family: inherit; font-size: inherit; line-height: inherit; }
+.content .el-table .el-table__body td :where(a, button, strong, b),
+.el-overlay .el-table .el-table__body td :where(a, button, strong, b) { font-weight: var(--font-weight-regular); }
+.content .el-table .el-table__body td :where(small, .secondary),
+.el-overlay .el-table .el-table__body td :where(small, .secondary) { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
+.content .el-table .el-table__body td .main-cell strong,
+.el-overlay .el-table .el-table__body td .main-cell strong { font-size: var(--table-font-size); font-weight: var(--font-weight-regular); }
+.content .el-table .el-table__body td .main-cell small,
+.el-overlay .el-table .el-table__body td .main-cell small { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
+.content .el-table .el-table__body td .amount-lines,
+.el-overlay .el-table .el-table__body td .amount-lines { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
+.content .el-table .el-table__body td .amount-lines b,
+.el-overlay .el-table .el-table__body td .amount-lines b { font-size: var(--table-font-size); font-weight: var(--font-weight-regular); }
 .billing-content .row-action-cell { position: relative; right: 8px; display: inline-flex; align-items: center; gap: 5px; }
 .billing-content .row-action-cell .el-button + .el-button,
 .billing-content .row-action-cell .el-button + .el-dropdown { margin-left: 0; }
@@ -283,16 +302,18 @@
 .billing-content .main-cell { display: flex; flex-direction: column; gap: 2px; }
 .billing-content .main-cell strong { color: #303746; }
 .billing-content .main-cell small { color: #8a919e; }
-.billing-content .table-pagination {
+.table-pagination {
   min-height: 52px;
   padding: 0 var(--space-3);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: var(--font-size-sm);
 }
+.table-pagination > span { grid-column: 1; justify-self: start; }
+.table-pagination > .el-pagination { grid-column: 2; justify-self: center; }
 
 .detail-drawer .el-drawer__header,
 .billing-config-drawer .el-drawer__header {
@@ -356,7 +377,9 @@
   .billing-content .keyword-input,
   .billing-content .keyword-input.wide,
   .billing-content .filter-actions { width: 100% !important; }
-  .billing-content .table-pagination { align-items: flex-start; flex-direction: column; gap: 8px; padding: var(--space-2) var(--space-3); }
+  .table-pagination { grid-template-columns: 1fr; justify-items: center; gap: 8px; padding: var(--space-2) var(--space-3); }
+  .table-pagination > span,
+  .table-pagination > .el-pagination { grid-column: 1; justify-self: center; }
   .detail-drawer .detail-grid { grid-template-columns: 1fr; }
   .el-overlay .el-drawer.detail-drawer,
   .el-overlay .el-drawer.billing-config-drawer,

@@ -22,11 +22,12 @@ import { useDemoDataset } from './data/useDemoDataset.js'
 
 const props = defineProps({
   initialMenu: { type: String, default: 'tasks' },
+  initialTaskTab: { type: String, default: 'list' },
   embedded: { type: Boolean, default: false },
 })
 
 const activeMenu = ref(props.initialMenu)
-const taskPageTab = ref('list')
+const taskPageTab = ref(props.initialTaskTab)
 const detailVisible = ref(false)
 const detailTab = ref('overview')
 const selectedTask = ref(null)
@@ -60,7 +61,6 @@ const menuGroups = [
   ] },
   { label: '过程管控', items: [
     { key: 'tasks', label: '生成任务', icon: List },
-    { key: 'base', label: '基础配置', icon: Setting },
     { key: 'exports', label: '导出管理', icon: Download },
     { key: 'audit', label: '内部审计', icon: View },
   ] },
@@ -106,7 +106,6 @@ const viewRegistry = {
   adjustments: { component: AdjustmentView },
   config: { component: BillingConfigView },
   rates: { component: RateConfigView },
-  base: { component: ProcessView, props: { mode: 'base' } },
   exports: { component: ProcessView, props: { mode: 'exports' } },
   audit: { component: ProcessView, props: { mode: 'audit' } },
   compare: { component: ProcessView, props: { mode: 'compare' } },

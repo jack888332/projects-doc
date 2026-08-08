@@ -3079,19 +3079,19 @@ Voided --> [*]
 
 ## 13. 营收总览
 
-[🔗原型链接](http://localhost:4181/#/billing/revenue-overview)
+[🔗原型链接](http://localhost:10520/#/billing/revenue-overview)
 
-营收总览用于让财务从供应链和客户两个层级集中查看应收账单的收款进度。页面只汇总<a href="#section-10">10. 应收账单模块</a>已经形成的有效账单结果，不替代账单生成、审核、核销或调账操作。
+营收总览用于让财务在顶部已选定的供应链范围内，按店铺及其下属客户集中查看应收账单的收款进度。页面只汇总<a href="#section-10">10. 应收账单模块</a>已经形成的有效账单结果，不替代账单生成、审核、核销或调账操作。
 
-总表先按供应链汇总，再下钻到客户和应收账单。以天马供应链为例，财务可以先确认天马名下全部客户的应收、已收、应收未收和逾期未收金额，再查看其中某个客户的未结账单。
+页面先按所选店铺范围展示应收、已收、应收未收和逾期未收金额，再以客户列表展示该范围内各客户的收款进度及未结账单。
 
 <div id="section-13-1"></div>
 
 ### 13.1 总表回答哪些问题？
 
-1. `供应链汇总`回答每个供应链当前共有多少应收、已经收回多少、仍有多少未收及其中多少已经逾期。
-2. `客户汇总`回答所选供应链下各客户的应收和收款进度，并定位具体未结账单。
-3. 同一统计条件下，供应链汇总金额必须等于其下全部客户汇总金额，客户汇总金额必须等于其下全部有效应收账单的币种汇总金额。
+1. `店铺金额总览`回答当前供应链全部店铺或所选店铺共有多少应收、已经收回多少、仍有多少未收及其中多少已经逾期。
+2. `客户汇总`回答所选店铺范围内各客户的应收和收款进度，并定位具体未结账单。
+3. 同一统计条件下，店铺金额总览必须等于客户汇总列表金额之和，客户金额必须等于其下全部有效应收账单的币种汇总金额。
 4. 总表只用于查询、下钻和导出，不允许直接修改账单金额、核销金额、信用期或账单状态。
 
 <div id="section-13-2"></div>
@@ -3116,21 +3116,21 @@ Voided --> [*]
 
 <div id="section-13-3"></div>
 
-### 13.3 供应链和客户怎样归属？
+### 13.3 店铺和客户怎样归属？
 
-1. 应收账单首次形成时，系统必须把客户当时所属供应链保存为`供应链快照`。
-2. 供应链汇总按账单的`供应链快照`分组，不按客户当前所属供应链回溯改写历史账单。
-3. 客户后来更换供应链时，变更前形成的账单仍归原供应链，变更后形成的新账单归新供应链。
-4. 账单未能取得供应链时归入`未归属供应链`，不得遗漏；财务应可下钻查看并推动客户资料修正。
-5. 客户汇总按`客户主体 + 结算币种`形成一行，客户名称、客户编号和会员编码均须展示并支持查询。
+1. 应收账单首次形成时，系统必须保存客户当时所属的`供应链快照`和`店铺快照`。
+2. 页面范围由顶部已选定供应链确定；店铺金额总览按账单的`店铺快照`分组，不按客户当前所属店铺回溯改写历史账单。
+3. 客户后来更换供应链或店铺时，变更前形成的账单仍归原供应链和原店铺，变更后形成的新账单归新供应链和新店铺。
+4. 当前供应链范围内未能取得店铺的账单归入`未归属店铺`，不得遗漏。
+5. 客户明细按`店铺快照 + 客户主体 + 结算币种`形成一行，客户名称、客户编号和会员编码均须展示并支持查询。
 
 <div id="section-13-4"></div>
 
 ### 13.4 不同币种怎样展示？
 
-1. 不同结算币种不得直接相加。供应链汇总和客户汇总均按结算币种分别展示金额。
-2. 页面默认选择`CNY`，财务可以切换结算币种；切换后，指标卡和列表必须同时刷新为所选币种。
-3. 同一供应链或客户同时存在多个结算币种时，每个币种分别形成汇总记录。
+1. 不同结算币种不得直接相加。店铺金额总览和客户汇总均按结算币种分别展示金额。
+2. 结算币种默认不选；未选择时客户列表按币种分别展示记录，店铺金额总览不得跨币种合计。选择结算币种后，金额总览和列表必须同时刷新为所选币种。
+3. 同一店铺或客户同时存在多个结算币种时，每个币种分别形成汇总记录。
 4. 总表导出必须保留结算币种，并沿用页面筛选条件；不得把不同结算币种折算后伪装为同一结算币种。
 
 <div id="section-13-5"></div>
@@ -3139,10 +3139,10 @@ Voided --> [*]
 
 | 区域 | 业务字段 | 交互与约束 |
 | :--- | :--- | :--- |
-| 筛选区 | 供应链、客户名称 / 客户编号 / 会员编码、结算币种、未收状态、账期范围 | 支持查询和重置。结算币种必选且默认`CNY`；账期范围按账单账期筛选，不表示历史时点回放。 |
-| 金额总览区 | 应收金额、已收金额、应收未收、逾期未收 | 四项指标使用相同筛选条件和结算币种；任一指标不得跨币种合计。 |
-| 供应链汇总 | 供应链名称、供应链编码、客户数、结算币种、应收金额<br>已收金额、应收未收、逾期未收、待审核金额、账单数<br>未结账单数、最早到期日、状态 | 默认显示该标签。点击`看客户`时带入当前供应链条件并切换到客户汇总；`客户数`按客户主体去重。 |
-| 客户汇总 | 客户名称、客户编号、会员编码、供应链、结算币种<br>应收金额、已收金额、应收未收、逾期未收、待审核金额<br>账单数、未结账单数、最早到期日、状态 | 供应链条件为空时显示全部客户；点击`查看账单`打开该客户在当前条件下的应收账单明细。 |
+| 店铺范围区 | 店铺 | 位于页面标题下方左侧，默认不选具体店铺并显示当前供应链下全部店铺；选择店铺后，店铺金额总览和客户汇总列表同步收敛到该店铺。 |
+| 店铺金额总览区 | 应收金额、已收金额、应收未收、逾期未收 | 四项指标使用相同店铺范围、筛选条件和结算币种；任一指标不得跨币种合计。 |
+| 客户筛选区 | 客户名称 / 客户编号 / 会员编码、结算币种、未收状态、账期范围 | 客户、结算币种和未收状态默认不选；结算币种为空时金额总览不做跨币种合计。账期范围按账单账期筛选，不表示历史时点回放。 |
+| 客户汇总列表 | 客户名称、客户编号、会员编码、所属店铺、结算币种<br>应收金额、已收金额、应收未收、逾期未收、待审核金额<br>账单数、未结账单数、最早到期日、状态 | 仅展示当前店铺范围内的客户汇总记录；客户可查看当前条件下的应收账单明细。 |
 | 客户账单明细 | 应收账单编号、账期、信用期结束日、应收金额、已收金额<br>应收未收金额、账单状态、账单发出时间 | 默认只列当前筛选范围内的有效应收账单；账单编号可进入应收账单详情，查看和处理权限按<a href="#section-10">10. 应收账单模块</a>执行。 |
 
 `未收状态`取值为`全部`、`逾期`、`未逾期`：`逾期`表示信用期已经结束且未结金额大于零；`未逾期`表示未结金额大于零且信用期尚未结束。
@@ -3151,10 +3151,10 @@ Voided --> [*]
 
 ### 13.6 查询、刷新与导出
 
-1. 页面打开、主动查询或完成有效核销、核销冲正、账单审核、账单作废、替换生成后，总表必须读取最新的账单和币种汇总结果。
-2. 页面应展示数据最近刷新时间；列表与金额总览区必须基于同一次查询结果返回，不允许分批刷新造成金额短暂不一致。
-3. 点击`导出总表`时，系统按当前标签、筛选条件和结算币种创建异步导出任务。导出内容只包含总表汇总和下钻账单字段，不替代客户对账报表。
-4. 财务只能查看其数据权限范围内的供应链和客户；导出范围不得超出页面查询权限。
+1. 页面打开或完成有效核销、核销冲正、账单审核、账单作废、替换生成后，总表必须读取最新的账单和币种汇总结果。
+2. 客户汇总列表与店铺金额总览必须基于同一次查询结果返回，不允许分批刷新造成金额短暂不一致。
+3. 点击`导出`时，系统按当前店铺、筛选条件和结算币种创建异步导出任务。导出内容包含店铺金额总览、客户汇总和下钻账单字段，不替代客户对账报表。
+4. 财务只能查看顶部已选定供应链及其数据权限范围内的店铺和客户；导出范围不得超出页面查询权限。
 5. 当汇总金额与账单明细不一致时，页面应阻止导出并提示重新查询；系统不得以页面临时计算值覆盖账单结果。
 
 <div id="section-14"></div>
@@ -3942,6 +3942,8 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 | `ofp_ofdb1.sale_order_additional_matter` | 费项纵表 | 一项附加事项；同一业务订单可以对应多条记录 | `sale_order_id`、`bill_waybill_no`、`sub_bill_waybill_no` | 业务订单或尾程包裹 | `sale_order_id`关联业务订单，收款运单号和子运单号记录附加费涉及的尾程运单；两种导入入口的差异见<a href="#section-19-2-3-5">19.2.3.5 同一张附加事项表，为什么要区分两种导入？</a>。 |
 | `ofp_ofdb1.claim_order` | 业务事件纵表 | 一笔理赔；同一订单编号可以对应多条记录 | `order_code` | 业务订单 | 同一业务订单可以存在多条独立的理赔记录。 |
 
+`ofp_ofdb1.sale_order_package_fee.type`和`ofp_ofdb1.sale_order_fee_detail.type`采用相同口径：`1`表示应收，`2`表示成本。客户侧费项使用应收数据，成本数据由成本中心处理；其它值没有已定义的业务含义。
+
 订单费项报表导入的数据先按尾程包裹粒度写入`ofp_ofdb1.sale_order_package_fee`，再汇总为业务订单粒度的`ofp_ofdb1.sale_order_fee_detail`。前者保留包裹级回款明细，后者承接订单级汇总；两张表不得被理解为两份彼此独立的回款来源。
 
 订单主表和订单扩展表中的金额在订单出库前仍可能变化，金额稳定过程见<a href="#section-19-2-4">19.2.4 费项重算窗口</a>。附加事项和理赔以新增记录表达新增业务事实，不在订单原记录中继续增加金额字段。
@@ -3956,7 +3958,7 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `ofp_ofdb1.sale_order_header` | `member_code`<br>`shop_id`<br>`sc_id`<br>`order_type`<br>`country_code`<br>`dest_warehouse_code`<br>`warehouse_code` | -- | `delivery_time` | -- | -- | `currency`<br>`currency_code`<br>`dest_country_currency_code` |
 | `ofp_ofdb1.sale_order_header_extend` | -- | -- | `order_completed_time` | -- | -- | -- |
-| `ofp_ofdb1.sale_order_additional_matter` | -- | `fee_item_type` | `create_time` | -- | `payment_method`<br>`fee_pay_status` | `fee_amount_currency`<br>`convert_fee_amount_currency` |
+| `ofp_ofdb1.sale_order_additional_matter` | -- | `fee_item_type` | `create_time` | -- | `payment_method`<br>`fee_pay_status` | `fee_amount_currency` |
 | `ofp_ofdb1.claim_order` | `member_code`<br>`user_id`<br>`dealer_shop_id` | -- | `update_time` | `status`<br>`customer_service_audit_status`<br>`finance_audit_status` | `payment_status` | `currency`<br>`real_currency` |
 
 字段使用口径如下：
@@ -3993,8 +3995,7 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 .fee-source-table .source-extend { background-color: #f4cccc; }
 .fee-source-table .source-header { background-color: #d9ead3; }
 .fee-source-table .source-package-fee { background-color: #d9eaf7; }
-.fee-source-table .source-fee-detail { background-color: #f4cccc; }
-.fee-source-table .source-claim { background-color: #d9ead3; }
+.fee-source-table .source-claim { background-color: #fff2cc; }
 .fee-source-table .source-additional { background-color: #ffffff; }
 </style>
 <table class="fee-source-table">
@@ -4003,9 +4004,9 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
       <th>OIS 字段或筛选条件</th>
       <th>费项名称</th>
       <th>挂靠对象</th>
-      <th>费项类型（费项索引）</th>
-      <th>是否为机算费项</th>
-      <th>最早形成阶段</th>
+      <th>费项类型</th>
+      <th>是否机算费项</th>
+      <th>最早产生时刻</th>
     </tr>
   </thead>
   <tbody>
@@ -4034,11 +4035,10 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.collection_premium_amount</code></td><td>代收货款手续费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.cod_price</code></td><td>到付金额</td><td>业务订单</td><td>非费项</td><td><code>是</code></td><td>下单核价</td></tr>
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.cod_amount</code></td><td>货到付款手续费</td><td>业务订单</td><td>非费项</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.recovery_money</code></td><td>实收回款（包裹级）</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td></tr>
-    <tr class="source-fee-detail"><td><code>ofp_ofdb1.sale_order_fee_detail.collection</code></td><td>应返货款</td><td>业务订单</td><td>代收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-fee-detail"><td><code>ofp_ofdb1.sale_order_fee_detail.recovery_money</code></td><td>实收回款</td><td>业务订单</td><td>非费项</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-fee-detail"><td><code>ofp_ofdb1.sale_order_fee_detail.receivable_collection_amount</code></td><td>代收货款手续费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-fee-detail"><td><code>ofp_ofdb1.sale_order_fee_detail.resend_fee</code></td><td>重出费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.collection</code></td><td>应返货款</td><td>尾程包裹</td><td>代收类</td><td><code>否</code></td><td>订单费项报表导入</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.recovery_money</code></td><td>实收回款</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable_collection_amount</code></td><td>代收货款手续费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.resend_fee</code></td><td>重出费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td></tr>
     <tr class="source-claim"><td><code>ofp_ofdb1.claim_order.claim_amount</code></td><td>理赔费</td><td>业务订单</td><td>应收扣减类</td><td><code>否</code></td><td>--</td></tr>
     <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超材费"</code></td><td>超材费</td><td>尾程包裹</td><td>应收类</td><td><code>可能</code></td><td>--</td></tr>
     <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="转板费"</code></td><td>转板费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
@@ -4072,7 +4072,7 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 1. `是否为机算费项`为`是`，表示当前存在明确的系统计算或汇总过程；为`否`，表示当前没有明确的系统计算过程，数据来自历史兼容字段、人工登记、后置录入或外部导入；为`可能`，表示同名费项在不同业务场景下可能属于机算费项，也可能由人工登记或外部导入产生。
 2. `最早形成阶段`为`--`，表示当前没有统一、明确的形成阶段；`下单核价`早于`业务订单完成核重`，后者发生在尾程包裹完成核重并回填费用之后。
 3. 订单主表和订单扩展表中存在名称相同或相近的费项字段。
-4. 订单费项报表导入后，`sale_order_package_fee.recovery_money`保存尾程包裹级实收回款，`sale_order_fee_detail.recovery_money`保存由包裹明细汇总形成的业务订单级实收回款。两者属于同一来源链的不同粒度，均为返款或资金核对事实，不是普通应收费项；`sale_order_fee_detail.collection`记录的应返货款属于代收类资金。
+4. 表中订单费项报表字段按包裹级来源`sale_order_package_fee`列示；`sale_order_fee_detail`保存由包裹明细形成的业务订单级汇总，不在表中重复展开。`recovery_money`属于返款或资金核对事实，不是普通应收费项；`collection`记录的应返货款属于代收类资金。
 5. 附加事项通过`fee_item_type`区分费项；上表所列附加费按`附加费用报表导入`口径挂靠尾程包裹。两种导入入口的差异见<a href="#section-19-2-3-5">19.2.3.5 同一张附加事项表，为什么要区分两种导入？</a>。
 6. `代收货款`和`应返货款`属于代收类资金，用于返款账单、回款管理或对账；`cod_price`和`实收回款`属于非费项核对事实。费项类型和账单用途见<a href="#section-9-9-3-2">9.9.3.2 费项索引怎样定义费项类型？</a>。
 
@@ -4187,7 +4187,7 @@ graph TD
 
 | 页面 | 稳定原型路径 |
 | :--- | :--- |
-| 营收总览 | [🔗原型链接](http://localhost:4181/#/billing/revenue-overview) |
+| 营收总览 | [🔗原型链接](http://localhost:10520/#/billing/revenue-overview) |
 | 应收账单 | [🔗原型链接](http://localhost:4181/#/billing/receivable-bills) |
 | 返款账单 | [🔗原型链接](http://localhost:4181/#/billing/refund-bills) |
 | 回款管理 | [🔗原型链接](http://localhost:4181/#/billing/remittance) |
@@ -4232,7 +4232,7 @@ rectangle tree [
 
 | 所属标签路径 | 真实菜单 | 主要能力 | 对应需求章节 |
 | :--- | :--- | :--- | :--- |
-| 财务日常 | 营收总览 | 按供应链和客户查看应收、已收、应收未收及逾期未收金额，并下钻到具体应收账单 | <a href="#section-13">13. 营收总览</a> |
+| 财务日常 | 营收总览 | 在当前供应链范围内按店铺及其下属客户查看应收、已收、应收未收及逾期未收金额，并下钻到具体应收账单 | <a href="#section-13">13. 营收总览</a> |
 | 财务日常 | 应收账单 | 查询、审核、发送、结算、补录、冲正、核销及跟踪应收账单异常 | <a href="#section-10">10. 应收账单模块</a> |
 | 财务日常 | 返款账单 | 查询、审核、发送和结清返款账单，核对 COD 货款、扣减项及应返金额 | <a href="#section-11">11. 返款账单模块</a> |
 | 财务日常 | 回款管理 | 登记和核对派送商回款，查看回款状态及回款金额 | <a href="#section-12">12. 回款管理</a> |

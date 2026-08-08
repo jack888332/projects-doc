@@ -382,6 +382,11 @@ function routePath() {
 
 function applyRouteFromLocation() {
   const path = routePath();
+  if (path === billingPaths.base) {
+    state.domain = "billing";
+    state.billingView = "tasks";
+    return true;
+  }
   const billingRoute = Object.entries(billingPaths).find(([, value]) => value === path);
   if (billingRoute) {
     state.domain = "billing";
@@ -445,7 +450,6 @@ const billingNavigation = `
   <button class="nav-item" data-billing-view="rates"><i data-lucide="coins"></i><span>汇率配置</span></button>
   <div class="nav-group-label">过程管控</div>
   <button class="nav-item" data-billing-view="tasks"><i data-lucide="clipboard-list"></i><span>生成任务</span><span class="nav-count warn">4</span></button>
-  <button class="nav-item" data-billing-view="base"><i data-lucide="settings-2"></i><span>基础配置</span></button>
   <button class="nav-item" data-billing-view="exports"><i data-lucide="download"></i><span>导出管理</span></button>
   <button class="nav-item" data-billing-view="audit"><i data-lucide="shield-check"></i><span>内部审计</span></button>
   <div class="nav-group-label">辅助测试</div>
@@ -1103,7 +1107,7 @@ function renderView() {
   if (state.domain === "billing") {
     unmountBillingView();
     content.innerHTML='<div id="billing-module" class="billing-content"></div>';
-    billingVueApp = createApp(BillingApp, { initialMenu: state.billingView, embedded: true });
+    billingVueApp = createApp(BillingApp, { initialMenu: state.billingView, initialTaskTab: routePath() === billingPaths.base ? "base" : "list", embedded: true });
     billingVueApp.use(ElementPlus);
     billingVueApp.mount("#billing-module");
     document.querySelector(".current-route").textContent=billingRouteNames[state.billingView] || "生成任务";

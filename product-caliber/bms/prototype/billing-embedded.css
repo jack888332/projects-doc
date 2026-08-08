@@ -1,4 +1,4 @@
-@import "./src/billing/module-pages.css";
+@import "./src/shared/styles/module-pages.css";
 
 :root {
   --el-font-family: var(--font-family-ui);

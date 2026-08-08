@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { Plus, UploadFilled } from '@element-plus/icons-vue'
 import FeeCurrencyRules from './FeeCurrencyRules.vue'
 

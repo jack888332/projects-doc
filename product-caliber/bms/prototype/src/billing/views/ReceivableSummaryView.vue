@@ -1,13 +1,13 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { Download, View } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import ConditionFilter from '../components/ConditionFilter.vue'
-import MetricGrid from '../components/MetricGrid.vue'
-import PageHeader from '../components/PageHeader.vue'
-import StackedCell from '../components/StackedCell.vue'
-import StatusTag from '../components/StatusTag.vue'
-import TablePagination from '../components/TablePagination.vue'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
+import ConditionFilter from '../../shared/components/ConditionFilter.vue'
+import MetricGrid from '../../shared/components/MetricGrid.vue'
+import PageHeader from '../../shared/components/PageHeader.vue'
+import StackedCell from '../../shared/components/StackedCell.vue'
+import StatusTag from '../../shared/components/StatusTag.vue'
+import TablePagination from '../../shared/components/TablePagination.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const detailVisible = ref(false)

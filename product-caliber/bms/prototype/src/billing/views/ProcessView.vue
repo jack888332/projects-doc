@@ -1,13 +1,14 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { Check, Delete, Download, EditPen, Plus, RefreshRight, Setting, Upload, View } from '@element-plus/icons-vue'
-import MetricGrid from '../components/MetricGrid.vue'
-import HoverActionMenu from '../components/HoverActionMenu.vue'
-import ConditionFilter from '../components/ConditionFilter.vue'
-import PageHeader from '../components/PageHeader.vue'
-import StackedCell from '../components/StackedCell.vue'
-import StatusTag from '../components/StatusTag.vue'
+import MetricGrid from '../../shared/components/MetricGrid.vue'
+import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
+import ConditionFilter from '../../shared/components/ConditionFilter.vue'
+import PageHeader from '../../shared/components/PageHeader.vue'
+import StackedCell from '../../shared/components/StackedCell.vue'
+import StatusTag from '../../shared/components/StatusTag.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const props = defineProps({

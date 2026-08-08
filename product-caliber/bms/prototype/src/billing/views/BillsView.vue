@@ -1,15 +1,15 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { Download, RefreshRight, Setting, View } from '@element-plus/icons-vue'
 import BillDetailPanel from '../components/BillDetailPanel.vue'
-import ConditionFilter from '../components/ConditionFilter.vue'
-import HoverActionMenu from '../components/HoverActionMenu.vue'
-import MetricGrid from '../components/MetricGrid.vue'
-import PageHeader from '../components/PageHeader.vue'
-import SegmentedControl from '../components/SegmentedControl.vue'
-import StatusTag from '../components/StatusTag.vue'
-import TablePagination from '../components/TablePagination.vue'
+import ConditionFilter from '../../shared/components/ConditionFilter.vue'
+import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
+import MetricGrid from '../../shared/components/MetricGrid.vue'
+import PageHeader from '../../shared/components/PageHeader.vue'
+import SegmentedControl from '../../shared/components/SegmentedControl.vue'
+import StatusTag from '../../shared/components/StatusTag.vue'
+import TablePagination from '../../shared/components/TablePagination.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const props = defineProps({ billType: { type: String, required: true } })

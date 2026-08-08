@@ -1,6 +1,6 @@
 <script setup>
 import { Delete, Plus } from '@element-plus/icons-vue'
-import HoverActionMenu from './HoverActionMenu.vue'
+import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
 
 const props = defineProps({
   scheme: { type: Object, required: true },

@@ -1,9 +1,9 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { Download, EditPen, Search } from '@element-plus/icons-vue'
-import StatusTag from './StatusTag.vue'
-import TablePagination from './TablePagination.vue'
+import StatusTag from '../../shared/components/StatusTag.vue'
+import TablePagination from '../../shared/components/TablePagination.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const props = defineProps({

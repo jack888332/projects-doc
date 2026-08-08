@@ -1,0 +1,1 @@
+import{C as e}from"./CostCenterView-BlGr8frR.js";import{s as r,o}from"./vue-core-DSSwSyjy.js";import"./element-plus-BtzXgEsu.js";import"./element-icons-CPc6AQLt.js";import"./StackedCell-Dx9Zms_S.js";import"./index-B_yaGn72.js";import"./storage-BI9htgXh.js";const w={__name:"OverviewView",setup(t){return(i,p)=>(o(),r(e,{"initial-view":"overview"}))}};export{w as default};

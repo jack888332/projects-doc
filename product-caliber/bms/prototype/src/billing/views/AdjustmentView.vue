@@ -1,11 +1,12 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { Check, Delete, Download, EditPen, UploadFilled, View } from '@element-plus/icons-vue'
-import ConditionFilter from '../components/ConditionFilter.vue'
-import HoverActionMenu from '../components/HoverActionMenu.vue'
-import PageHeader from '../components/PageHeader.vue'
-import StatusTag from '../components/StatusTag.vue'
+import ConditionFilter from '../../shared/components/ConditionFilter.vue'
+import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
+import PageHeader from '../../shared/components/PageHeader.vue'
+import StatusTag from '../../shared/components/StatusTag.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const query = reactive({ keyword: '', status: '', type: '' })

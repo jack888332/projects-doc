@@ -1,0 +1,1 @@
+import{C as t}from"./CostCenterView-BlGr8frR.js";import{s as o,o as r}from"./vue-core-DSSwSyjy.js";import"./element-plus-BtzXgEsu.js";import"./element-icons-CPc6AQLt.js";import"./StackedCell-Dx9Zms_S.js";import"./index-B_yaGn72.js";import"./storage-BI9htgXh.js";const l={__name:"ProfitView",setup(i){return(e,p)=>(r(),o(t,{"initial-view":"profit"}))}};export{l as default};

@@ -1,8 +1,9 @@
 <script setup>
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { Delete, Download, EditPen, Plus, RefreshRight, View } from '@element-plus/icons-vue'
-import HoverActionMenu from '../components/HoverActionMenu.vue'
-import TablePagination from '../components/TablePagination.vue'
+import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
+import TablePagination from '../../shared/components/TablePagination.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const baseRates = useDemoDataset('billingBaseRates', [

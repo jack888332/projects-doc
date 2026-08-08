@@ -1,7 +1,8 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import dayjs from 'dayjs'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index.mjs'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import {
   ArrowDown, Bell, CircleCheck, Clock, Coin, Delete, DocumentChecked,
   Download, Expand, Failed, Fold, List, Menu, Operation, QuestionFilled,
@@ -14,11 +15,11 @@ import RemittanceView from './views/RemittanceView.vue'
 import ReceivableSummaryView from './views/ReceivableSummaryView.vue'
 import AdjustmentView from './views/AdjustmentView.vue'
 import ProcessView from './views/ProcessView.vue'
-import ConditionFilter from './components/ConditionFilter.vue'
-import HoverActionMenu from './components/HoverActionMenu.vue'
-import StackedCell from './components/StackedCell.vue'
-import StatusTag from './components/StatusTag.vue'
-import TablePagination from './components/TablePagination.vue'
+import ConditionFilter from '../shared/components/ConditionFilter.vue'
+import HoverActionMenu from '../shared/components/HoverActionMenu.vue'
+import StackedCell from '../shared/components/StackedCell.vue'
+import StatusTag from '../shared/components/StatusTag.vue'
+import TablePagination from '../shared/components/TablePagination.vue'
 import { useDemoDataset } from './data/useDemoDataset.js'
 
 const props = defineProps({

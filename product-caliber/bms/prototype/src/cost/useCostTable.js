@@ -1,27 +1,28 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { DEMO_DATA_CHANGED_EVENT, prototypeDb } from '../data/prototypeDb.js'
+import { DEMO_DATA_CHANGED_EVENT } from '../data/prototypeDb.js'
+import { createRepository } from '../data/repository.js'
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
 
 export function useCostTable(tableName) {
+  const repository = createRepository(tableName)
   const rows = ref([])
   const ready = ref(false)
+  let persistedRows = []
   let saveTimer = null
 
   async function hydrate() {
     window.clearTimeout(saveTimer)
     ready.value = false
-    rows.value = await prototypeDb.table(tableName).toArray()
+    rows.value = await repository.list()
+    persistedRows = clone(rows.value)
     ready.value = true
   }
 
   async function persist() {
-    const table = prototypeDb.table(tableName)
     const snapshot = clone(rows.value)
-    await prototypeDb.transaction('rw', table, async () => {
-      await table.clear()
-      if (snapshot.length) await table.bulkPut(snapshot)
-    })
+    await repository.sync(persistedRows, snapshot)
+    persistedRows = snapshot
   }
 
   function schedulePersist() {

@@ -1,7 +1,8 @@
 <script setup>
-import { computed, nextTick, reactive, ref } from 'vue'
-import { ArrowDown, CircleClose, Download, Search, View } from '@element-plus/icons-vue'
+import { computed, reactive, ref } from 'vue'
+import { Download, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import ConditionFilter from '../components/ConditionFilter.vue'
 import MetricGrid from '../components/MetricGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StackedCell from '../components/StackedCell.vue'
@@ -11,10 +12,6 @@ import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const detailVisible = ref(false)
 const selectedSummary = ref(null)
-const customerPanelVisible = ref(false)
-const customerReferenceRef = ref(null)
-const periodPickerRef = ref(null)
-const customerSearch = ref('')
 const query = reactive({
   shop: '',
   customerNo: '',
@@ -38,33 +35,10 @@ const money = (value, currency = query.currency) => `${Number(value).toLocaleStr
 const shops = computed(() => [...new Set(records.value.map((row) => row.shop))])
 const customers = computed(() => [...new Map(records.value.map((row) => [row.customerNo, {
   value: row.customerNo,
-  customer: row.customer,
-  customerNo: row.customerNo,
-  memberCode: row.memberCode,
+  label: row.customer,
+  secondary: `${row.customerNo} / ${row.memberCode}`,
 }])).values()])
 const selectedCustomer = computed(() => customers.value.find((item) => item.value === query.customerNo))
-const selectedShopLabel = computed(() => query.shop || '请选择')
-const selectedCustomerLabel = computed(() => selectedCustomer.value?.customer || query.customerNo || '请选择')
-const dateFormatter = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
-const periodLabel = computed(() => query.period?.length === 2
-  ? `${dateFormatter.format(query.period[0])} - ${dateFormatter.format(query.period[1])}`
-  : '请选择')
-const filterMeasureContext = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d')
-const measureFilterText = (text, weight) => {
-  if (!filterMeasureContext || !document.body) return String(text).length * 7
-  const bodyStyle = getComputedStyle(document.body)
-  filterMeasureContext.font = `${weight} ${bodyStyle.fontSize} ${bodyStyle.fontFamily}`
-  return filterMeasureContext.measureText(String(text)).width
-}
-const filterContentWidth = (label, value, selected = false) => {
-  const textWidth = measureFilterText(label, 400) + measureFilterText(value, selected ? 600 : 400)
-  return { '--filter-content-width': `${Math.ceil(textWidth + 60)}px` }
-}
-const filteredCustomers = computed(() => {
-  const keyword = customerSearch.value.trim().toLowerCase()
-  if (!keyword) return customers.value
-  return customers.value.filter((item) => `${item.customer}${item.customerNo}${item.memberCode}`.toLowerCase().includes(keyword))
-})
 
 const filteredRecords = computed(() => records.value.filter((row) => {
   const [periodStart, periodEnd] = query.period || []
@@ -110,41 +84,8 @@ function openDetail(row) {
   selectedSummary.value = row
   detailVisible.value = true
 }
-function selectCustomer(value) {
-  query.customerNo = value
-  customerPanelVisible.value = false
-  customerSearch.value = ''
-}
-async function applyCustomerSearch(event) {
-  if (event?.isComposing) return
-  const value = customerSearch.value.trim()
-  if (!value) return
-  query.customerNo = value
-  customerPanelVisible.value = false
-  customerSearch.value = ''
-  event?.target?.blur()
-  await nextTick()
-  customerReferenceRef.value?.blur()
-  window.getSelection()?.removeAllRanges()
-}
-function clearCustomer() {
-  query.customerNo = ''
-  customerSearch.value = ''
-}
-function clearPeriod() {
-  query.period = []
-  periodPickerRef.value?.handleClose()
-}
-function openPeriodPicker() {
-  periodPickerRef.value?.handleOpen()
-}
-function closePeriodPicker() {
-  periodPickerRef.value?.handleClose()
-}
 function resetFilters() {
   Object.assign(query, { shop: '', customerNo: '', currency: '', overdue: '', period: [] })
-  customerSearch.value = ''
-  closePeriodPicker()
 }
 </script>
 
@@ -158,64 +99,19 @@ function resetFilters() {
 
     <div class="summary-dimension-heading"><strong>店铺</strong></div>
     <div class="summary-scope-row">
-      <div class="filter-token shop-filter-token adaptive-filter-width" :class="{ active: query.shop }" :style="filterContentWidth('店铺', selectedShopLabel, Boolean(query.shop))">
-        <span class="filter-token-label">店铺</span>
-        <el-select v-model="query.shop" class="summary-shop-select" placeholder="请选择" clearable aria-label="店铺范围">
-          <el-option v-for="item in shops" :key="item" :label="item" :value="item" />
-        </el-select>
-      </div>
+      <ConditionFilter v-model="query.shop" label="店铺" :options="shops" />
     </div>
     <MetricGrid :items="kpis" />
 
     <div class="summary-dimension-heading customer-dimension-heading"><strong>客户</strong></div>
 
-    <section class="module-panel query-panel receivable-summary-query">
-      <div class="inline-filter-bar">
-        <div class="filter-token customer-filter-token adaptive-filter-width" :class="{ active: query.customerNo }" :style="filterContentWidth('客户', selectedCustomerLabel, Boolean(query.customerNo))">
-          <span class="filter-token-label">客户</span>
-          <el-popover v-model:visible="customerPanelVisible" placement="bottom-start" :width="360" trigger="click">
-            <template #reference>
-              <div ref="customerReferenceRef" class="customer-filter-reference" role="button" tabindex="0" aria-label="客户筛选" @keydown.enter.space.prevent="customerPanelVisible = !customerPanelVisible">
-                <span class="customer-filter-value">{{ selectedCustomerLabel }}</span>
-                <el-icon v-if="query.customerNo" class="filter-token-clear" role="button" tabindex="0" aria-label="清除客户" title="清除客户" @click.stop="clearCustomer" @keydown.enter.space.stop.prevent="clearCustomer"><CircleClose /></el-icon>
-                <el-icon v-else class="filter-token-arrow"><ArrowDown /></el-icon>
-              </div>
-            </template>
-            <div class="customer-filter-panel">
-              <el-input v-model="customerSearch" :prefix-icon="Search" placeholder="搜索名称 / 客户编号 / 会员编码" clearable @keyup.enter.stop="applyCustomerSearch" />
-              <div class="customer-filter-options">
-                <button v-for="item in filteredCustomers" :key="item.value" type="button" :class="{ active: query.customerNo === item.value }" @click="selectCustomer(item.value)">
-                  <strong>{{ item.customer }}</strong>
-                  <small>{{ item.customerNo }} / {{ item.memberCode }}</small>
-                </button>
-                <div v-if="!filteredCustomers.length" class="customer-filter-empty">未找到匹配客户</div>
-              </div>
-            </div>
-          </el-popover>
-        </div>
-        <div class="filter-token currency-filter-token adaptive-filter-width" :class="{ active: query.currency }" :style="filterContentWidth('结算币种', query.currency || '请选择', Boolean(query.currency))">
-          <span class="filter-token-label">结算币种</span>
-          <el-select v-model="query.currency" placeholder="请选择" clearable aria-label="结算币种">
-            <el-option v-for="item in ['CNY','USD']" :key="item" :label="item" :value="item" />
-          </el-select>
-        </div>
-        <div class="filter-token status-filter-token adaptive-filter-width" :class="{ active: query.overdue }" :style="filterContentWidth('未收状态', query.overdue || '请选择', Boolean(query.overdue))">
-          <span class="filter-token-label">未收状态</span>
-          <el-select v-model="query.overdue" placeholder="请选择" clearable aria-label="未收状态">
-            <el-option label="逾期" value="逾期" />
-            <el-option label="未逾期" value="未逾期" />
-          </el-select>
-        </div>
-        <div class="filter-token period-filter-token adaptive-filter-width" :class="{ active: query.period?.length }" :style="filterContentWidth('账期范围', periodLabel, Boolean(query.period?.length))">
-          <span class="filter-token-label">账期范围</span>
-          <div class="period-filter-reference" role="button" tabindex="0" aria-label="账期范围" @click="openPeriodPicker" @keydown.enter.space.prevent="openPeriodPicker">
-            <span class="period-filter-value">{{ periodLabel }}</span>
-            <el-icon v-if="query.period?.length" class="filter-token-clear" role="button" tabindex="0" aria-label="清除账期范围" title="清除账期范围" @click.stop="clearPeriod" @keydown.enter.space.stop.prevent="clearPeriod"><CircleClose /></el-icon>
-            <el-icon v-else class="filter-token-arrow"><ArrowDown /></el-icon>
-          </div>
-          <el-date-picker ref="periodPickerRef" v-model="query.period" class="period-picker-anchor" type="daterange" :editable="false" tabindex="-1" aria-hidden="true" @change="closePeriodPicker" />
-        </div>
-        <div class="filter-actions">
+    <section class="condition-query-panel receivable-summary-query">
+      <div class="condition-filter-bar">
+        <ConditionFilter v-model="query.customerNo" label="客户" type="text" :options="customers" search-placeholder="搜索名称 / 客户编号 / 会员编码" :popover-width="360" />
+        <ConditionFilter v-model="query.currency" label="结算币种" :options="['CNY','USD']" />
+        <ConditionFilter v-model="query.overdue" label="未收状态" :options="['逾期','未逾期']" />
+        <ConditionFilter v-model="query.period" label="账期范围" type="date-range" />
+        <div class="condition-filter-actions">
           <el-button type="primary" @click="ElMessage.success(`查询完成，共 ${filteredRecords.length} 条`)">查询</el-button>
           <el-button @click="resetFilters">重置</el-button>
         </div>
@@ -267,49 +163,15 @@ function resetFilters() {
 </template>
 
 <style scoped>
-.receivable-summary-page { --summary-vertical-gap: var(--space-3); --filter-control-height: 30px; --filter-control-radius: var(--action-button-radius); --filter-control-padding-inline: var(--space-3); --filter-min-width: 168px; --filter-action-width: 130px; display: flex; flex-direction: column; gap: var(--summary-vertical-gap); }
+.receivable-summary-page { --summary-vertical-gap: var(--space-3); display: flex; flex-direction: column; gap: var(--summary-vertical-gap); }
 .receivable-summary-page :deep(.module-heading), .receivable-summary-page :deep(.module-kpis) { margin-bottom: 0; }
 .summary-scope-row { margin: 0; padding: 0; display: flex; gap: var(--space-3); }
-.adaptive-filter-width { width: max(var(--filter-min-width), var(--filter-content-width)); min-width: var(--filter-min-width); max-width: 100%; }
-.summary-shop-select { min-width: 0; flex: 1; }
 .summary-dimension-heading { min-height: 38px; display: flex; align-items: center; border-bottom: 1px solid var(--border); }
 .customer-dimension-heading { margin-top: var(--space-2); }
 .summary-dimension-heading strong { position: relative; height: 38px; padding-left: var(--space-3); display: inline-flex; align-items: center; color: var(--primary); font-size: var(--section-title-font-size); font-weight: var(--font-weight-semibold); }
 .summary-dimension-heading strong::before { content: ""; position: absolute; left: 0; width: 5px; height: 16px; background: var(--primary); }
-.receivable-summary-query { margin: 0; padding: 0 !important; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-.inline-filter-bar { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-.filter-actions { width: var(--filter-action-width); flex: 0 0 var(--filter-action-width); display: flex; gap: var(--space-2); }
-.filter-actions :deep(.el-button) { width: calc((var(--filter-action-width) - var(--space-2)) / 2); height: var(--filter-control-height) !important; min-height: var(--filter-control-height); margin: 0; padding: 0 var(--filter-control-padding-inline); border-radius: var(--filter-control-radius); }
-.filter-token { min-width: 0; height: var(--filter-control-height); min-height: var(--filter-control-height); padding: 0 var(--filter-control-padding-inline); display: flex; align-items: center; gap: var(--space-3); border: 1px solid #cfd4de; border-radius: var(--filter-control-radius); background: #fff; transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease; }
-.filter-token.adaptive-filter-width { min-width: var(--filter-min-width); }
-.filter-token:hover { border-color: var(--primary-border); }
-.filter-token:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-focus-ring); }
-.filter-token.active { border-color: var(--primary); background: var(--primary-soft); }
-.filter-token-label { flex: 0 0 auto; color: #232b3b; white-space: nowrap; }
-.customer-filter-reference, .period-filter-reference { min-width: 0; min-height: calc(var(--filter-control-height) - 2px); display: flex; flex: 1; align-items: center; gap: var(--space-2); cursor: pointer; outline: none; }
-.customer-filter-reference:focus-visible, .period-filter-reference:focus-visible { box-shadow: 0 0 0 2px var(--primary-focus-ring) inset; }
-.customer-filter-value, .period-filter-value { min-width: 0; flex: 1; overflow: hidden; color: #7b8494; text-overflow: ellipsis; white-space: nowrap; }
-.filter-token.active .customer-filter-value, .filter-token.active .period-filter-value { color: var(--primary-strong); font-weight: var(--font-weight-semibold); }
-.filter-token-arrow, .filter-token-clear { flex: 0 0 auto; color: #8a93a2; }
-.filter-token-clear:hover { color: var(--primary); }
-.customer-filter-panel { display: grid; gap: var(--space-3); }
-.customer-filter-options { max-height: 250px; overflow-y: auto; border-top: 1px solid var(--border); }
-.customer-filter-options button { width: 100%; min-height: 42px; padding: var(--space-2) var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border: 0; border-bottom: 1px solid #edf0f4; color: #30394b; background: #fff; text-align: left; cursor: pointer; }
-.customer-filter-options button:hover, .customer-filter-options button.active { color: var(--primary); background: var(--primary-soft); }
-.customer-filter-options button strong { overflow: hidden; font-size: var(--content-font-size); font-weight: var(--font-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
-.customer-filter-options button small { flex: 0 0 auto; color: #7b8494; font-size: var(--font-size-sm); }
-.customer-filter-empty { padding: var(--space-5); color: #7b8494; text-align: center; }
-.filter-token > :deep(.el-input), .filter-token > :deep(.el-select), .filter-token > :deep(.el-date-editor) { min-width: 0; flex: 1; }
-.filter-token :deep(.el-input__wrapper), .filter-token :deep(.el-select__wrapper), .filter-token :deep(.el-range-editor.el-input__wrapper) { height: calc(var(--filter-control-height) - 2px); min-height: calc(var(--filter-control-height) - 2px); padding: 0; background: transparent; box-shadow: none !important; }
-.filter-token :deep(.el-input__inner), .filter-token :deep(.el-select__selected-item), .filter-token :deep(.el-range-input) { color: var(--primary-strong); font-weight: var(--font-weight-semibold); }
-.filter-token:not(.active) :deep(.el-input__inner), .filter-token:not(.active) :deep(.el-select__placeholder), .filter-token:not(.active) :deep(.el-range-input) { color: #7b8494; font-weight: 400; }
-.period-filter-token { position: relative; }
-.period-filter-token :deep(.period-picker-anchor) { position: absolute !important; inset: 0; width: 100% !important; height: 100%; opacity: 0 !important; pointer-events: none; }
 .summary-table-panel { overflow: hidden; }
 .outstanding-amount { color: #9a611a; font-variant-numeric: tabular-nums; }
 .overdue-amount { color: #b6424d; font-weight: var(--font-weight-semibold); }
 .summary-bill-table { margin-top: var(--space-4); }
-@media (max-width: 760px) {
-  .adaptive-filter-width { width: 100%; max-width: 100%; }
-}
 </style>

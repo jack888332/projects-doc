@@ -14,6 +14,7 @@ import RemittanceView from './views/RemittanceView.vue'
 import ReceivableSummaryView from './views/ReceivableSummaryView.vue'
 import AdjustmentView from './views/AdjustmentView.vue'
 import ProcessView from './views/ProcessView.vue'
+import ConditionFilter from './components/ConditionFilter.vue'
 import HoverActionMenu from './components/HoverActionMenu.vue'
 import StackedCell from './components/StackedCell.vue'
 import StatusTag from './components/StatusTag.vue'
@@ -563,35 +564,23 @@ function viewResult(row) {
           <el-tab-pane label="任务列表" name="list">
         <section class="panel work-panel task-list-panel">
           <div class="filter-toolbar task-filter-toolbar">
-            <div class="filter-group primary-filters">
-              <el-input v-model="taskQuery.keyword" :prefix-icon="Search" placeholder="任务编号 / 配置 / 客户 / 会员编码" clearable class="keyword-input wide" />
-              <el-select v-model="taskQuery.taskType" placeholder="全部任务类型" clearable @change="handleTaskTypeChange">
-                <el-option v-for="(label, key) in taskTypeMeta" :key="key" :label="label" :value="key" />
-              </el-select>
-              <el-select v-model="taskQuery.status" placeholder="全部任务状态" clearable>
-                <el-option v-for="(meta, key) in statusMeta" :key="key" :label="meta.label" :value="key" />
-              </el-select>
+            <div class="condition-filter-bar">
+              <ConditionFilter v-model="taskQuery.keyword" label="关键词" type="text" search-placeholder="任务编号 / 配置 / 客户 / 会员编码" />
+              <ConditionFilter v-model="taskQuery.taskType" label="任务类型" :options="Object.entries(taskTypeMeta).map(([value, label]) => ({ value, label }))" @change="handleTaskTypeChange" />
+              <ConditionFilter v-model="taskQuery.status" label="任务状态" :options="Object.entries(statusMeta).map(([value, meta]) => ({ value, label: meta.label }))" />
             </div>
-            <div class="filter-actions">
+            <div class="module-toolbar-actions">
               <el-button :icon="Operation" @click="advancedVisible = !advancedVisible">高级筛选</el-button>
               <el-button @click="resetFilters">重置</el-button>
             </div>
           </div>
 
-          <div v-show="advancedVisible" class="advanced-filters">
-            <el-select v-model="taskQuery.generationMode" placeholder="全部账单生成方式" clearable :disabled="!canFilterGenerationMode">
-              <el-option v-for="(label, key) in generationModeMeta" :key="key" :label="label" :value="key" />
-            </el-select>
-            <el-select v-model="taskQuery.triggerType" placeholder="全部触发方式" clearable>
-              <el-option v-for="(label, key) in triggerMeta" :key="key" :label="label" :value="key" />
-            </el-select>
-            <el-select v-model="taskQuery.configType" placeholder="全部配置类型" clearable>
-              <el-option label="默认配置" value="默认配置" /><el-option label="分支配置" value="分支配置" />
-            </el-select>
-            <el-select v-model="taskQuery.shop" placeholder="全部店铺" clearable>
-              <el-option v-for="shop in ['深圳集运店', '义乌集运店', '广州同行店', '上海集运店', '全部店铺']" :key="shop" :label="shop" :value="shop" />
-            </el-select>
-            <el-date-picker v-model="taskQuery.period" type="daterange" range-separator="至" start-placeholder="账期开始日期" end-placeholder="账期结束日期" />
+          <div v-show="advancedVisible" class="advanced-filters condition-filter-bar">
+            <ConditionFilter v-model="taskQuery.generationMode" label="账单生成方式" :options="Object.entries(generationModeMeta).map(([value, label]) => ({ value, label }))" :disabled="!canFilterGenerationMode" />
+            <ConditionFilter v-model="taskQuery.triggerType" label="触发方式" :options="Object.entries(triggerMeta).map(([value, label]) => ({ value, label }))" />
+            <ConditionFilter v-model="taskQuery.configType" label="配置类型" :options="['默认配置','分支配置']" />
+            <ConditionFilter v-model="taskQuery.shop" label="店铺" :options="['深圳集运店','义乌集运店','广州同行店','上海集运店']" />
+            <ConditionFilter v-model="taskQuery.period" label="账期" type="date-range" />
           </div>
 
           <div class="summary-grid prd-summary">

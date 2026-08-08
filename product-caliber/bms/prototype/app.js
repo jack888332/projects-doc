@@ -1,14 +1,10 @@
-import dayjs from "dayjs";
-import "dayjs/locale/zh-cn.js";
-import { createApp, h, ref } from "vue";
-import ElementPlus, { ElConfigProvider, ElDatePicker } from "element-plus";
-import zhCn from "element-plus/es/locale/lang/zh-cn.mjs";
+import { createApp } from "vue";
+import ElementPlus from "element-plus";
 import "element-plus/dist/index.css";
 import BillingApp from "./src/billing/App.vue";
+import CostCenterApp from "./src/cost/App.vue";
 import { notifyDemoDataChanged, prototypeDb } from "./src/data/prototypeDb.js";
 import "./billing-embedded.css";
-
-dayjs.locale("zh-cn");
 
 const sampleFiles = [
   { id: "df-delivery", name: "台湾端派送 （东风.xlsx", supplier: "东风", board: "派送成本", sheets: 24, size: "19.8 MB", defaultSheet: "黑貓" },
@@ -455,7 +451,7 @@ const billingNavigation = `
   <div class="nav-group-label">辅助测试</div>
   <button class="nav-item" data-billing-view="compare"><i data-lucide="search-check"></i><span>报表比对</span></button>
   <button class="nav-item" data-billing-view="migration"><i data-lucide="refresh-cw"></i><span>数据迁移</span></button>`;
-let billingVueApp = null;
+let moduleVueApp = null;
 
 function renderDomainNavigation() {
   const billing = state.domain === "billing";
@@ -466,13 +462,11 @@ function renderDomainNavigation() {
   refreshIcons();
 }
 
-function unmountBillingView() {
-  if (!billingVueApp) return;
-  billingVueApp.unmount();
-  billingVueApp = null;
+function unmountModuleView() {
+  if (!moduleVueApp) return;
+  moduleVueApp.unmount();
+  moduleVueApp = null;
 }
-const dateRangePickerApps = new Map();
-
 const cloneData = value => JSON.parse(JSON.stringify(value));
 const initialData = {
   sampleFiles: cloneData(sampleFiles),
@@ -1101,15 +1095,14 @@ function renderFees() {
   return `${pageHeader("成本费项索引", "统一五大成本板块的内部费项口径，供应商原始名称映射由导入设置快照保存", `<button class="btn primary" data-action="new-fee">${icon("plus")}新增标准成本费项</button>`)}${indexView}`;
 }
 function renderView() {
-  destroyAllDateRangePickers();
   const content=document.getElementById("content");
   renderDomainNavigation();
+  unmountModuleView();
   if (state.domain === "billing") {
-    unmountBillingView();
     content.innerHTML='<div id="billing-module" class="billing-content"></div>';
-    billingVueApp = createApp(BillingApp, { initialMenu: state.billingView, initialTaskTab: routePath() === billingPaths.base ? "base" : "list", embedded: true });
-    billingVueApp.use(ElementPlus);
-    billingVueApp.mount("#billing-module");
+    moduleVueApp = createApp(BillingApp, { initialMenu: state.billingView, initialTaskTab: routePath() === billingPaths.base ? "base" : "list", embedded: true });
+    moduleVueApp.use(ElementPlus);
+    moduleVueApp.mount("#billing-module");
     document.querySelector(".current-route").textContent=billingRouteNames[state.billingView] || "生成任务";
     document.getElementById("route-back").classList.add("hidden");
     document.querySelectorAll("[data-billing-view]").forEach(button=>button.classList.toggle("active",button.dataset.billingView===state.billingView));
@@ -1117,15 +1110,15 @@ function renderView() {
     window.scrollTo({top:0,behavior:"instant"});
     return;
   }
-  unmountBillingView();
-  const views={overview:renderOverview,suppliers:renderSuppliers,bills:renderBills,billImport:renderImportPage,billDetail:renderBillDetail,pool:renderPool,rules:renderRules,profit:renderProfit,fees:renderFees};
-  content.innerHTML=(views[state.view]||renderOverview)();
+  content.innerHTML='<div id="cost-module" class="billing-content cost-content"></div>';
+  moduleVueApp = createApp(CostCenterApp, { initialView: state.view, selectedBillId: state.selectedBillId, onNavigate: navigateToPath });
+  moduleVueApp.use(ElementPlus);
+  moduleVueApp.mount("#cost-module");
   document.querySelector(".current-route").textContent=routeNames[state.view];
   document.getElementById("route-back").classList.toggle("hidden",!["billDetail","billImport"].includes(state.view));
   const activeView = ["billDetail","billImport"].includes(state.view) ? "bills" : state.view;
   document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.view===activeView));
   refreshIcons();
-  initializeViewDateRangePickers();
   window.scrollTo({top:0,behavior:"instant"});
 }
 
@@ -1138,92 +1131,6 @@ function openImportPage(reset = false) {
   if (reset) state.wizardStep = 1;
   closeDrawer();
   navigateToPath(costPaths.billImport);
-}
-function destroyDateRangePicker(id) {
-  const app = dateRangePickerApps.get(id);
-  if (!app) return;
-  app.unmount();
-  dateRangePickerApps.delete(id);
-}
-function destroyAllDateRangePickers() {
-  [...dateRangePickerApps.keys()].forEach(destroyDateRangePicker);
-}
-function mountDateRangePicker({ id, start, end, onUpdate, ariaLabel }) {
-  destroyDateRangePicker(id);
-  const mountPoint = document.getElementById(id);
-  if (!mountPoint) return;
-  const app = createApp({
-    setup() {
-      const selectedPeriod = ref([start, end]);
-      const updatePeriod = value => {
-        selectedPeriod.value = value;
-        if (!Array.isArray(value) || value.length !== 2) return;
-        onUpdate(value);
-      };
-      return () => h(ElConfigProvider, { locale: zhCn }, {
-        default: () => h(ElDatePicker, {
-          modelValue: selectedPeriod.value,
-          "onUpdate:modelValue": updatePeriod,
-          type: "daterange",
-          rangeSeparator: "至",
-          startPlaceholder: "开始日期",
-          endPlaceholder: "结束日期",
-          format: "YYYY/MM/DD",
-          valueFormat: "YYYY-MM-DD",
-          clearable: false,
-          teleported: true,
-          popperClass: "cost-period-picker-popper",
-          ariaLabel
-        })
-      });
-    }
-  });
-  app.mount(mountPoint);
-  dateRangePickerApps.set(id, app);
-}
-
-function mountSingleDatePicker({ id, value, onUpdate, ariaLabel }) {
-  destroyDateRangePicker(id);
-  const mountPoint = document.getElementById(id);
-  if (!mountPoint) return;
-  const app = createApp({
-    setup() {
-      const selectedDate = ref(value);
-      const updateDate = nextValue => {
-        selectedDate.value = nextValue;
-        if (!nextValue) return;
-        onUpdate(nextValue);
-      };
-      return () => h(ElConfigProvider, { locale: zhCn }, {
-        default: () => h(ElDatePicker, {
-          modelValue: selectedDate.value,
-          "onUpdate:modelValue": updateDate,
-          type: "date",
-          placeholder: "选择日期",
-          format: "YYYY/MM/DD dddd",
-          valueFormat: "YYYY-MM-DD",
-          clearable: false,
-          teleported: true,
-          popperClass: "cost-period-picker-popper",
-          ariaLabel
-        })
-      });
-    }
-  });
-  app.mount(mountPoint);
-  dateRangePickerApps.set(id, app);
-}
-function initializeViewDateRangePickers() {
-  const configs = {
-    suppliers: { id: "supplier-period-range", start: state.supplierPeriodStart, end: state.supplierPeriodEnd, ariaLabel: "供应商成本账期筛选范围", onUpdate: value => { [state.supplierPeriodStart, state.supplierPeriodEnd] = value; } },
-    bills: { id: "bill-period-range", start: state.billPeriodStart, end: state.billPeriodEnd, ariaLabel: "成本账单实际成本账期筛选范围", onUpdate: value => { [state.billPeriodStart, state.billPeriodEnd] = value; } },
-    profit: { id: "profit-period-range", start: state.profitPeriodStart, end: state.profitPeriodEnd, ariaLabel: "利润分析账期筛选范围", onUpdate: value => { [state.profitPeriodStart, state.profitPeriodEnd] = value; } },
-    billImport: { id: "cost-period-range", start: state.costPeriodStart, end: state.costPeriodEnd, ariaLabel: "实际成本账期日期范围", onUpdate: value => {
-      [state.costPeriodStart, state.costPeriodEnd] = value;
-      state.costPeriodAdjusted = state.costPeriodStart !== state.inferredCostPeriodStart || state.costPeriodEnd !== state.inferredCostPeriodEnd;
-    } }
-  };
-  if (configs[state.view]) mountDateRangePicker(configs[state.view]);
 }
 function showModal(title, body, confirm="确认") { const m=document.getElementById("modal"); m.classList.remove("allocation-config-modal","supplier-config-modal");m.innerHTML=`<div class="modal-head"><span class="modal-title">${title}</span><button class="icon-btn" data-action="close-modal">${icon("x")}</button></div><div class="modal-body">${body}</div><div class="modal-foot"><button class="btn" data-action="close-modal">取消</button><button id="modal-confirm" class="btn primary" data-action="modal-confirm">${confirm}</button></div>`;m.classList.remove("hidden");document.getElementById("modal-backdrop").classList.remove("hidden");refreshIcons();}
 function closeModal(){const modal=document.getElementById("modal");modal.classList.add("hidden");modal.classList.remove("allocation-config-modal","supplier-config-modal");document.getElementById("modal-backdrop").classList.add("hidden");state.pendingAction=null;}

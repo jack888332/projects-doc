@@ -1,8 +1,9 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Download, RefreshRight, Search, Setting, View } from '@element-plus/icons-vue'
+import { Download, RefreshRight, Setting, View } from '@element-plus/icons-vue'
 import BillDetailPanel from '../components/BillDetailPanel.vue'
+import ConditionFilter from '../components/ConditionFilter.vue'
 import HoverActionMenu from '../components/HoverActionMenu.vue'
 import MetricGrid from '../components/MetricGrid.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -99,21 +100,20 @@ async function handleBillAction(name) {
   <div class="module-page live-reference-page">
     <PageHeader eyebrow="" :title="title" :description="isReceivable ? '按客户、目的国和账期跟踪账单生成、审核、结算与逾期状态' : '按客户、目的国和账期跟踪返款账单的生成、审核、返还与核销状态'">
       <template #actions>
-        <el-button :icon="RefreshRight" @click="resetQuery">重置</el-button>
-        <el-button type="primary" :icon="Search">查询</el-button>
         <el-button :icon="Download" :disabled="!selectedRows.length" @click="openExport">导出</el-button>
       </template>
     </PageHeader>
 
-    <section class="module-panel query-panel">
-      <el-form label-position="top" class="reference-query-grid">
-        <el-form-item label="账单编号"><el-input v-model="query.billNo" placeholder="输入账单编号" clearable /></el-form-item>
-        <el-form-item label="客户名称"><el-input v-model="query.customer" placeholder="输入客户名称" clearable /></el-form-item>
-        <el-form-item label="店铺"><el-input v-model="query.shop" placeholder="全部店铺" clearable /></el-form-item>
-        <el-form-item :label="isReceivable ? '运抵国' : '目的国'"><el-select v-model="query.country" placeholder="全部" clearable><el-option label="台湾" value="台湾" /><el-option label="中國臺灣" value="中國臺灣" /></el-select></el-form-item>
-        <el-form-item label="账期类型"><el-select v-model="query.periodType" placeholder="全部" clearable><el-option v-for="item in ['日','7天','周','月']" :key="item" :label="item" :value="item" /></el-select></el-form-item>
-        <el-form-item label="账期"><el-date-picker v-model="query.period" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" /></el-form-item>
-      </el-form>
+    <section class="condition-query-panel">
+      <div class="condition-filter-bar">
+        <ConditionFilter v-model="query.billNo" label="账单编号" type="text" />
+        <ConditionFilter v-model="query.customer" label="客户名称" type="text" />
+        <ConditionFilter v-model="query.shop" label="店铺" type="text" />
+        <ConditionFilter v-model="query.country" :label="isReceivable ? '运抵国' : '目的国'" :options="['台湾','中國臺灣']" />
+        <ConditionFilter v-model="query.periodType" label="账期类型" :options="['日','7天','周','月']" />
+        <ConditionFilter v-model="query.period" label="账期" type="date-range" />
+        <div class="condition-filter-actions"><el-button type="primary">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
+      </div>
     </section>
 
     <MetricGrid class="reference-kpis" :items="summary" />

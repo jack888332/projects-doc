@@ -1,7 +1,8 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { EditPen, Plus, RefreshRight, Search } from '@element-plus/icons-vue'
+import { EditPen, Plus } from '@element-plus/icons-vue'
+import ConditionFilter from '../components/ConditionFilter.vue'
 import MetricGrid from '../components/MetricGrid.vue'
 import HoverActionMenu from '../components/HoverActionMenu.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -62,11 +63,16 @@ function generate(row){ ElMessage.success(`已为 ${row.customer} 创建账单�
     <PageHeader eyebrow="" :title="activeType === 'AR' ? '应收账单配置' : '返款账单配置'" />
     <SegmentedControl v-model="activeType" :options="[{ label: '应收账单配置', value: 'AR' }, { label: '返款账单配置', value: 'RF' }]" aria-label="账单配置类型" />
     <MetricGrid class="reference-kpis" :items="configSummary" :columns="3" />
-    <section class="module-panel query-panel">
-      <el-form label-position="top" class="reference-query-grid five">
-        <el-form-item label="店铺"><el-input v-model="query.shop" placeholder="模糊搜索" clearable /></el-form-item><el-form-item label="客户名称"><el-input v-model="query.customer" placeholder="输入客户名称" clearable /></el-form-item><el-form-item label="客户编码"><el-input v-model="query.customerNo" placeholder="输入客户编码" clearable /></el-form-item><el-form-item label="会员编码"><el-input v-model="query.memberCode" placeholder="输入会员编码" clearable /></el-form-item><el-form-item label="状态"><el-select v-model="query.status" placeholder="全部" clearable><el-option label="启用" value="启用" /><el-option label="停用" value="停用" /></el-select></el-form-item>
-      </el-form>
-      <div class="query-actions"><el-button :icon="RefreshRight" @click="resetQuery">重置</el-button><el-button type="primary" :icon="Search">查询</el-button><el-button type="primary" :icon="Plus" @click="newConfig">新建账单配置</el-button></div>
+    <section class="condition-query-panel">
+      <div class="condition-filter-bar">
+        <ConditionFilter v-model="query.shop" label="店铺" type="text" />
+        <ConditionFilter v-model="query.customer" label="客户名称" type="text" />
+        <ConditionFilter v-model="query.customerNo" label="客户编码" type="text" />
+        <ConditionFilter v-model="query.memberCode" label="会员编码" type="text" />
+        <ConditionFilter v-model="query.status" label="状态" :options="['启用','停用']" />
+        <div class="condition-filter-actions"><el-button type="primary">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
+        <div class="condition-filter-tools"><el-button type="primary" :icon="Plus" @click="newConfig">新建账单配置</el-button></div>
+      </div>
     </section>
     <section class="module-panel">
       <el-table :data="rows" border row-key="no" class="clean-table">

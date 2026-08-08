@@ -71,6 +71,13 @@ button.module-kpi:hover { background: #f8fafc; border-color: #cbd6e5; }
 .reference-query-grid .el-form-item { margin-bottom: var(--space-1); }
 .reference-query-grid .el-select, .reference-query-grid .el-date-editor { width: 100%; }
 .query-actions { margin-top: var(--space-2); display: flex; justify-content: flex-end; gap: 8px; }
+.condition-query-panel { margin: 0; padding: 0; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.condition-filter-bar { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.condition-filter-actions { width: 130px; flex: 0 0 130px; display: flex; gap: var(--space-2); }
+.condition-filter-actions .el-button { width: 61px; height: 30px; min-height: 30px; margin: 0; padding: 0 var(--space-3); border-radius: 2px; }
+.condition-filter-tools { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+.advanced-filters.condition-filter-bar { display: flex; grid-template-columns: none; gap: var(--space-3); }
+.advanced-filters.condition-filter-bar > .condition-filter { width: max(168px, var(--condition-content-width)) !important; }
 .reference-kpis .module-kpi { min-height: 94px; }
 .status-tabs-row { min-height: 45px; padding: 0 var(--space-1); display: flex; align-items: flex-end; gap: 24px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; border-bottom: 1px solid #dfe3ea; background: transparent; }
 .status-tabs-row::-webkit-scrollbar { display: none; }
@@ -161,6 +168,9 @@ button.module-kpi:hover { background: #f8fafc; border-color: #cbd6e5; }
 }
 
 @media (max-width: 760px) {
+  .condition-filter-bar { align-items: stretch; flex-direction: column; }
+  .condition-filter-actions { width: 130px; flex-basis: auto; }
+  .condition-filter-tools { width: 100%; margin-left: 0; }
   .rate-panel-head { align-items: stretch; flex-direction: column; }
   .rate-panel-actions { width: 100%; }.rate-panel-actions .el-button { flex: 1; }
   .module-heading { min-height: 50px; align-items: flex-start; }.module-heading h1 { font-size: var(--font-size-2xl); }.module-heading-actions .el-button span { display: none; }

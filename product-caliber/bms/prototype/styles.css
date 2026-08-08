@@ -156,8 +156,23 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
 .todo-name { font-size: var(--content-font-size); }.todo-desc { color: var(--muted); font-size: var(--font-size-sm); margin-top: var(--space-1); }
 .todo-count { min-width: 25px; text-align: right; font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); }
 
-.filter-panel { background: #fff; border: 1px solid var(--border); padding: var(--space-3) var(--space-3) var(--space-1); margin-bottom: var(--space-2); }
-.filter-grid { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 0 12px; align-items: end; }
+.filter-panel { margin-bottom: var(--space-3); padding: 0; overflow: visible; border: 0; background: transparent; }
+.filter-grid { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.filter-panel .condition-field { position: relative; width: max(168px, var(--legacy-condition-width, 168px)); min-width: 168px; max-width: 100%; height: 30px; margin: 0; padding: 0 var(--space-3); display: inline-flex; align-items: center; gap: var(--space-3); border: 1px solid #cfd4de; border-radius: 2px; background: #fff; transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease; }
+.filter-panel .condition-field:hover { border-color: var(--primary-border); }
+.filter-panel .condition-field:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-focus-ring); }
+.filter-panel .condition-field.has-value { border-color: var(--primary); background: var(--primary-soft); }
+.filter-panel .condition-field > label { flex: 0 0 auto; margin: 0; color: #232b3b; white-space: nowrap; }
+.filter-panel .condition-field > .input, .filter-panel .condition-field > .select { min-width: 0; width: auto; height: 28px; flex: 1; padding: 0; border: 0; color: #7b8494; background: transparent; box-shadow: none; }
+.filter-panel .condition-field.has-value > .input, .filter-panel .condition-field.has-value > .select { color: var(--primary-strong); font-weight: var(--font-weight-semibold); }
+.filter-panel .condition-field > .input::placeholder { color: #7b8494; opacity: 1; }
+.filter-panel .condition-field > .select { padding-right: var(--space-5); cursor: pointer; }
+.condition-field-clear { width: 18px; height: 18px; flex: 0 0 18px; padding: 0; border: 0; border-radius: 50%; color: #8a93a2; background: transparent; font: 16px/16px var(--font-family-ui); cursor: pointer; }
+.condition-field-clear:hover { color: var(--primary); }
+.filter-panel .condition-field:has(.date-range-control) { width: auto; min-width: 250px; }
+.filter-panel .condition-field .date-range-control { min-width: 168px; width: 250px; height: 28px; flex: 1; }
+.filter-panel .condition-field .date-range-control .el-date-editor { height: 28px; background: transparent; box-shadow: none; }
+.filter-panel .condition-field .date-range-control .el-input__wrapper { background: transparent; box-shadow: none; }
 .field { min-width: 0; margin-bottom: var(--space-2); }
 .field label { display: block; color: #4c5260; font-size: var(--content-font-size); margin-bottom: var(--space-1); }
 .field .required::before { content: "*"; color: var(--danger); margin-right: var(--space-1); }
@@ -166,7 +181,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
 .input, .select { height: 30px; padding: 0 var(--space-2); }
 .textarea { min-height: 76px; padding: var(--space-2) var(--space-2); resize: vertical; }
 .input:focus, .select:focus, .textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(79,74,168,.1); }
-.filter-actions { display: flex; gap: 7px; margin-bottom: var(--space-2); }
+.filter-panel .filter-actions { width: 130px; height: 30px; margin: 0; display: flex; gap: var(--space-2); }
+.filter-panel .filter-actions .btn { width: 61px; height: 30px; min-height: 30px; padding: 0 var(--space-3); border-radius: 2px; }
+.filter-panel .filter-actions .btn svg { display: none; }
 .fee-filter-panel { padding-bottom: var(--space-2); }
 .fee-filter-grid { grid-template-columns: minmax(150px, .82fr) minmax(220px, 1.18fr) minmax(160px, .72fr) auto; }
 .fee-filter-grid .filter-actions { justify-content: flex-end; }

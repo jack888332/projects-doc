@@ -12,6 +12,7 @@ import SegmentedControl from '../shared/components/SegmentedControl.vue'
 import StackedCell from '../shared/components/StackedCell.vue'
 import StatusTag from '../shared/components/StatusTag.vue'
 import TablePagination from '../shared/components/TablePagination.vue'
+import { useStagedQuery } from '../shared/composables/useStagedQuery.js'
 import { useCostTable } from './useCostTable.js'
 import { formatAmount, matchesKeyword, normalizeCostBoard, numericAmount } from '../domain/costLogic.js'
 
@@ -29,7 +30,8 @@ const pools = useCostTable('pools')
 const fees = useCostTable('fees')
 const allocationRules = useCostTable('allocationRules')
 
-const query = reactive({ keyword: '', supplier: '', board: '', status: '', type: '', period: [] })
+const initialQuery = { keyword: '', supplier: '', board: '', status: '', type: '', period: [] }
+const { query, appliedQuery, applyQuery, resetQuery } = useStagedQuery(initialQuery)
 const ruleType = ref('base')
 const feeBoard = ref('')
 const selectedRecord = ref(null)
@@ -70,13 +72,13 @@ const selectedBill = computed(() => bills.value.find((row) => row.id === props.s
 const selectedBillCosts = computed(() => costs.value.filter((row) => row.bill === selectedBill.value.id))
 
 function contains(row, fields = []) {
-  return matchesKeyword(row, query.keyword, fields)
+  return matchesKeyword(row, appliedQuery.keyword, fields)
 }
 function matchesCommon(row) {
   const board = normalizeCostBoard(row.board)
-  return (!query.supplier || row.supplier === query.supplier || row.name === query.supplier)
-    && (!query.board || board === query.board)
-    && (!query.status || row.status === query.status || row.state === query.status)
+  return (!appliedQuery.supplier || row.supplier === appliedQuery.supplier || row.name === appliedQuery.supplier)
+    && (!appliedQuery.board || board === appliedQuery.board)
+    && (!appliedQuery.status || row.status === appliedQuery.status || row.state === appliedQuery.status)
 }
 const filteredSuppliers = computed(() => suppliers.value.filter((row) => contains(row, ['code', 'name']) && matchesCommon(row)))
 const filteredBills = computed(() => bills.value.filter((row) => contains(row, ['id', 'supplier', 'file']) && matchesCommon(row)))
@@ -109,10 +111,12 @@ const profitRows = [
   { order: 'SO-OG0347-62018', customer: '测试客户1', route: '台湾海快', revenue: 4960, direct: 3082, indirect: 1034, profit: 844, rate: '17.02%', status: '成本未齐' },
   { order: 'SO-ZMB-2606152', customer: 'ZMB', route: '台湾海快', revenue: 12800, direct: 7960, indirect: 2284, profit: 2556, rate: '19.97%', status: '成本未齐' },
 ]
+const filteredProfitRows = computed(() => profitRows.filter((row) => (
+  matchesKeyword(row, appliedQuery.keyword, ['order', 'customer'])
+  && (!appliedQuery.type || row.route === appliedQuery.type)
+  && (!appliedQuery.status || row.status === appliedQuery.status)
+)))
 
-function resetQuery() {
-  Object.assign(query, { keyword: '', supplier: '', board: '', status: '', type: '', period: [] })
-}
 function navigate(path) { router.push(path) }
 function showDetail(row) { selectedRecord.value = row; detailVisible.value = true }
 function openEditor(type, row = {}) {
@@ -193,13 +197,13 @@ function finishImport() {
     </template>
 
     <template v-else-if="initialView === 'suppliers'">
-      <section class="module-panel">
+      <section class="module-panel filter-table-panel">
         <div class="module-toolbar">
           <div class="condition-filter-bar">
             <ConditionFilter v-model="query.keyword" label="供应商" type="text" search-placeholder="输入供应商编码或名称" />
             <ConditionFilter v-model="query.board" label="成本板块" :options="boardOptions" />
             <ConditionFilter v-model="query.status" label="状态" :options="statusOptions" />
-            <div class="condition-filter-actions"><el-button type="primary">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
+            <div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
           </div>
         </div>
         <el-table class="clean-table" :data="filteredSuppliers" border>
@@ -217,14 +221,14 @@ function finishImport() {
 
     <template v-else-if="initialView === 'bills'">
       <MetricGrid :items="[{ label: '成本账单', value: `${bills.length} 份`, tone: 'blue' }, { label: '待结清账单', value: `${bills.filter(row => row.state === '待结清').length} 份`, tone: 'amber' }, { label: '成本明细', value: `${bills.reduce((sum, row) => sum + row.rows, 0).toLocaleString()} 笔`, tone: 'green' }]" :columns="3" />
-      <section class="module-panel">
+      <section class="module-panel filter-table-panel">
         <div class="module-toolbar"><div class="condition-filter-bar">
           <ConditionFilter v-model="query.keyword" label="账单" type="text" search-placeholder="输入账单编号或文件名" />
           <ConditionFilter v-model="query.supplier" label="供应商" :options="supplierOptions" />
           <ConditionFilter v-model="query.board" label="成本板块" :options="boardOptions" />
           <ConditionFilter v-model="query.status" label="状态" :options="statusOptions" />
           <ConditionFilter v-model="query.period" label="账期范围" type="date-range" />
-          <div class="condition-filter-actions"><el-button type="primary">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
+          <div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
         </div></div>
         <el-table class="clean-table" :data="filteredBills" border>
           <el-table-column label="成本账单编号" min-width="245"><template #default="{ row }"><StackedCell :primary="row.id" :secondary="row.file" /></template></el-table-column>
@@ -279,25 +283,25 @@ function finishImport() {
 
     <template v-else-if="initialView === 'pool'">
       <MetricGrid :items="[{ label: '分摊集', value: `${pools.length} 个`, tone: 'blue' }, { label: '待分摊', value: `${pools.filter(row => row.status === '待分摊').length} 个`, tone: 'amber' }, { label: '待人工确认', value: `${pools.filter(row => row.status === '待人工确认').length} 个`, tone: 'red' }]" :columns="3" />
-      <section class="module-panel"><div class="module-toolbar"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="分摊集" type="text" /><ConditionFilter v-model="query.supplier" label="供应商" :options="supplierOptions" /><ConditionFilter v-model="query.board" label="成本板块" :options="boardOptions" /><ConditionFilter v-model="query.status" label="状态" :options="statusOptions" /><div class="condition-filter-actions"><el-button type="primary">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></div>
+      <section class="module-panel filter-table-panel"><div class="module-toolbar"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="分摊集" type="text" /><ConditionFilter v-model="query.supplier" label="供应商" :options="supplierOptions" /><ConditionFilter v-model="query.board" label="成本板块" :options="boardOptions" /><ConditionFilter v-model="query.status" label="状态" :options="statusOptions" /><div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></div>
         <el-table class="clean-table" :data="filteredPools" border><el-table-column label="分摊集编号" min-width="210"><template #default="{ row }"><StackedCell :primary="row.id" :secondary="row.bill" /></template></el-table-column><el-table-column prop="supplier" label="供应商" min-width="120" /><el-table-column prop="board" label="成本板块" min-width="130" /><el-table-column prop="fee" label="标准成本费项" min-width="140" /><el-table-column prop="scope" label="候选业务订单范围" min-width="260" /><el-table-column prop="factor" label="分摊因子" min-width="140" /><el-table-column prop="amount" label="金额" min-width="150" /><el-table-column label="状态" width="120"><template #default="{ row }"><StatusTag :label="row.status" /></template></el-table-column><el-table-column label="操作" width="84" fixed="right"><template #default="{ row }"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" @click="showDetail(row)" /><HoverActionMenu><el-dropdown-item @click="row.status = '已分摊'">执行分摊</el-dropdown-item><el-dropdown-item @click="row.status = '不分摊'">标记不分摊</el-dropdown-item></HoverActionMenu></div></template></el-table-column></el-table><TablePagination :total="filteredPools.length" /></section>
     </template>
 
     <template v-else-if="initialView === 'rules'">
       <SegmentedControl v-model="ruleType" :options="[{ label: '基础分摊规则', value: 'base' }, { label: '供应商特调分摊规则', value: 'supplier' }]" />
-      <section class="module-panel"><div class="module-toolbar"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="规则" type="text" /><ConditionFilter v-model="query.board" label="成本板块" :options="boardOptions" /><ConditionFilter v-if="ruleType === 'supplier'" v-model="query.supplier" label="供应商" :options="supplierOptions" /><ConditionFilter v-model="query.status" label="状态" :options="statusOptions" /><div class="condition-filter-actions"><el-button type="primary">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></div>
+      <section class="module-panel filter-table-panel"><div class="module-toolbar"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="规则" type="text" /><ConditionFilter v-model="query.board" label="成本板块" :options="boardOptions" /><ConditionFilter v-if="ruleType === 'supplier'" v-model="query.supplier" label="供应商" :options="supplierOptions" /><ConditionFilter v-model="query.status" label="状态" :options="statusOptions" /><div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></div>
         <el-table class="clean-table" :data="filteredRules" border><el-table-column prop="id" label="规则编号" min-width="180" /><el-table-column prop="board" label="成本板块" min-width="130" /><el-table-column prop="fee" label="标准成本费项" min-width="140" /><el-table-column v-if="ruleType === 'supplier'" prop="supplier" label="供应商" min-width="120" /><el-table-column prop="scope" label="候选业务订单范围" min-width="280" /><el-table-column label="优先 / 兜底因子" min-width="190"><template #default="{ row }"><StackedCell :primary="row.factor" :secondary="`兜底：${row.fallback}`" /></template></el-table-column><el-table-column prop="effective" label="生效期间" min-width="140" /><el-table-column label="状态" width="100"><template #default="{ row }"><StatusTag :label="row.status" /></template></el-table-column><el-table-column label="操作" width="84" fixed="right"><template #default="{ row }"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" @click="showDetail(row)" /><HoverActionMenu><el-dropdown-item @click="openEditor('rule', row)">编辑</el-dropdown-item><el-dropdown-item @click="toggleStatus(row)">{{ row.status === '启用' ? '停用' : '启用' }}</el-dropdown-item></HoverActionMenu></div></template></el-table-column></el-table><TablePagination :total="filteredRules.length" /></section>
     </template>
 
     <template v-else-if="initialView === 'profit'">
       <MetricGrid :items="[{ label: '已确认客户侧收入', value: '3.86 百万 CNY', tone: 'blue' }, { label: '直接成本', value: '2.31 百万 CNY', tone: 'green' }, { label: '间接成本', value: '0.72 百万 CNY', tone: 'amber' }, { label: '总实际利润', value: '0.63 百万 CNY', tone: 'violet' }]" />
-      <section class="module-panel"><div class="module-toolbar"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="业务订单" type="text" /><ConditionFilter v-model="query.type" label="集运线路" :options="['台湾海快', '台湾空运'].map(option)" /><ConditionFilter v-model="query.status" label="成本完整性" :options="['成本已齐', '成本未齐'].map(option)" /><ConditionFilter v-model="query.period" label="账期" type="date-range" /><div class="condition-filter-actions"><el-button type="primary">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></div>
-        <el-table class="clean-table" :data="profitRows" border><el-table-column prop="order" label="业务订单号" min-width="190" /><el-table-column prop="customer" label="客户" min-width="170" /><el-table-column prop="route" label="集运线路" min-width="120" /><el-table-column v-for="field in ['revenue', 'direct', 'indirect', 'profit']" :key="field" :prop="field" :label="({ revenue: '客户侧收入', direct: '直接成本', indirect: '间接成本', profit: '利润' })[field]" min-width="130"><template #default="{ row }">{{ money(row[field], 'CNY') }}</template></el-table-column><el-table-column prop="rate" label="利润率" width="100" /><el-table-column label="成本完整性" width="120"><template #default="{ row }"><StatusTag :label="row.status" /></template></el-table-column></el-table><TablePagination :total="profitRows.length" /></section>
+      <section class="module-panel filter-table-panel"><div class="module-toolbar"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="业务订单" type="text" /><ConditionFilter v-model="query.type" label="集运线路" :options="['台湾海快', '台湾空运'].map(option)" /><ConditionFilter v-model="query.status" label="成本完整性" :options="['成本已齐', '成本未齐'].map(option)" /><ConditionFilter v-model="query.period" label="账期" type="date-range" /><div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></div>
+        <el-table class="clean-table" :data="filteredProfitRows" border><el-table-column prop="order" label="业务订单号" min-width="190" /><el-table-column prop="customer" label="客户" min-width="170" /><el-table-column prop="route" label="集运线路" min-width="120" /><el-table-column v-for="field in ['revenue', 'direct', 'indirect', 'profit']" :key="field" :prop="field" :label="({ revenue: '客户侧收入', direct: '直接成本', indirect: '间接成本', profit: '利润' })[field]" min-width="130"><template #default="{ row }">{{ money(row[field], 'CNY') }}</template></el-table-column><el-table-column prop="rate" label="利润率" width="100" /><el-table-column label="成本完整性" width="120"><template #default="{ row }"><StatusTag :label="row.status" /></template></el-table-column></el-table><TablePagination :total="filteredProfitRows.length" /></section>
     </template>
 
     <template v-else-if="initialView === 'fees'">
       <SegmentedControl v-model="feeBoard" :options="[{ label: '全部', value: '' }, ...boardOptions]" />
-      <section class="module-panel"><div class="module-toolbar"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="成本费项" type="text" search-placeholder="输入费项编码或名称" /><ConditionFilter v-model="query.status" label="状态" :options="statusOptions" /><div class="condition-filter-actions"><el-button type="primary">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></div>
+      <section class="module-panel filter-table-panel"><div class="module-toolbar"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="成本费项" type="text" search-placeholder="输入费项编码或名称" /><ConditionFilter v-model="query.status" label="状态" :options="statusOptions" /><div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></div>
         <el-table class="clean-table" :data="filteredFees" border><el-table-column prop="code" label="成本费项编码" min-width="170" /><el-table-column prop="name" label="标准成本费项" min-width="150" /><el-table-column prop="board" label="成本板块" min-width="130" /><el-table-column prop="definition" label="定义" min-width="280" /><el-table-column prop="rules" label="分摊规则" width="100" /><el-table-column prop="references" label="引用数" width="90" /><el-table-column label="状态" width="100"><template #default="{ row }"><StatusTag :label="row.status" /></template></el-table-column><el-table-column label="操作" width="84" fixed="right"><template #default="{ row }"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" @click="showDetail(row)" /><HoverActionMenu><el-dropdown-item @click="openEditor('fee', row)">编辑</el-dropdown-item><el-dropdown-item @click="toggleStatus(row)">{{ row.status === '启用' ? '停用' : '启用' }}</el-dropdown-item></HoverActionMenu></div></template></el-table-column></el-table><TablePagination :total="filteredFees.length" /></section>
     </template>
 

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Download, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import ConditionFilter from '../../shared/components/ConditionFilter.vue'
@@ -8,17 +8,19 @@ import PageHeader from '../../shared/components/PageHeader.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
 import TablePagination from '../../shared/components/TablePagination.vue'
+import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const detailVisible = ref(false)
 const selectedSummary = ref(null)
-const query = reactive({
-  shop: '',
+const shop = ref('')
+const initialQuery = {
   customerNo: '',
   currency: '',
   overdue: '',
   period: [],
-})
+}
+const { query, appliedQuery, applyQuery, resetQuery } = useStagedQuery(initialQuery)
 
 const records = useDemoDataset('receivableSummaryRecords', [
   { id: 'SZ-OG4155-CNY', shop: '深圳集运店', shopCode: 'SZ-CONSOL', customer: 'OceanGate Logistics', customerNo: 'OG4155', memberCode: 'M-700127', currency: 'CNY', receivable: 228640.82, received: 171800.00, outstanding: 56840.82, overdue: 21240.50, pendingReview: 12420.00, billCount: 8, outstandingBills: 3, oldestDue: '2026-07-18', lastBillAt: '2026-08-01' },
@@ -31,27 +33,27 @@ const records = useDemoDataset('receivableSummaryRecords', [
   { id: 'SZ-OG4155-USD', shop: '深圳集运店', shopCode: 'SZ-CONSOL', customer: 'OceanGate Logistics', customerNo: 'OG4155', memberCode: 'M-700127', currency: 'USD', receivable: 19640.00, received: 15400.00, outstanding: 4240.00, overdue: 0, pendingReview: 0, billCount: 3, outstandingBills: 1, oldestDue: '2026-08-15', lastBillAt: '2026-07-29' },
 ], 1)
 
-const money = (value, currency = query.currency) => `${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
+const money = (value, currency = appliedQuery.currency) => `${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
 const shops = computed(() => [...new Set(records.value.map((row) => row.shop))])
 const customers = computed(() => [...new Map(records.value.map((row) => [row.customerNo, {
   value: row.customerNo,
   label: row.customer,
   secondary: `${row.customerNo} / ${row.memberCode}`,
 }])).values()])
-const selectedCustomer = computed(() => customers.value.find((item) => item.value === query.customerNo))
+const selectedCustomer = computed(() => customers.value.find((item) => item.value === appliedQuery.customerNo))
 
 const filteredRecords = computed(() => records.value.filter((row) => {
-  const [periodStart, periodEnd] = query.period || []
+  const [periodStart, periodEnd] = appliedQuery.period || []
   const lastBillDate = new Date(`${row.lastBillAt}T00:00:00`)
-  const customerKeyword = query.customerNo.trim().toLowerCase()
+  const customerKeyword = appliedQuery.customerNo.trim().toLowerCase()
   const matchesCustomer = !customerKeyword
     || (selectedCustomer.value
-      ? row.customerNo === query.customerNo
+      ? row.customerNo === appliedQuery.customerNo
       : `${row.customer}${row.customerNo}${row.memberCode}`.toLowerCase().includes(customerKeyword))
-  return (!query.shop || row.shop === query.shop)
+  return (!shop.value || row.shop === shop.value)
     && matchesCustomer
-    && (!query.currency || row.currency === query.currency)
-    && (!query.overdue || (query.overdue === '逾期' ? row.overdue > 0 : row.outstanding > 0 && row.overdue === 0))
+    && (!appliedQuery.currency || row.currency === appliedQuery.currency)
+    && (!appliedQuery.overdue || (appliedQuery.overdue === '逾期' ? row.overdue > 0 : row.outstanding > 0 && row.overdue === 0))
     && (!periodStart || lastBillDate >= periodStart)
     && (!periodEnd || lastBillDate <= periodEnd)
 }))
@@ -66,7 +68,7 @@ const totals = computed(() => ({
   overdue: sumBy(filteredRecords.value, 'overdue'),
 }))
 const kpis = computed(() => {
-  if (!query.currency) return [
+  if (!appliedQuery.currency) return [
     { label: '应收金额', value: '--', tone: 'blue' },
     { label: '已收金额', value: '--', tone: 'green' },
     { label: '应收未收', value: '--', tone: 'amber' },
@@ -84,8 +86,13 @@ function openDetail(row) {
   selectedSummary.value = row
   detailVisible.value = true
 }
+function runQuery() {
+  applyQuery()
+  ElMessage.success(`查询完成，共 ${filteredRecords.value.length} 条`)
+}
 function resetFilters() {
-  Object.assign(query, { shop: '', customerNo: '', currency: '', overdue: '', period: [] })
+  shop.value = ''
+  resetQuery()
 }
 </script>
 
@@ -99,7 +106,7 @@ function resetFilters() {
 
     <div class="summary-dimension-heading"><strong>店铺</strong></div>
     <div class="summary-scope-row">
-      <ConditionFilter v-model="query.shop" label="店铺" :options="shops" />
+      <ConditionFilter v-model="shop" label="店铺" :options="shops" />
     </div>
     <MetricGrid :items="kpis" />
 
@@ -112,7 +119,7 @@ function resetFilters() {
         <ConditionFilter v-model="query.overdue" label="未收状态" :options="['逾期','未逾期']" />
         <ConditionFilter v-model="query.period" label="账期范围" type="date-range" />
         <div class="condition-filter-actions">
-          <el-button type="primary" @click="ElMessage.success(`查询完成，共 ${filteredRecords.length} 条`)">查询</el-button>
+          <el-button type="primary" @click="runQuery">查询</el-button>
           <el-button @click="resetFilters">重置</el-button>
         </div>
       </div>

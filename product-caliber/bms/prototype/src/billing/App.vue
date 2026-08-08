@@ -20,6 +20,7 @@ import HoverActionMenu from '../shared/components/HoverActionMenu.vue'
 import StackedCell from '../shared/components/StackedCell.vue'
 import StatusTag from '../shared/components/StatusTag.vue'
 import TablePagination from '../shared/components/TablePagination.vue'
+import { useStagedQuery } from '../shared/composables/useStagedQuery.js'
 import { useDemoDataset } from './data/useDemoDataset.js'
 
 const props = defineProps({
@@ -38,7 +39,7 @@ const advancedVisible = ref(false)
 const notifications = ref(4)
 const lastRefreshedAt = ref('2026-08-02 10:26:18')
 
-const taskQuery = reactive({
+const initialTaskQuery = {
   keyword: '',
   taskType: '',
   status: '',
@@ -47,7 +48,8 @@ const taskQuery = reactive({
   configType: '',
   shop: '',
   period: [],
-})
+}
+const { query: taskQuery, appliedQuery: appliedTaskQuery, applyQuery: applyTaskQuery, resetQuery: resetTaskQuery } = useStagedQuery(initialTaskQuery)
 
 const menuGroups = [
   { label: '财务日常', items: [
@@ -374,16 +376,16 @@ const selectedSourceScans = computed(() => sourceScansByTaskId[selectedTask.valu
 
 const filteredTasks = computed(() => taskRecords.value.filter((item) => {
   const keyword = `${item.taskNo}${item.configNo}${item.customerName}${item.customerNo}${item.memberCode}${item.shop}`.toLowerCase()
-  const periodMatched = !taskQuery.period?.length
-    || (dayjs(item.periodStart).isAfter(dayjs(taskQuery.period[0]).subtract(1, 'day'))
-      && dayjs(item.periodEnd).isBefore(dayjs(taskQuery.period[1]).add(1, 'day')))
-  return (!taskQuery.keyword || keyword.includes(taskQuery.keyword.toLowerCase()))
-    && (!taskQuery.taskType || item.taskType === taskQuery.taskType)
-    && (!taskQuery.status || item.status === taskQuery.status)
-    && (!taskQuery.generationMode || item.generationMode === taskQuery.generationMode)
-    && (!taskQuery.triggerType || item.triggerType === taskQuery.triggerType)
-    && (!taskQuery.configType || item.configType === taskQuery.configType)
-    && (!taskQuery.shop || item.shop === taskQuery.shop)
+  const periodMatched = !appliedTaskQuery.period?.length
+    || (dayjs(item.periodStart).isAfter(dayjs(appliedTaskQuery.period[0]).subtract(1, 'day'))
+      && dayjs(item.periodEnd).isBefore(dayjs(appliedTaskQuery.period[1]).add(1, 'day')))
+  return (!appliedTaskQuery.keyword || keyword.includes(appliedTaskQuery.keyword.toLowerCase()))
+    && (!appliedTaskQuery.taskType || item.taskType === appliedTaskQuery.taskType)
+    && (!appliedTaskQuery.status || item.status === appliedTaskQuery.status)
+    && (!appliedTaskQuery.generationMode || item.generationMode === appliedTaskQuery.generationMode)
+    && (!appliedTaskQuery.triggerType || item.triggerType === appliedTaskQuery.triggerType)
+    && (!appliedTaskQuery.configType || item.configType === appliedTaskQuery.configType)
+    && (!appliedTaskQuery.shop || item.shop === appliedTaskQuery.shop)
     && periodMatched
 }))
 
@@ -431,6 +433,7 @@ function formatAmount(value) {
 
 function setSummaryFilter(key) {
   taskQuery.status = key
+  applyTaskQuery()
 }
 
 function handleTaskTypeChange(value) {
@@ -440,11 +443,7 @@ function handleTaskTypeChange(value) {
 }
 
 function resetFilters() {
-  Object.assign(taskQuery, {
-    keyword: '', taskType: '', status: '', generationMode: '',
-    triggerType: '',
-    configType: '', shop: '', period: [],
-  })
+  resetTaskQuery()
 }
 
 function refreshTasks() {
@@ -569,26 +568,26 @@ function viewResult(row) {
               <ConditionFilter v-model="taskQuery.keyword" label="关键词" type="text" search-placeholder="任务编号 / 配置 / 客户 / 会员编码" />
               <ConditionFilter v-model="taskQuery.taskType" label="任务类型" :options="Object.entries(taskTypeMeta).map(([value, label]) => ({ value, label }))" @change="handleTaskTypeChange" />
               <ConditionFilter v-model="taskQuery.status" label="任务状态" :options="Object.entries(statusMeta).map(([value, meta]) => ({ value, label: meta.label }))" />
+              <template v-if="advancedVisible">
+                <ConditionFilter v-model="taskQuery.generationMode" label="账单生成方式" :options="Object.entries(generationModeMeta).map(([value, label]) => ({ value, label }))" :disabled="!canFilterGenerationMode" />
+                <ConditionFilter v-model="taskQuery.triggerType" label="触发方式" :options="Object.entries(triggerMeta).map(([value, label]) => ({ value, label }))" />
+                <ConditionFilter v-model="taskQuery.configType" label="配置类型" :options="['默认配置','分支配置']" />
+                <ConditionFilter v-model="taskQuery.shop" label="店铺" :options="['深圳集运店','义乌集运店','广州同行店','上海集运店']" />
+                <ConditionFilter v-model="taskQuery.period" label="账期" type="date-range" />
+              </template>
+              <div class="condition-filter-actions task-filter-actions">
+                <el-button type="primary" @click="applyTaskQuery">查询</el-button>
+                <el-button @click="resetFilters">重置</el-button>
+                <el-button class="advanced-filter-toggle" :icon="Operation" @click="advancedVisible = !advancedVisible">{{ advancedVisible ? '隐藏高级筛选项' : '显示高级筛选项' }}</el-button>
+              </div>
             </div>
-            <div class="module-toolbar-actions">
-              <el-button :icon="Operation" @click="advancedVisible = !advancedVisible">高级筛选</el-button>
-              <el-button @click="resetFilters">重置</el-button>
-            </div>
-          </div>
-
-          <div v-show="advancedVisible" class="advanced-filters condition-filter-bar">
-            <ConditionFilter v-model="taskQuery.generationMode" label="账单生成方式" :options="Object.entries(generationModeMeta).map(([value, label]) => ({ value, label }))" :disabled="!canFilterGenerationMode" />
-            <ConditionFilter v-model="taskQuery.triggerType" label="触发方式" :options="Object.entries(triggerMeta).map(([value, label]) => ({ value, label }))" />
-            <ConditionFilter v-model="taskQuery.configType" label="配置类型" :options="['默认配置','分支配置']" />
-            <ConditionFilter v-model="taskQuery.shop" label="店铺" :options="['深圳集运店','义乌集运店','广州同行店','上海集运店']" />
-            <ConditionFilter v-model="taskQuery.period" label="账期" type="date-range" />
           </div>
 
           <div class="summary-grid prd-summary">
             <button
               v-for="item in taskSummary"
               :key="item.label"
-              :class="['summary-card', item.tone, { active: taskQuery.status === item.key }]"
+              :class="['summary-card', item.tone, { active: appliedTaskQuery.status === item.key }]"
               @click="setSummaryFilter(item.key)"
             >
               <span>{{ item.label }}</span>

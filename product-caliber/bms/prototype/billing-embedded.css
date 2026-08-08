@@ -154,6 +154,46 @@
   min-height: 620px;
   overflow: hidden;
 }
+.billing-content .task-list-panel {
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+.billing-content .task-list-panel > .task-filter-toolbar {
+  min-height: 30px;
+  margin-bottom: var(--space-3);
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.billing-content .task-filter-actions {
+  width: auto;
+  flex-basis: auto;
+}
+.billing-content .task-filter-actions .advanced-filter-toggle {
+  width: auto;
+  white-space: nowrap;
+}
+.billing-content .task-list-panel > .summary-grid {
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--border);
+  background: #fff;
+}
+.billing-content .task-list-panel > .result-summary {
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  background: #fff;
+}
+.billing-content .task-list-panel > .el-table {
+  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  background: #fff;
+}
+.billing-content .task-list-panel > .table-pagination {
+  border: 1px solid var(--border);
+  border-top: 0;
+  background: #fff;
+}
 .billing-content .filter-toolbar {
   min-height: 60px;
   padding: var(--space-3) var(--space-3);
@@ -173,15 +213,6 @@
 .billing-content .keyword-input { width: 230px; }
 .billing-content .keyword-input.wide { width: 310px; }
 .billing-content .primary-filters { flex: 1; }
-.billing-content .advanced-filters {
-  padding: var(--space-3) var(--space-3);
-  display: grid;
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
-  gap: 8px;
-  border-bottom: 1px solid var(--border);
-  background: #fafbfc;
-}
-.billing-content .advanced-filters > * { width: 100% !important; }
 .billing-content .summary-grid {
   padding: var(--space-3) var(--space-3);
   display: grid;
@@ -343,7 +374,6 @@
 
 @media (max-width: 1100px) {
   .billing-content .summary-grid { grid-template-columns: repeat(3, minmax(126px, 1fr)); }
-  .billing-content .advanced-filters { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
 }
 @media (max-width: 720px) {
   .billing-content .page-heading,
@@ -355,7 +385,6 @@
   .billing-content .keyword-input,
   .billing-content .keyword-input.wide,
   .billing-content .filter-actions { width: 100% !important; }
-  .billing-content .advanced-filters,
   .billing-content .summary-grid { grid-template-columns: 1fr; }
   .billing-content .table-pagination { align-items: flex-start; flex-direction: column; gap: 8px; padding: var(--space-2) var(--space-3); }
   .detail-drawer .detail-grid { grid-template-columns: 1fr; }

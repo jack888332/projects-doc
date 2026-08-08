@@ -1,0 +1,1 @@
+import{C as t}from"./CostCenterView-DKpokYLL.js";import{s as o,o as r}from"./vue-core-DSSwSyjy.js";import"./element-plus-a4cl-CzR.js";import"./element-icons-CPc6AQLt.js";import"./StackedCell-Dax0IUv0.js";import"./index-CkK5bMAZ.js";import"./storage-DxF5qhtl.js";const f={__name:"CostBillView",setup(i){return(e,p)=>(r(),o(t,{"initial-view":"bills"}))}};export{f as default};

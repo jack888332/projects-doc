@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { EditPen, Plus } from '@element-plus/icons-vue'
@@ -13,10 +13,12 @@ import SegmentedControl from '../../shared/components/SegmentedControl.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
 import TablePagination from '../../shared/components/TablePagination.vue'
+import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const activeType = ref('AR')
-const query = reactive({ shop: '', customer: '', customerNo: '', memberCode: '', status: '' })
+const initialQuery = { shop: '', customer: '', customerNo: '', memberCode: '', status: '' }
+const { query, appliedQuery, applyQuery, resetQuery } = useStagedQuery(initialQuery)
 const detailVisible = ref(false)
 const selectedConfig = ref(null)
 const editorRef = ref(null)
@@ -28,16 +30,15 @@ const configs = useDemoDataset('billingConfigs', [
   { type:'RF', no:'RFB-OG0370-Scheme-1782960772-v4', version:'V4', customer:'JYK-深圳立杰海快', customerNo:'OG0370', memberCode:'20260701-009', shop:'星际中转2', email:'billing-og0370@example.com', currency:'CNY', cycle:'周账单', sentRule:'账期结束后 1 天', mode:'签收返款', effectStart:'2026-07-01', effectEnd:'长期', operator:'郑雅雯', updatedAt:'2026-07-01 11:08', changeReason:'切换签收返款', status:'启用' },
 ], 2)
 const rows = computed(() => configs.value.filter(i => i.type === activeType.value
-  && (!query.shop || i.shop.includes(query.shop)) && (!query.customer || i.customer.includes(query.customer))
-  && (!query.customerNo || i.customerNo.includes(query.customerNo)) && (!query.memberCode || i.memberCode.includes(query.memberCode))
-  && (!query.status || i.status === query.status)))
+  && (!appliedQuery.shop || i.shop.includes(appliedQuery.shop)) && (!appliedQuery.customer || i.customer.includes(appliedQuery.customer))
+  && (!appliedQuery.customerNo || i.customerNo.includes(appliedQuery.customerNo)) && (!appliedQuery.memberCode || i.memberCode.includes(appliedQuery.memberCode))
+  && (!appliedQuery.status || i.status === appliedQuery.status)))
 const configured = computed(() => rows.value.length)
 const configSummary = computed(() => [
   { label: '已配置客户', value: configured.value, extra: '当前筛选范围', tone: 'blue' },
   { label: '未配置客户', value: 2195 - configured.value, extra: '客户总数 - 已配置客户', tone: 'amber' },
   { label: '配置总数', value: configured.value, extra: '默认方案数量', tone: 'green' },
 ])
-function resetQuery(){ Object.assign(query,{shop:'',customer:'',customerNo:'',memberCode:'',status:''}) }
 function openDetail(row){ selectedConfig.value={...row}; detailVisible.value=true }
 function newConfig(){ openDetail({type:activeType.value,no:'新配置',version:'V1',customer:'',customerNo:'',memberCode:'',shop:'',email:'',currency:'CNY',cycle:activeType.value==='AR'?'月账单':'周账单',sentRule:'账期结束后 1 天',branches:'-',mode:'回款返款',effectStart:'2026-08-03',effectEnd:'长期',operator:'财务管理员',updatedAt:'2026-08-02 10:30',changeReason:'新建配置',status:'启用'}) }
 async function save(){
@@ -71,7 +72,7 @@ function generate(row){ ElMessage.success(`已为 ${row.customer} 创建账单�
         <ConditionFilter v-model="query.customerNo" label="客户编码" type="text" />
         <ConditionFilter v-model="query.memberCode" label="会员编码" type="text" />
         <ConditionFilter v-model="query.status" label="状态" :options="['启用','停用']" />
-        <div class="condition-filter-actions"><el-button type="primary">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
+        <div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
         <div class="condition-filter-tools"><el-button type="primary" :icon="Plus" @click="newConfig">新建账单配置</el-button></div>
       </div>
     </section>

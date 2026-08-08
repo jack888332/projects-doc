@@ -129,6 +129,7 @@ function closeDatePicker() {
       ref="datePickerRef"
       v-model="dateModel"
       class="condition-date-anchor"
+      style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none;"
       type="daterange"
       :editable="false"
       tabindex="-1"

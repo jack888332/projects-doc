@@ -1,1 +1,0 @@
-import{C as r}from"./CostCenterView-BlGr8frR.js";import{s as t,o as e}from"./vue-core-DSSwSyjy.js";import"./element-plus-BtzXgEsu.js";import"./element-icons-CPc6AQLt.js";import"./StackedCell-Dx9Zms_S.js";import"./index-B_yaGn72.js";import"./storage-BI9htgXh.js";const u={__name:"SupplierView",setup(o){return(i,p)=>(e(),t(r,{"initial-view":"suppliers"}))}};export{u as default};

@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import {
-  ArrowLeft, ArrowRight, ChatDotSquare, DataAnalysis, Download, Files,
+  ArrowRight, Back, ChatDotSquare, DataAnalysis, Download, Files,
   Grid, List, Lock, Money, OfficeBuilding, Operation, Refresh, Search, Setting,
   Tickets, Upload, User,
 } from '@element-plus/icons-vue'
@@ -58,6 +58,7 @@ const domain = computed(() => route.meta.domain || 'billing')
 const navigation = computed(() => domain.value === 'billing' ? billingNavigation : costNavigation)
 const sideTitle = computed(() => domain.value === 'billing' ? '账单系统' : '成本中心')
 const activeKey = computed(() => domain.value === 'billing' ? route.meta.billingMenu : route.meta.costView)
+const backTarget = computed(() => route.meta.back || '')
 
 function navigate(path) {
   sidebarOpen.value = false
@@ -114,7 +115,6 @@ async function resetData() {
     </header>
 
     <aside id="sidebar" :class="['sidebar', { open: sidebarOpen }]">
-      <div class="side-title">{{ sideTitle }}</div>
       <nav class="side-nav">
         <template v-for="group in navigation" :key="group.group || 'root'">
           <div v-if="group.group" class="nav-group-label">{{ group.group }}</div>
@@ -129,9 +129,12 @@ async function resetData() {
 
     <main class="workspace">
       <div class="route-tabs">
-        <button class="sidebar-toggle icon-btn" title="展开或收起菜单" @click="sidebarOpen = !sidebarOpen"><el-icon><Grid /></el-icon></button>
-        <button v-if="route.meta.back" class="route-back" title="返回" @click="navigate(route.meta.back)"><el-icon><ArrowLeft /></el-icon><span>返回</span></button>
-        <span>首页</span><el-icon><ArrowRight /></el-icon><span class="current-route">{{ route.meta.title }}</span>
+        <button v-if="backTarget" class="route-back" title="返回上级页面" @click="navigate(backTarget)"><el-icon><Back /></el-icon><span>返回</span></button>
+        <div class="route-crumbs">
+          <button class="sidebar-toggle icon-btn" title="展开或收起菜单" @click="sidebarOpen = !sidebarOpen"><el-icon><Grid /></el-icon></button>
+          <span>首页</span><el-icon><ArrowRight /></el-icon><span class="current-route">{{ route.meta.title }}</span>
+        </div>
+        <div id="route-page-actions" class="route-page-actions" aria-label="页面操作" />
       </div>
       <section id="content" class="content"><RouterView /></section>
     </main>

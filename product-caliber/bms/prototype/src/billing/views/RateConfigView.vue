@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { Delete, Download, EditPen, Plus, RefreshRight, View } from '@element-plus/icons-vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
+import PageHeader from '../../shared/components/PageHeader.vue'
 import TablePagination from '../../shared/components/TablePagination.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
@@ -36,16 +37,19 @@ function viewCustomerRate(row) {
 
 <template>
   <div class="module-page rate-config-page">
+    <PageHeader>
+      <template #actions>
+        <el-button :icon="Download" @click="simpleAction('导入任务')">导入</el-button>
+        <el-button :icon="RefreshRight" disabled>抓取</el-button>
+        <el-button type="primary" :icon="Plus" @click="simpleAction('新增客户特调汇率')">添加</el-button>
+      </template>
+    </PageHeader>
     <div class="rate-config-grid">
       <section class="rate-panel base-rate-panel">
         <header class="rate-panel-head">
           <div>
             <h2>基准汇率表</h2>
             <p>维护外币到财务本位币的默认汇率</p>
-          </div>
-          <div class="rate-panel-actions">
-            <el-button :icon="Download" @click="simpleAction('导入任务')">导入</el-button>
-            <el-button :icon="RefreshRight" disabled>抓取</el-button>
           </div>
         </header>
 
@@ -75,9 +79,6 @@ function viewCustomerRate(row) {
           <div>
             <h2>客户特调汇率</h2>
             <p>客户维度覆盖默认汇率</p>
-          </div>
-          <div class="rate-panel-actions">
-            <el-button type="primary" :icon="Plus" @click="simpleAction('新增客户特调汇率')">添加</el-button>
           </div>
         </header>
 

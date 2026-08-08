@@ -32,14 +32,6 @@ const financeReportReady = ref(false)
 const systemReportReady = ref(false)
 const comparisonReady = ref(false)
 
-const meta = computed(() => ({
-  base: { eyebrow: 'BASE CONFIGURATION', title: '基础配置' },
-  exports: { eyebrow: 'EXPORT JOBS', title: '导出管理' },
-  audit: { eyebrow: 'AUDIT TRAIL', title: '内部审计' },
-  compare: { eyebrow: 'REPORT RECONCILIATION', title: '报表比对' },
-  migration: { eyebrow: 'TEST DATA MIGRATION', title: '数据迁移' },
-}[props.mode]))
-
 watch(() => props.mode, resetQuery)
 
 const feeRows = useDemoDataset('billingFeeItems', [
@@ -145,9 +137,9 @@ function runComparison() { comparisonReady.value = true; ElMessage.success('比�
 
 <template>
   <div class="module-page">
-    <PageHeader v-if="!embedded" :eyebrow="meta.eyebrow" :title="meta.title">
+    <PageHeader v-if="!embedded">
       <template #actions>
-        <template v-if="mode === 'base'"><el-button :icon="Check">完整性检查</el-button><el-button type="primary" :icon="Plus" @click="action('新增配置')">新增</el-button></template>
+        <template v-if="mode === 'base'"><el-button type="primary" :icon="Plus" @click="action('新增配置')">新增</el-button><el-button :icon="Check">完整性检查</el-button></template>
         <template v-else-if="mode === 'exports'"><el-button :icon="Setting" @click="exportConfigVisible = true">对账报表配置</el-button><el-button type="primary" :icon="Plus" @click="action('新建导出任务')">新建导出</el-button></template>
         <template v-else-if="mode === 'audit'"><el-button :icon="Download" @click="action('审计导出任务')">导出审计结果</el-button></template>
         <template v-else-if="mode === 'compare'"><el-button :icon="Upload" @click="financeReportReady = true">上传财务侧报表</el-button><el-button :icon="Upload" @click="systemReportReady = true">上传系统侧报表</el-button><el-button type="primary" :icon="RefreshRight" :disabled="!financeReportReady || !systemReportReady" @click="runComparison">开始比对</el-button></template>

@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
-import { Back, Download, Edit, Plus, Upload, View } from '@element-plus/icons-vue'
+import { Download, Edit, Plus, Upload, View } from '@element-plus/icons-vue'
 import ConditionFilter from '../shared/components/ConditionFilter.vue'
 import HoverActionMenu from '../shared/components/HoverActionMenu.vue'
 import MetricGrid from '../shared/components/MetricGrid.vue'
@@ -43,19 +43,6 @@ const importStep = ref(1)
 const selectedFile = ref('')
 const billDetailTab = ref('costs')
 
-const pageMeta = {
-  overview: ['成本总览', '供应商成本账单、结清进度与待分摊成本的统一工作台'],
-  suppliers: ['供应商管理', '维护供应商、适用成本板块与账期配置'],
-  bills: ['成本账单', '按供应商与成本账期查看账单金额、成本明细及结清状态'],
-  billImport: ['导入供应商账单', '选择样本文件，确认识别范围并生成成本账单'],
-  billDetail: ['成本账单详情', '查看账单汇总、成本明细与归属结果'],
-  pool: ['成本池', '处理间接成本的候选订单范围、分摊规则与分摊状态'],
-  rules: ['分摊规则', '维护基础规则和供应商特调规则的优先级与分摊因子'],
-  profit: ['利润分析', '按业务订单汇总收入、直接成本、间接成本与利润'],
-  fees: ['成本费项索引', '统一五大成本板块的标准成本费项口径'],
-}
-const pageTitle = computed(() => pageMeta[props.initialView]?.[0] || '成本中心')
-const pageDescription = computed(() => pageMeta[props.initialView]?.[1] || '')
 const money = (value, currency) => `${formatAmount(value)} ${currency || ''}`.trim()
 const option = (value) => ({ label: value, value })
 const uniqueOptions = (rows, field) => [...new Set(rows.value.map((row) => row[field]).filter(Boolean))].map(option)
@@ -93,16 +80,16 @@ const filteredFees = computed(() => fees.value.filter((row) => (!feeBoard.value 
 const overviewKpis = computed(() => {
   const byCurrency = (currency) => bills.value.filter((row) => row.currency === currency).reduce((sum, row) => sum + numericAmount(row.amount), 0)
   return [
-    { label: '供应商', value: `${suppliers.value.length} 家`, extra: '已维护财务档案', tone: 'blue' },
-    { label: '成本账单', value: `${bills.value.length} 份`, extra: '覆盖全部样本文件', tone: 'green' },
-    { label: '待结清金额', value: `${formatAmount(byCurrency('CNY') / 1000, 1)} 千 CNY`, extra: `另有 ${formatAmount(byCurrency('TWD'), 0)} TWD`, tone: 'amber' },
-    { label: '待处理分摊集', value: `${pools.value.filter((row) => !['已分摊', '不分摊'].includes(row.status)).length} 个`, extra: '需确认规则或执行分摊', tone: 'red' },
+    { label: '供应商', value: `${suppliers.value.length} 家`, tone: 'blue' },
+    { label: '成本账单', value: `${bills.value.length} 份`, tone: 'green' },
+    { label: '待结清金额', value: `${formatAmount(byCurrency('CNY') / 1000, 1)} 千 CNY`, tone: 'amber' },
+    { label: '待处理分摊集', value: `${pools.value.filter((row) => !['已分摊', '不分摊'].includes(row.status)).length} 个`, tone: 'red' },
   ]
 })
 const billKpis = computed(() => [
-  { label: '成本明细', value: `${selectedBill.value.rows || 0} 笔`, extra: `直接 ${selectedBill.value.direct || 0} · 间接 ${selectedBill.value.indirect || 0}`, tone: 'blue' },
-  { label: '账单金额', value: money(numericAmount(selectedBill.value.amount), selectedBill.value.currency), extra: selectedBill.value.period, tone: 'amber' },
-  { label: '已结清金额', value: money(numericAmount(selectedBill.value.settled), selectedBill.value.currency), extra: selectedBill.value.state, tone: 'green' },
+  { label: '成本明细', value: `${selectedBill.value.rows || 0} 笔`, tone: 'blue' },
+  { label: '账单金额', value: money(numericAmount(selectedBill.value.amount), selectedBill.value.currency), tone: 'amber' },
+  { label: '已结清金额', value: money(numericAmount(selectedBill.value.settled), selectedBill.value.currency), tone: 'green' },
 ])
 
 const profitRows = [
@@ -162,13 +149,17 @@ function finishImport() {
 
 <template>
   <div class="module-page cost-center-vue">
-    <PageHeader :title="pageTitle" :description="pageDescription" eyebrow="COST CENTER">
+    <PageHeader v-if="['overview', 'bills', 'suppliers', 'rules', 'fees'].includes(initialView) || (initialView === 'billImport' && importStep > 1)">
       <template #actions>
         <el-button v-if="initialView === 'overview'" :icon="Download">导出总表</el-button>
-        <el-button v-if="initialView === 'suppliers'" type="primary" :icon="Plus" @click="openEditor('supplier', { boards: [], periodConfigs: [], currency: 'CNY', state: '启用' })">新增供应商</el-button>
+        <el-button v-if="initialView === 'overview'" @click="navigate('/cost/bills')">查看全部账单</el-button>
         <el-button v-if="initialView === 'bills'" type="primary" :icon="Upload" @click="navigate('/cost/bills/import')">导入供应商账单</el-button>
+        <el-button v-if="initialView === 'suppliers'" type="primary" :icon="Plus" @click="openEditor('supplier', { boards: [], periodConfigs: [], currency: 'CNY', state: '启用' })">新增供应商</el-button>
         <el-button v-if="initialView === 'rules'" type="primary" :icon="Plus" @click="openEditor('rule', { supplier: ruleType === 'base' ? '全部供应商' : '', status: '启用' })">新增规则</el-button>
         <el-button v-if="initialView === 'fees'" type="primary" :icon="Plus" @click="openEditor('fee', { board: '派送成本', rules: 0, references: 0, status: '启用' })">新增标准成本费项</el-button>
+        <el-button v-if="initialView === 'billImport' && importStep > 1" @click="importStep--">上一步</el-button>
+        <el-button v-if="initialView === 'billImport' && importStep === 2" type="primary" @click="importStep = 3">确认并预览</el-button>
+        <el-button v-if="initialView === 'billImport' && importStep === 3" type="primary" @click="finishImport">生成成本账单</el-button>
       </template>
     </PageHeader>
 
@@ -184,7 +175,7 @@ function finishImport() {
         </el-table>
       </section>
       <section class="module-panel cost-block-gap">
-        <div class="cost-section-head"><h2>最近供应商账单</h2><el-button link type="primary" @click="navigate('/cost/bills')">查看全部</el-button></div>
+        <div class="cost-section-head"><h2>最近供应商账单</h2></div>
         <el-table class="clean-table" :data="bills.slice(0, 5)" border>
           <el-table-column label="成本账单编号" min-width="250"><template #default="{ row }"><el-button link type="primary" @click="navigate(`/cost/bills/${encodeURIComponent(row.id)}`)">{{ row.id }}</el-button></template></el-table-column>
           <el-table-column prop="supplier" label="供应商" min-width="140" />
@@ -220,16 +211,18 @@ function finishImport() {
     </template>
 
     <template v-else-if="initialView === 'bills'">
-      <MetricGrid :items="[{ label: '成本账单', value: `${bills.length} 份`, tone: 'blue' }, { label: '待结清账单', value: `${bills.filter(row => row.state === '待结清').length} 份`, tone: 'amber' }, { label: '成本明细', value: `${bills.reduce((sum, row) => sum + row.rows, 0).toLocaleString()} 笔`, tone: 'green' }]" :columns="3" />
-      <section class="module-panel filter-table-panel">
-        <div class="module-toolbar"><div class="condition-filter-bar">
+      <section class="condition-query-panel">
+        <div class="condition-filter-bar">
           <ConditionFilter v-model="query.keyword" label="账单" type="text" search-placeholder="输入账单编号或文件名" />
           <ConditionFilter v-model="query.supplier" label="供应商" :options="supplierOptions" />
           <ConditionFilter v-model="query.board" label="成本板块" :options="boardOptions" />
           <ConditionFilter v-model="query.status" label="状态" :options="statusOptions" />
           <ConditionFilter v-model="query.period" label="账期范围" type="date-range" />
           <div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
-        </div></div>
+        </div>
+      </section>
+      <MetricGrid :items="[{ label: '成本账单', value: `${bills.length} 份`, tone: 'blue' }, { label: '待结清账单', value: `${bills.filter(row => row.state === '待结清').length} 份`, tone: 'amber' }, { label: '成本明细', value: `${bills.reduce((sum, row) => sum + row.rows, 0).toLocaleString()} 笔`, tone: 'green' }]" :columns="3" />
+      <section class="module-panel filter-table-panel">
         <el-table class="clean-table" :data="filteredBills" border>
           <el-table-column label="成本账单编号" min-width="245"><template #default="{ row }"><StackedCell :primary="row.id" :secondary="row.file" /></template></el-table-column>
           <el-table-column prop="supplier" label="供应商" min-width="130" />
@@ -247,7 +240,7 @@ function finishImport() {
 
     <template v-else-if="initialView === 'billDetail'">
       <div class="detail-hero">
-        <div><el-button link type="primary" :icon="Back" @click="navigate('/cost/bills')">返回账单</el-button><strong>{{ selectedBill.id }}</strong><small>{{ selectedBill.supplier }} · {{ selectedBill.board }} · {{ selectedBill.period }}</small></div>
+        <div><strong>{{ selectedBill.id }}</strong><small>{{ selectedBill.supplier }} · {{ selectedBill.board }} · {{ selectedBill.period }}</small></div>
         <StatusTag :label="selectedBill.state" />
       </div>
       <MetricGrid :items="billKpis" :columns="3" />
@@ -276,14 +269,15 @@ function finishImport() {
       <section class="module-panel import-workbench">
         <el-steps :active="importStep - 1" finish-status="success" align-center><el-step title="选择样本文件" /><el-step title="确认识别范围" /><el-step title="预览并生成" /></el-steps>
         <div v-if="importStep === 1" class="sample-grid"><button v-for="file in sampleFiles" :key="file.id" type="button" @click="chooseFile(file)"><strong>{{ file.name }}</strong><span>{{ file.supplier }} · {{ file.board }}</span><small>{{ file.sheets }} 个工作表 · {{ file.size }}</small></button></div>
-        <div v-else-if="importStep === 2" class="import-confirm"><el-result icon="info" title="识别范围已就绪" sub-title="将按供应商、成本板块、账期和费项映射生成账单"><template #extra><el-button @click="importStep = 1">上一步</el-button><el-button type="primary" @click="importStep = 3">确认并预览</el-button></template></el-result></div>
-        <div v-else class="import-preview"><el-table class="clean-table" :data="costs.slice(0, 8)" border><el-table-column prop="raw" label="原始费项" /><el-table-column prop="fee" label="标准成本费项" /><el-table-column prop="key" label="关联键" min-width="220" /><el-table-column prop="amount" label="金额" /></el-table><div class="import-actions"><el-button @click="importStep = 2">上一步</el-button><el-button type="primary" @click="finishImport">生成成本账单</el-button></div></div>
+        <div v-else-if="importStep === 2" class="import-confirm"><el-result icon="info" title="识别范围已就绪" sub-title="将按供应商、成本板块、账期和费项映射生成账单" /></div>
+        <div v-else class="import-preview"><el-table class="clean-table" :data="costs.slice(0, 8)" border><el-table-column prop="raw" label="原始费项" /><el-table-column prop="fee" label="标准成本费项" /><el-table-column prop="key" label="关联键" min-width="220" /><el-table-column prop="amount" label="金额" /></el-table></div>
       </section>
     </template>
 
     <template v-else-if="initialView === 'pool'">
+      <section class="condition-query-panel"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="分摊集" type="text" /><ConditionFilter v-model="query.supplier" label="供应商" :options="supplierOptions" /><ConditionFilter v-model="query.board" label="成本板块" :options="boardOptions" /><ConditionFilter v-model="query.status" label="状态" :options="statusOptions" /><div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></section>
       <MetricGrid :items="[{ label: '分摊集', value: `${pools.length} 个`, tone: 'blue' }, { label: '待分摊', value: `${pools.filter(row => row.status === '待分摊').length} 个`, tone: 'amber' }, { label: '待人工确认', value: `${pools.filter(row => row.status === '待人工确认').length} 个`, tone: 'red' }]" :columns="3" />
-      <section class="module-panel filter-table-panel"><div class="module-toolbar"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="分摊集" type="text" /><ConditionFilter v-model="query.supplier" label="供应商" :options="supplierOptions" /><ConditionFilter v-model="query.board" label="成本板块" :options="boardOptions" /><ConditionFilter v-model="query.status" label="状态" :options="statusOptions" /><div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></div>
+      <section class="module-panel filter-table-panel">
         <el-table class="clean-table" :data="filteredPools" border><el-table-column label="分摊集编号" min-width="210"><template #default="{ row }"><StackedCell :primary="row.id" :secondary="row.bill" /></template></el-table-column><el-table-column prop="supplier" label="供应商" min-width="120" /><el-table-column prop="board" label="成本板块" min-width="130" /><el-table-column prop="fee" label="标准成本费项" min-width="140" /><el-table-column prop="scope" label="候选业务订单范围" min-width="260" /><el-table-column prop="factor" label="分摊因子" min-width="140" /><el-table-column prop="amount" label="金额" min-width="150" /><el-table-column label="状态" width="120"><template #default="{ row }"><StatusTag :label="row.status" /></template></el-table-column><el-table-column label="操作" width="84" fixed="right"><template #default="{ row }"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" @click="showDetail(row)" /><HoverActionMenu><el-dropdown-item @click="row.status = '已分摊'">执行分摊</el-dropdown-item><el-dropdown-item @click="row.status = '不分摊'">标记不分摊</el-dropdown-item></HoverActionMenu></div></template></el-table-column></el-table><TablePagination :total="filteredPools.length" /></section>
     </template>
 
@@ -294,8 +288,9 @@ function finishImport() {
     </template>
 
     <template v-else-if="initialView === 'profit'">
+      <section class="condition-query-panel"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="业务订单" type="text" /><ConditionFilter v-model="query.type" label="集运线路" :options="['台湾海快', '台湾空运'].map(option)" /><ConditionFilter v-model="query.status" label="成本完整性" :options="['成本已齐', '成本未齐'].map(option)" /><ConditionFilter v-model="query.period" label="账期" type="date-range" /><div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></section>
       <MetricGrid :items="[{ label: '已确认客户侧收入', value: '3.86 百万 CNY', tone: 'blue' }, { label: '直接成本', value: '2.31 百万 CNY', tone: 'green' }, { label: '间接成本', value: '0.72 百万 CNY', tone: 'amber' }, { label: '总实际利润', value: '0.63 百万 CNY', tone: 'violet' }]" />
-      <section class="module-panel filter-table-panel"><div class="module-toolbar"><div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="业务订单" type="text" /><ConditionFilter v-model="query.type" label="集运线路" :options="['台湾海快', '台湾空运'].map(option)" /><ConditionFilter v-model="query.status" label="成本完整性" :options="['成本已齐', '成本未齐'].map(option)" /><ConditionFilter v-model="query.period" label="账期" type="date-range" /><div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div></div>
+      <section class="module-panel filter-table-panel">
         <el-table class="clean-table" :data="filteredProfitRows" border><el-table-column prop="order" label="业务订单号" min-width="190" /><el-table-column prop="customer" label="客户" min-width="170" /><el-table-column prop="route" label="集运线路" min-width="120" /><el-table-column v-for="field in ['revenue', 'direct', 'indirect', 'profit']" :key="field" :prop="field" :label="({ revenue: '客户侧收入', direct: '直接成本', indirect: '间接成本', profit: '利润' })[field]" min-width="130"><template #default="{ row }">{{ money(row[field], 'CNY') }}</template></el-table-column><el-table-column prop="rate" label="利润率" width="100" /><el-table-column label="成本完整性" width="120"><template #default="{ row }"><StatusTag :label="row.status" /></template></el-table-column></el-table><TablePagination :total="filteredProfitRows.length" /></section>
     </template>
 
@@ -323,13 +318,13 @@ function finishImport() {
 
 <style scoped>
 .cost-center-vue { display: flex; flex-direction: column; gap: var(--space-3); }
-.cost-center-vue :deep(.module-heading), .cost-center-vue :deep(.module-kpis), .cost-center-vue :deep(.module-segmented) { margin-bottom: 0; }
+.cost-center-vue :deep(.module-kpis), .cost-center-vue :deep(.module-segmented) { margin-bottom: 0; }
 .cost-section-head { min-height: 50px; padding: 0 var(--space-4); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
 .cost-section-head h2 { margin: 0; font-size: var(--section-title-font-size); }.cost-section-head span { color: var(--muted); font-size: var(--secondary-font-size); }
 .cost-block-gap { margin-top: var(--space-1); }.line-item { display: block; line-height: 1.7; }
 .import-workbench { padding: var(--space-6); }.sample-grid { margin-top: var(--space-6); display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap: var(--space-3); }
 .sample-grid button { min-height: 112px; padding: var(--space-4); display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); border: 1px solid var(--border); border-radius: 7px; color: var(--ink); background: #fff; text-align: left; cursor: pointer; }
 .sample-grid button:hover { border-color: var(--primary); background: var(--primary-soft); }.sample-grid span, .sample-grid small { color: var(--muted); }
-.import-confirm { min-height: 400px; }.import-preview { margin-top: var(--space-6); }.import-actions { margin-top: var(--space-4); display: flex; justify-content: flex-end; gap: var(--space-2); }
+.import-confirm { min-height: 400px; }.import-preview { margin-top: var(--space-6); }
 @media (max-width: 900px) { .sample-grid { grid-template-columns: 1fr; } }
 </style>

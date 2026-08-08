@@ -1,0 +1,1 @@
+import{C as e}from"./CostCenterView-DDQwcj7I.js";import{s as t,o}from"./vue-core-DSSwSyjy.js";import"./element-plus-6BLuQyY3.js";import"./element-icons-DVgueENy.js";import"./StackedCell-Blb05298.js";import"./index-XAvo3fkK.js";import"./storage-C1MloaqB.js";const l={__name:"FeeIndexView",setup(r){return(i,p)=>(o(),t(e,{"initial-view":"fees"}))}};export{l as default};

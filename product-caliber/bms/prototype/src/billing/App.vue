@@ -4,8 +4,8 @@ import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import {
-  ArrowDown, Bell, CircleCheck, Clock, Coin, Delete, DocumentChecked,
-  Download, Expand, Failed, Fold, List, Menu, Operation, QuestionFilled,
+  ArrowDown, Bell, Coin, Delete, DocumentChecked,
+  Download, Expand, Fold, List, Menu, Operation, QuestionFilled,
   DataAnalysis, Refresh, RefreshRight, Search, Setting, Tickets, User, View,
 } from '@element-plus/icons-vue'
 import BillsView from './views/BillsView.vue'
@@ -17,6 +17,8 @@ import AdjustmentView from './views/AdjustmentView.vue'
 import ProcessView from './views/ProcessView.vue'
 import ConditionFilter from '../shared/components/ConditionFilter.vue'
 import HoverActionMenu from '../shared/components/HoverActionMenu.vue'
+import MetricGrid from '../shared/components/MetricGrid.vue'
+import PageHeader from '../shared/components/PageHeader.vue'
 import StackedCell from '../shared/components/StackedCell.vue'
 import StatusTag from '../shared/components/StatusTag.vue'
 import TablePagination from '../shared/components/TablePagination.vue'
@@ -392,11 +394,11 @@ const filteredTasks = computed(() => taskRecords.value.filter((item) => {
 const taskSummary = computed(() => {
   const rows = filteredTasks.value
   return [
-    { key: '', label: '任务总数', value: rows.length, icon: Tickets, tone: 'blue' },
-    { key: 'PENDING', label: '待执行任务', value: rows.filter((item) => item.status === 'PENDING').length, icon: Clock, tone: 'slate' },
-    { key: 'RUNNING', label: '执行中任务', value: rows.filter((item) => item.status === 'RUNNING').length, icon: Refresh, tone: 'violet' },
-    { key: 'SUCCESS', label: '执行成功任务', value: rows.filter((item) => item.status === 'SUCCESS').length, icon: CircleCheck, tone: 'green' },
-    { key: 'FAILED', label: '执行失败任务', value: rows.filter((item) => item.status === 'FAILED').length, icon: Failed, tone: 'red' },
+    { key: '', label: '任务总数', value: rows.length, tone: 'blue' },
+    { key: 'PENDING', label: '待执行任务', value: rows.filter((item) => item.status === 'PENDING').length, tone: 'slate' },
+    { key: 'RUNNING', label: '执行中任务', value: rows.filter((item) => item.status === 'RUNNING').length, tone: 'violet' },
+    { key: 'SUCCESS', label: '执行成功任务', value: rows.filter((item) => item.status === 'SUCCESS').length, tone: 'green' },
+    { key: 'FAILED', label: '执行失败任务', value: rows.filter((item) => item.status === 'FAILED').length, tone: 'red' },
   ]
 })
 
@@ -429,11 +431,6 @@ function taskStatus(row) {
 function formatAmount(value) {
   const sign = value > 0 ? '+' : ''
   return `${sign}${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function setSummaryFilter(key) {
-  taskQuery.status = key
-  applyTaskQuery()
 }
 
 function handleTaskTypeChange(value) {
@@ -552,13 +549,13 @@ function viewResult(row) {
 
       <main class="page-main">
         <template v-if="activeMenu === 'tasks'">
-        <div class="page-heading">
-          <div><div class="eyebrow">BMS TASKS</div><h1>BMS任务</h1></div>
-          <div v-if="taskPageTab === 'list'" class="heading-actions">
+        <PageHeader v-if="taskPageTab === 'list'">
+          <template #actions>
             <el-button :icon="Download">导出任务</el-button>
             <el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button>
-          </div>
-        </div>
+            <el-button class="advanced-filter-toggle" :icon="Operation" @click="advancedVisible = !advancedVisible">{{ advancedVisible ? '隐藏高级筛选项' : '显示高级筛选项' }}</el-button>
+          </template>
+        </PageHeader>
 
         <el-tabs v-model="taskPageTab" class="task-page-tabs">
           <el-tab-pane label="任务列表" name="list">
@@ -578,23 +575,11 @@ function viewResult(row) {
               <div class="condition-filter-actions task-filter-actions">
                 <el-button type="primary" @click="applyTaskQuery">查询</el-button>
                 <el-button @click="resetFilters">重置</el-button>
-                <el-button class="advanced-filter-toggle" :icon="Operation" @click="advancedVisible = !advancedVisible">{{ advancedVisible ? '隐藏高级筛选项' : '显示高级筛选项' }}</el-button>
               </div>
             </div>
           </div>
 
-          <div class="summary-grid prd-summary">
-            <button
-              v-for="item in taskSummary"
-              :key="item.label"
-              :class="['summary-card', item.tone, { active: appliedTaskQuery.status === item.key }]"
-              @click="setSummaryFilter(item.key)"
-            >
-              <span>{{ item.label }}</span>
-              <strong>{{ item.value }}</strong>
-              <el-icon><component :is="item.icon" /></el-icon>
-            </button>
-          </div>
+          <MetricGrid :items="taskSummary" :columns="5" />
 
           <div class="result-summary">
             筛选结果 <strong>{{ filteredTasks.length }}</strong> 条

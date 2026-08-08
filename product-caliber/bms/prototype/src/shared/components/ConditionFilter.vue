@@ -81,7 +81,6 @@ async function closeAndBlur() {
 async function applyText(event) {
   if (event?.isComposing) return
   const value = draft.value.trim()
-  if (!value) return
   update(value)
   event?.target?.blur()
   await closeAndBlur()
@@ -196,13 +195,13 @@ function closeDatePicker() {
 </template>
 
 <style scoped>
-.condition-filter { position: relative; box-sizing: border-box; width: max-content; min-width: 0; max-width: 100%; height: 30px; min-height: 30px; padding: 0; display: inline-flex; flex: 0 0 auto; align-items: center; overflow: hidden; border: 1px solid #cfd4de; border-radius: 2px; color: #232b3b; background: #fff; transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease; }
+.condition-filter { position: relative; box-sizing: border-box; width: max-content; min-width: 0; max-width: 100%; height: 32px; min-height: 32px; padding: 0; display: inline-flex; flex: 0 0 auto; align-items: center; overflow: hidden; border: 1px solid #cfd4de; border-radius: 2px; color: #232b3b; background: #fff; transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease; }
 .condition-filter:hover { border-color: var(--primary-border); }
 .condition-filter:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-focus-ring); }
 .condition-filter.active { border-color: var(--primary); background: var(--primary-soft); }
 .condition-filter.disabled { opacity: .5; cursor: not-allowed; }
 .condition-filter-label { flex: 0 0 auto; white-space: nowrap; }
-.condition-filter-reference { width: max-content; min-width: 0; max-width: 100%; min-height: 28px; padding: 0 var(--space-3); display: flex; flex: 1 1 auto; align-items: center; gap: var(--space-3); overflow: hidden; outline: none; cursor: pointer; }
+.condition-filter-reference { width: max-content; min-width: 0; max-width: 100%; min-height: 30px; padding: 0 var(--space-3); display: flex; flex: 1 1 auto; align-items: center; gap: var(--space-3); overflow: hidden; outline: none; cursor: pointer; }
 .condition-filter-value { min-width: 0; flex: 0 1 auto; overflow: hidden; color: #7b8494; text-overflow: ellipsis; white-space: nowrap; }
 .condition-filter.active .condition-filter-value { color: var(--primary-strong); font-weight: var(--font-weight-semibold); }
 .condition-filter-arrow, .condition-filter-clear { flex: 0 0 auto; color: #8a93a2; }

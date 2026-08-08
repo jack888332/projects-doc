@@ -1,0 +1,1 @@
+import{C as o}from"./CostCenterView-DDQwcj7I.js";import{s as t,o as r}from"./vue-core-DSSwSyjy.js";import"./element-plus-6BLuQyY3.js";import"./element-icons-DVgueENy.js";import"./StackedCell-Blb05298.js";import"./index-XAvo3fkK.js";import"./storage-C1MloaqB.js";const u={__name:"AllocationRuleView",setup(e){return(i,p)=>(r(),t(o,{"initial-view":"rules"}))}};export{u as default};

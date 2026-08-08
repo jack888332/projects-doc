@@ -98,7 +98,7 @@ function resetFilters() {
 
 <template>
   <div class="module-page receivable-summary-page">
-    <PageHeader eyebrow="" title="营收总览">
+    <PageHeader>
       <template #actions>
         <el-button :icon="Download" @click="ElMessage.success('导出任务已创建')">导出</el-button>
       </template>
@@ -171,12 +171,12 @@ function resetFilters() {
 
 <style scoped>
 .receivable-summary-page { --summary-vertical-gap: var(--space-3); display: flex; flex-direction: column; gap: var(--summary-vertical-gap); }
-.receivable-summary-page :deep(.module-heading), .receivable-summary-page :deep(.module-kpis) { margin-bottom: 0; }
+.receivable-summary-page :deep(.module-kpis) { margin-bottom: 0; }
 .summary-scope-row { margin: 0; padding: 0; display: flex; gap: var(--space-3); }
 .summary-dimension-heading { min-height: 38px; display: flex; align-items: center; border-bottom: 1px solid var(--border); }
 .customer-dimension-heading { margin-top: var(--space-2); }
 .summary-dimension-heading strong { position: relative; height: 38px; padding-left: var(--space-3); display: inline-flex; align-items: center; color: var(--primary); font-size: var(--section-title-font-size); font-weight: var(--font-weight-semibold); }
-.summary-dimension-heading strong::before { content: ""; position: absolute; left: 0; width: 5px; height: 16px; background: var(--primary); }
+.summary-dimension-heading strong::before { content: "◤"; position: absolute; left: 0; color: var(--primary); font-size: var(--font-size-body); line-height: 1; transform: translateY(-1px); }
 .summary-table-panel { overflow: hidden; }
 .outstanding-amount { color: #9a611a; font-variant-numeric: tabular-nums; }
 .overdue-amount { color: #b6424d; font-weight: var(--font-weight-semibold); }

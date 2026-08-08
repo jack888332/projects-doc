@@ -58,15 +58,15 @@ const countStatus = (status) => status === '逾期未结清'
   ? typeBills.value.filter((item) => item.status === '待结清' && item.overdueDays > 0).length
   : typeBills.value.filter((item) => item.status === status).length
 const summary = computed(() => isReceivable.value ? [
-  { label: '账单总数', value: typeBills.value.length, extra: '当前筛选范围', tone: 'blue' },
-  { label: '待审核账单', value: countStatus('待审核'), extra: '需先审核后才能核销', tone: 'amber' },
-  { label: '待结清', value: countStatus('待结清'), extra: `未收 ${money(typeBills.value.filter((item) => item.status === '待结清').reduce((s, i) => s + Math.max(i.amount - i.paid, 0), 0))}`, tone: 'violet' },
-  { label: '逾期未结清', value: countStatus('逾期未结清'), extra: '按信用期结束日判断', tone: 'red' },
+  { label: '账单总数', value: typeBills.value.length, tone: 'blue' },
+  { label: '待审核账单', value: countStatus('待审核'), tone: 'amber' },
+  { label: '待结清', value: countStatus('待结清'), tone: 'violet' },
+  { label: '逾期未结清', value: countStatus('逾期未结清'), tone: 'red' },
 ] : [
-  { label: '账单总数', value: typeBills.value.length, extra: '当前筛选范围', tone: 'blue' },
-  { label: '待审核账单', value: countStatus('待审核'), extra: '需先审核后才能返还', tone: 'amber' },
-  { label: '待结清', value: countStatus('待结清'), extra: '存在待返货款金额', tone: 'violet' },
-  { label: '已结清', value: countStatus('已结清'), extra: '返还金额已全部核销', tone: 'green' },
+  { label: '账单总数', value: typeBills.value.length, tone: 'blue' },
+  { label: '待审核账单', value: countStatus('待审核'), tone: 'amber' },
+  { label: '待结清', value: countStatus('待结清'), tone: 'violet' },
+  { label: '已结清', value: countStatus('已结清'), tone: 'green' },
 ])
 
 function money(value) { return Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
@@ -100,9 +100,10 @@ async function handleBillAction(name) {
 
 <template>
   <div class="module-page live-reference-page">
-    <PageHeader eyebrow="" :title="title" :description="isReceivable ? '按客户、目的国和账期跟踪账单生成、审核、结算与逾期状态' : '按客户、目的国和账期跟踪返款账单的生成、审核、返还与核销状态'">
+    <PageHeader>
       <template #actions>
         <el-button :icon="Download" :disabled="!selectedRows.length" @click="openExport">导出</el-button>
+        <el-button :icon="Setting">字段显示</el-button>
       </template>
     </PageHeader>
 
@@ -123,7 +124,7 @@ async function handleBillAction(name) {
     <div class="status-tabs-row"><button v-for="status in statuses" :key="status" :class="{ active: activeStatus === status }" @click="activeStatus = status">{{ status }}</button></div>
 
     <section class="module-panel">
-      <div class="table-reference-toolbar"><span>已选 {{ selectedRows.length }} 个账单</span><el-button :icon="Setting">字段显示</el-button></div>
+      <div class="table-reference-toolbar"><span>已选 {{ selectedRows.length }} 个账单</span></div>
       <el-table :data="filteredBills" class="clean-table" row-key="billNo" border @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="44" fixed />
         <el-table-column prop="billNo" label="账单编号" width="205" fixed />

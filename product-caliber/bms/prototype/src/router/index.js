@@ -1,10 +1,10 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { BILLING_PATHS, COST_PATHS } from '../domain/constants.ts'
 
-const billingRoute = (path, billingMenu, title, taskTab = 'list') => ({
+const billingRoute = (path, billingMenu, title, taskTab = 'list', back = '') => ({
   path,
   component: () => import('../billing/BillingRoute.vue'),
-  meta: { domain: 'billing', billingMenu, title, taskTab },
+  meta: { domain: 'billing', billingMenu, title, taskTab, ...(back ? { back } : {}) },
 })
 
 export const router = createRouter({
@@ -19,7 +19,7 @@ export const router = createRouter({
     billingRoute(BILLING_PATHS.config, 'config', '账单配置'),
     billingRoute(BILLING_PATHS.rates, 'rates', '汇率配置'),
     billingRoute(BILLING_PATHS.tasks, 'tasks', '生成任务'),
-    billingRoute(BILLING_PATHS.base, 'tasks', '基础配置', 'base'),
+    billingRoute(BILLING_PATHS.base, 'tasks', '基础配置', 'base', BILLING_PATHS.tasks),
     billingRoute(BILLING_PATHS.exports, 'exports', '导出管理'),
     billingRoute(BILLING_PATHS.audit, 'audit', '内部审计'),
     billingRoute(BILLING_PATHS.compare, 'compare', '报表比对'),
@@ -37,4 +37,3 @@ export const router = createRouter({
   ],
   scrollBehavior: () => ({ top: 0 }),
 })
-

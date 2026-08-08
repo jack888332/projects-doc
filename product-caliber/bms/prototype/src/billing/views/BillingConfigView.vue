@@ -35,9 +35,9 @@ const rows = computed(() => configs.value.filter(i => i.type === activeType.valu
   && (!appliedQuery.status || i.status === appliedQuery.status)))
 const configured = computed(() => rows.value.length)
 const configSummary = computed(() => [
-  { label: '已配置客户', value: configured.value, extra: '当前筛选范围', tone: 'blue' },
-  { label: '未配置客户', value: 2195 - configured.value, extra: '客户总数 - 已配置客户', tone: 'amber' },
-  { label: '配置总数', value: configured.value, extra: '默认方案数量', tone: 'green' },
+  { label: '已配置客户', value: configured.value, tone: 'blue' },
+  { label: '未配置客户', value: 2195 - configured.value, tone: 'amber' },
+  { label: '配置总数', value: configured.value, tone: 'green' },
 ])
 function openDetail(row){ selectedConfig.value={...row}; detailVisible.value=true }
 function newConfig(){ openDetail({type:activeType.value,no:'新配置',version:'V1',customer:'',customerNo:'',memberCode:'',shop:'',email:'',currency:'CNY',cycle:activeType.value==='AR'?'月账单':'周账单',sentRule:'账期结束后 1 天',branches:'-',mode:'回款返款',effectStart:'2026-08-03',effectEnd:'长期',operator:'财务管理员',updatedAt:'2026-08-02 10:30',changeReason:'新建配置',status:'启用'}) }
@@ -62,9 +62,8 @@ function generate(row){ ElMessage.success(`已为 ${row.customer} 创建账单�
 
 <template>
   <div class="module-page live-reference-page">
-    <PageHeader eyebrow="" :title="activeType === 'AR' ? '应收账单配置' : '返款账单配置'" />
+    <PageHeader><template #actions><el-button type="primary" :icon="Plus" @click="newConfig">新建账单配置</el-button></template></PageHeader>
     <SegmentedControl v-model="activeType" :options="[{ label: '应收账单配置', value: 'AR' }, { label: '返款账单配置', value: 'RF' }]" aria-label="账单配置类型" />
-    <MetricGrid class="reference-kpis" :items="configSummary" :columns="3" />
     <section class="condition-query-panel">
       <div class="condition-filter-bar">
         <ConditionFilter v-model="query.shop" label="店铺" type="text" />
@@ -73,9 +72,9 @@ function generate(row){ ElMessage.success(`已为 ${row.customer} 创建账单�
         <ConditionFilter v-model="query.memberCode" label="会员编码" type="text" />
         <ConditionFilter v-model="query.status" label="状态" :options="['启用','停用']" />
         <div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
-        <div class="condition-filter-tools"><el-button type="primary" :icon="Plus" @click="newConfig">新建账单配置</el-button></div>
       </div>
     </section>
+    <MetricGrid class="reference-kpis" :items="configSummary" :columns="3" />
     <section class="module-panel">
       <el-table :data="rows" border row-key="no" class="clean-table">
         <el-table-column type="expand"><template #default="scope"><dl class="inline-detail-grid"><div><dt>配置类型</dt><dd>{{ activeType==='AR'?'应收账单配置':'返款账单配置' }}</dd></div><div><dt>客户</dt><dd>{{ scope.row.customer }} / {{ scope.row.customerNo }}</dd></div><div><dt>账期规则</dt><dd>{{ scope.row.cycle }}</dd></div><div><dt>账单发出时间</dt><dd>{{ scope.row.sentRule }}</dd></div></dl></template></el-table-column>

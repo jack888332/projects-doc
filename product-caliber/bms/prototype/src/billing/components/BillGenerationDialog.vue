@@ -3,7 +3,6 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
-import TableFieldSortButton from '../../shared/components/TableFieldSortButton.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const props = defineProps({
@@ -128,7 +127,6 @@ defineExpose({ open })
     <section v-else-if="step === 1 && !mayReplaceExistingBills" class="generation-step-panel">
       <el-alert title="系统执行时将根据是否已有可沿用的待审核账单，判定为首次生成或补充生成。" type="info" :closable="false" />
       <div class="generation-summary-row"><div><span>待选择费项</span><strong>{{ candidateFees.length }}</strong></div><div><span>已选择</span><strong>{{ selectedCandidateFees.length }}</strong></div><div><span>预计金额变化</span><strong>{{ money(candidateAmount) }} {{ bill.currency }}</strong></div><div><span>结果处理</span><strong>新增结果版本</strong></div></div>
-      <div class="table-reference-toolbar"><TableFieldSortButton /></div>
       <DataTableFrame :total="candidateFees.length" :page-size="20" :toolbar="false"><el-table :data="candidateFees" border class="generation-table">
         <el-table-column label="纳入" width="64" align="center"><template #default="scope"><el-checkbox v-model="scope.row.selected" /></template></el-table-column>
         <el-table-column prop="fee" label="费项" width="150" /><el-table-column prop="businessNo" label="业务单号" min-width="220" /><el-table-column prop="sourceAt" label="进入费项池时间" width="160" /><el-table-column prop="reason" label="待补充原因" width="130" /><el-table-column prop="currency" label="币种" width="80" /><el-table-column label="金额" align="right" width="130"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column>

@@ -1,5 +1,4 @@
 <script setup>
-import TableFieldSortButton from './TableFieldSortButton.vue'
 import TablePagination from './TablePagination.vue'
 
 defineProps({
@@ -17,12 +16,8 @@ defineEmits(['update:pageSize', 'update:currentPage'])
 
 <template>
   <div class="data-table-frame">
-    <div v-if="toolbar" class="table-reference-toolbar">
-      <div class="table-reference-leading">
-        <slot name="sort"><TableFieldSortButton /></slot>
-        <span v-if="selectedCount !== null">已选 {{ selectedCount }} 行</span>
-        <slot name="toolbar-leading" />
-      </div>
+    <div v-if="toolbar && ($slots['toolbar-leading'] || $slots.actions)" class="table-reference-toolbar">
+      <div v-if="$slots['toolbar-leading']" class="table-reference-leading"><slot name="toolbar-leading" /></div>
       <div v-if="$slots.actions" class="table-reference-actions"><slot name="actions" /></div>
     </div>
     <slot />

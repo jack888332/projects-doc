@@ -1,7 +1,7 @@
 ﻿<script setup>
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
-import { Download, RefreshRight, Setting, View } from '@element-plus/icons-vue'
+import { Download, RefreshRight, View } from '@element-plus/icons-vue'
 import BillDetailPanel from '../components/BillDetailPanel.vue'
 import ConditionFilter from '../../shared/components/ConditionFilter.vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
@@ -120,7 +120,6 @@ async function handleBillAction(name) {
 
     <section class="module-panel">
       <DataTableFrame :total="filteredBills.length" :selected-count="selectedRows.length">
-        <template #actions><el-button :icon="Setting">字段显示</el-button></template>
       <el-table :data="filteredBills" class="clean-table" row-key="billNo" border @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="44" fixed />
         <el-table-column prop="billNo" label="账单编号" width="205" fixed />

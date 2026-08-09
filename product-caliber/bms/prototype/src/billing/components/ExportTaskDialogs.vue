@@ -1,7 +1,6 @@
 <script setup>
 import { computed } from 'vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
-import TableFieldSortButton from '../../shared/components/TableFieldSortButton.vue'
 
 const props = defineProps({
   detailVisible: { type: Boolean, default: false },
@@ -17,7 +16,6 @@ const taskItems = computed(() => props.items.filter((item) => item.taskNo === pr
   <el-dialog :model-value="detailVisible" title="导出任务详情" width="820px" align-center @update:model-value="emit('update:detailVisible', $event)">
     <template v-if="task">
       <dl class="detail-grid"><div><dt>任务编号</dt><dd>{{ task.no }}</dd></div><div><dt>任务状态</dt><dd>{{ task.status }}</dd></div><div><dt>账单类型 / 用途</dt><dd>{{ task.billType }} / {{ task.purpose }}</dd></div><div><dt>内部导出格式</dt><dd>{{ task.format }}</dd></div><div><dt>处理进度</dt><dd>{{ task.processed }} / {{ task.bills }}（{{ task.progress }}%）</dd></div></dl>
-      <div class="table-reference-toolbar"><TableFieldSortButton /></div>
       <DataTableFrame :total="taskItems.length" :page-size="20" :toolbar="false"><el-table :data="taskItems" border><el-table-column prop="billNo" label="账单编号" width="230" /><el-table-column prop="result" label="导出结果" width="100" /><el-table-column prop="output" label="Sheet / 文件" width="180" /><el-table-column prop="reason" label="失败原因" min-width="220" /></el-table></DataTableFrame>
     </template>
   </el-dialog>

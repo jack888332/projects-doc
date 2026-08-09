@@ -46,7 +46,7 @@ function viewCustomerRate(row) {
             <el-table-column label="汇率" width="112">
               <template #default="scope"><strong class="rate-value">{{ formatRate(scope.row.rate) }}</strong></template>
             </el-table-column>
-            <el-table-column label="操作" width="64" fixed="right">
+            <el-table-column label="操作" width="64">
               <template #default="scope">
                 <HoverActionMenu>
                   <el-dropdown-item :icon="EditPen" @click="simpleAction('汇率编辑')">编辑</el-dropdown-item>

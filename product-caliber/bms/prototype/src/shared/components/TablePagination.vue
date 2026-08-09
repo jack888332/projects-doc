@@ -1,16 +1,38 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   total: { type: Number, default: 0 },
   pageSize: { type: Number, default: 20 },
   pageSizes: { type: Array, default: () => [10, 20, 50, 100] },
-  layout: { type: String, default: 'sizes, prev, pager, next' },
   summary: { type: String, default: '' },
 })
 const emit = defineEmits(['update:pageSize', 'update:currentPage'])
 const currentPage = ref(1)
 const currentPageSize = ref(props.pageSize)
+const anchor = ref(null)
+const docked = ref(false)
+const dockStyle = ref({})
+let frameId = 0
+
+function syncDock() {
+  cancelAnimationFrame(frameId)
+  frameId = requestAnimationFrame(() => {
+    const element = anchor.value
+    const frame = element?.closest('.data-table-frame') || element?.parentElement
+    if (!element || !frame) return
+    const anchorRect = element.getBoundingClientRect()
+    const frameRect = frame.getBoundingClientRect()
+    const barHeight = 60
+    const shouldDock = frameRect.top < window.innerHeight - barHeight
+      && frameRect.bottom > 0
+      && anchorRect.top > window.innerHeight - barHeight
+    docked.value = shouldDock
+    dockStyle.value = shouldDock
+      ? { left: `${frameRect.left}px`, width: `${frameRect.width}px` }
+      : {}
+  })
+}
 
 watch(() => props.pageSize, (value) => {
   currentPageSize.value = value
@@ -18,6 +40,19 @@ watch(() => props.pageSize, (value) => {
 
 watch(() => props.total, () => {
   currentPage.value = 1
+  nextTick(syncDock)
+})
+
+onMounted(() => {
+  window.addEventListener('scroll', syncDock, { passive: true })
+  window.addEventListener('resize', syncDock)
+  nextTick(syncDock)
+})
+
+onBeforeUnmount(() => {
+  cancelAnimationFrame(frameId)
+  window.removeEventListener('scroll', syncDock)
+  window.removeEventListener('resize', syncDock)
 })
 
 const handlePageSizeChange = (value) => emit('update:pageSize', value)
@@ -25,16 +60,30 @@ const handleCurrentPageChange = (value) => emit('update:currentPage', value)
 </script>
 
 <template>
-  <div class="table-pagination">
-    <el-pagination
-      v-model:current-page="currentPage"
-      v-model:page-size="currentPageSize"
-      :layout="layout"
-      :page-sizes="pageSizes"
-      :total="total"
-      @update:page-size="handlePageSizeChange"
-      @update:current-page="handleCurrentPageChange"
-    />
-    <span>{{ summary || `共 ${total} 行` }}</span>
+  <div ref="anchor" class="table-pagination">
+    <div class="table-pagination-inner" :class="{ 'is-docked': docked }" :style="dockStyle">
+      <div class="table-pagination-left">
+        <span class="table-pagination-summary">{{ summary || `共 ${total} 行` }}</span>
+        <el-pagination
+          class="table-pagination-pager"
+          v-model:current-page="currentPage"
+          layout="prev, pager, next"
+          :total="total"
+          @update:current-page="handleCurrentPageChange"
+        />
+      </div>
+      <el-select
+        class="table-pagination-size"
+        v-model="currentPageSize"
+        @change="handlePageSizeChange"
+      >
+        <el-option
+          v-for="size in pageSizes"
+          :key="size"
+          :label="`${size} 行/页`"
+          :value="size"
+        />
+      </el-select>
+    </div>
   </div>
 </template>

@@ -7,7 +7,7 @@ import MetricGrid from '../../shared/components/MetricGrid.vue'
 import PageHeader from '../../shared/components/PageHeader.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
-import TablePagination from '../../shared/components/TablePagination.vue'
+import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
@@ -126,7 +126,7 @@ function resetFilters() {
     </section>
 
     <section class="module-panel summary-table-panel">
-      <div class="table-reference-toolbar"><TableFieldSortButton /></div>
+      <DataTableFrame :total="filteredRecords.length" :page-size="10">
 <el-table
         :data="filteredRecords"
         class="clean-table receivable-summary-table"
@@ -151,7 +151,7 @@ function resetFilters() {
           </template>
         </el-table-column>
       </el-table>
-      <TablePagination :total="filteredRecords.length" :page-size="10" />
+      </DataTableFrame>
     </section>
 
     <el-drawer v-model="detailVisible" title="客户应收账单" class="module-drawer" destroy-on-close>
@@ -160,14 +160,14 @@ function resetFilters() {
         <div><dt>客户编号</dt><dd>{{ selectedSummary.customerNo }}</dd></div><div><dt>会员编码</dt><dd>{{ selectedSummary.memberCode }}</dd></div><div><dt>店铺</dt><dd>{{ selectedSummary.shop }}</dd></div><div><dt>结算币种</dt><dd>{{ selectedSummary.currency }}</dd></div>
         <div><dt>应收金额</dt><dd>{{ money(selectedSummary.receivable, selectedSummary.currency) }}</dd></div><div><dt>已收金额</dt><dd>{{ money(selectedSummary.received, selectedSummary.currency) }}</dd></div><div><dt>未结账单</dt><dd>{{ selectedSummary.outstandingBills }}</dd></div><div><dt>最早到期日</dt><dd>{{ selectedSummary.oldestDue }}</dd></div>
       </dl>
-      <div class="table-reference-toolbar"><TableFieldSortButton /></div>
-<el-table v-if="selectedSummary" :data="[
+      <DataTableFrame v-if="selectedSummary" :total="2" :page-size="10">
+<el-table :data="[
         { no: `ARB-${selectedSummary.customerNo}-202607-a3f1`, period: '2026/07/21 - 2026/07/27', due: selectedSummary.oldestDue, amount: selectedSummary.outstanding * 0.62, status: selectedSummary.overdue > 0 ? '已逾期' : '待回款' },
         { no: `ARB-${selectedSummary.customerNo}-202608-f892`, period: '2026/07/28 - 2026/08/03', due: '2026-08-18', amount: selectedSummary.outstanding * 0.38, status: '待回款' },
       ]" border class="clean-table summary-bill-table">
         <el-table-column prop="no" label="应收账单编号" min-width="210" /><el-table-column prop="period" label="账期" min-width="180" /><el-table-column prop="due" label="到期日" width="115" /><el-table-column label="未收金额" min-width="140"><template #default="scope">{{ money(scope.row.amount, selectedSummary.currency) }}</template></el-table-column><el-table-column label="状态" width="90"><template #default="scope"><StatusTag :label="scope.row.status" /></template></el-table-column>
       </el-table>
-      <TablePagination v-if="selectedSummary" :total="2" :page-size="10" />
+      </DataTableFrame>
     </el-drawer>
   </div>
 </template>

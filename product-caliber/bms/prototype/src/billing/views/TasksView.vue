@@ -1,44 +1,32 @@
 ﻿<script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
+import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import {
-  ArrowDown, Bell, Coin, Delete, DocumentChecked,
-  Download, Expand, Fold, List, Menu, Operation, QuestionFilled,
-  DataAnalysis, Refresh, RefreshRight, Search, Setting, Tickets, User, View,
+  Delete, DocumentChecked, Download, Operation, Refresh, RefreshRight, View,
 } from '@element-plus/icons-vue'
-import BillsView from './views/BillsView.vue'
-import BillingConfigView from './views/BillingConfigView.vue'
-import RateConfigView from './views/RateConfigView.vue'
-import RemittanceView from './views/RemittanceView.vue'
-import ReceivableSummaryView from './views/ReceivableSummaryView.vue'
-import AdjustmentView from './views/AdjustmentView.vue'
-import ProcessView from './views/ProcessView.vue'
-import ConditionFilter from '../shared/components/ConditionFilter.vue'
-import HoverActionMenu from '../shared/components/HoverActionMenu.vue'
-import MetricGrid from '../shared/components/MetricGrid.vue'
-import PageHeader from '../shared/components/PageHeader.vue'
-import StackedCell from '../shared/components/StackedCell.vue'
-import StatusTag from '../shared/components/StatusTag.vue'
-import TablePagination from '../shared/components/TablePagination.vue'
-import DataTableFrame from '../shared/components/DataTableFrame.vue'
-import { useStagedQuery } from '../shared/composables/useStagedQuery.js'
-import { useDemoDataset } from './data/useDemoDataset.js'
+import ProcessView from './ProcessView.vue'
+import ConditionFilter from '../../shared/components/ConditionFilter.vue'
+import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
+import MetricGrid from '../../shared/components/MetricGrid.vue'
+import PageHeader from '../../shared/components/PageHeader.vue'
+import StackedCell from '../../shared/components/StackedCell.vue'
+import StatusTag from '../../shared/components/StatusTag.vue'
+import DataTableFrame from '../../shared/components/DataTableFrame.vue'
+import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
+import { billingTaskFixtures, sourceScansByTaskId } from '../../data/fixtures/billingTasks.ts'
+import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const props = defineProps({
-  initialMenu: { type: String, default: 'tasks' },
   initialTaskTab: { type: String, default: 'list' },
-  embedded: { type: Boolean, default: false },
 })
 
-const activeMenu = ref(props.initialMenu)
 const taskPageTab = ref(props.initialTaskTab)
 const detailVisible = ref(false)
 const detailTab = ref('overview')
 const selectedTask = ref(null)
-const collapsed = ref(false)
 const advancedVisible = ref(false)
-const notifications = ref(4)
 
 const initialTaskQuery = {
   keyword: '',
@@ -51,71 +39,6 @@ const initialTaskQuery = {
   period: [],
 }
 const { query: taskQuery, appliedQuery: appliedTaskQuery, applyQuery: applyTaskQuery, resetQuery: resetTaskQuery } = useStagedQuery(initialTaskQuery)
-
-const menuGroups = [
-  { label: '财务日常', items: [
-    { key: 'receivableSummary', label: '营收总览', icon: DataAnalysis },
-    { key: 'receivable', label: '应收账单', icon: DocumentChecked },
-    { key: 'refund', label: '返款账单', icon: Tickets },
-    { key: 'remittance', label: '回款管理', icon: Coin },
-    { key: 'adjustments', label: '调账中心', icon: Operation },
-  ] },
-  { label: '核心配置', items: [
-    { key: 'config', label: '账单配置', icon: Setting },
-    { key: 'rates', label: '汇率配置', icon: Coin },
-  ] },
-  { label: '过程管控', items: [
-    { key: 'tasks', label: '生成任务', icon: List },
-    { key: 'exports', label: '导出管理', icon: Download },
-    { key: 'audit', label: '内部审计', icon: View },
-  ] },
-  { label: '辅助测试', items: [
-    { key: 'compare', label: '报表比对', icon: Search },
-    { key: 'migration', label: '数据迁移', icon: Refresh },
-  ] },
-]
-const menus = menuGroups.flatMap((group) => group.items)
-const billingPaths = {
-  receivableSummary: '/billing/revenue-overview',
-  receivable: '/billing/receivable-bills',
-  refund: '/billing/refund-bills',
-  remittance: '/billing/remittance',
-  adjustments: '/billing/adjustments',
-  config: '/billing/config',
-  rates: '/billing/rates',
-  tasks: '/billing/tasks',
-  base: '/billing/base-config',
-  exports: '/billing/exports',
-  audit: '/billing/audit',
-  compare: '/billing/report-compare',
-  migration: '/billing/data-migration',
-}
-
-function navigateMenu(key) {
-  activeMenu.value = key
-  const path = billingPaths[key]
-  if (path && window.location.hash !== `#${path}`) window.location.hash = path
-}
-
-watch(taskPageTab, (tab) => {
-  if (activeMenu.value !== 'tasks') return
-  const path = tab === 'base' ? billingPaths.base : billingPaths.tasks
-  if (window.location.hash !== `#${path}`) window.location.hash = path
-})
-
-const viewRegistry = {
-  receivable: { component: BillsView, props: { billType: 'AR' } },
-  refund: { component: BillsView, props: { billType: 'RF' } },
-  remittance: { component: RemittanceView },
-  receivableSummary: { component: ReceivableSummaryView },
-  adjustments: { component: AdjustmentView },
-  config: { component: BillingConfigView },
-  rates: { component: RateConfigView },
-  exports: { component: ProcessView, props: { mode: 'exports' } },
-  audit: { component: ProcessView, props: { mode: 'audit' } },
-  compare: { component: ProcessView, props: { mode: 'compare' } },
-  migration: { component: ProcessView, props: { mode: 'migration' } },
-}
 
 const statusMeta = {
   PENDING: { label: '待执行', className: 'info' },
@@ -142,236 +65,7 @@ const triggerMeta = {
   MANUAL: '手动',
 }
 
-const normalizeTask = (row) => ({
-  status: 'SUCCESS', taskType: 'BILL_GENERATE', currentStage: 'RESULT_SAVE', generationMode: '', closeResult: '不涉及',
-  triggerType: 'MANUAL', configType: '默认配置', customerNo: '-', memberCode: '-', shop: '全部店铺',
-  startedAt: '-', finishedAt: '-', duration: '0秒', operator: 'system', failedStage: '', error: '', advice: '',
-  sourceCount: 0, pooledFeeCount: 0, billCount: 0, netChange: 0, resultConclusion: '-', resultVersion: '-',
-  originalBills: [], newBills: [], sourceSql: '', ...row,
-  period: `${row.periodStart} 至 ${row.periodEnd}`,
-})
-
-const taskRecords = useDemoDataset('billingTasks', [
-  {
-    id: 1,
-    taskNo: 'BMS-20260802-00081',
-    status: 'FAILED',
-    taskType: 'BILL_GENERATE',
-    currentStage: 'BILL_CALCULATE',
-    generationMode: 'SUPPLEMENT',
-    closeResult: '未收口',
-    triggerType: 'SCHEDULED',
-    configNo: 'BC-OG4155-M-US',
-    configVersion: 'V12',
-    configType: '分支配置',
-    customerName: 'OceanGate Logistics',
-    customerNo: 'OG4155',
-    memberCode: 'M-700127',
-    shop: '深圳集运店',
-    periodStart: '2026-08-01',
-    periodEnd: '2026-08-01',
-    dataCutoff: '2026-08-02 02:00:00',
-    createdAt: '2026-08-02 02:00:01',
-    startedAt: '2026-08-02 02:10:03',
-    finishedAt: '2026-08-02 02:12:29',
-    duration: '2分26秒',
-    operator: 'system',
-    failedStage: 'BILL_CALCULATE',
-    error: '11条费项缺少业务板块，无法按“业务板块 + 运抵国”完成拆单。',
-    advice: '核对来源数据完整性；修复后按原任务快照重新执行。若需改变范围或配置，请先删除任务并从业务入口新建任务。',
-    sourceCount: 1864,
-    pooledFeeCount: 6421,
-    originalBills: ['ARB-OG4155-20260801-f31a'],
-    scopeKey: 'OG4155|AR|2026-08-01|BC-OG4155-M-US|BILL_GENERATE',
-    sourceSql: 'SELECT ... FROM sale_order_fee_detail\nWHERE customer_no = :customerNo\n  AND fee_created_at <= :dataCutoff\n  AND bms_reviewed = 0;',
-  },
-  {
-    id: 2,
-    taskNo: 'BMS-20260802-00080',
-    generationMode: 'FIRST',
-    configNo: 'BC-TK9012-D',
-    configVersion: 'V8',
-    customerName: 'TopKing Supply',
-    customerNo: 'TK9012',
-    memberCode: 'M-672019',
-    shop: '义乌集运店',
-    periodStart: '2026-08-01',
-    periodEnd: '2026-08-07',
-    dataCutoff: '2026-08-02 09:30:00',
-    createdAt: '2026-08-02 09:30:02',
-    startedAt: '2026-08-02 09:31:11',
-    finishedAt: '2026-08-02 09:34:45',
-    duration: '3分34秒',
-    operator: '谭清辉',
-    sourceCount: 2540,
-    pooledFeeCount: 8220,
-    billCount: 2,
-    netChange: 483126.58,
-    resultConclusion: '首次生成',
-    resultVersion: 'RV-20260802-00317',
-    newBills: ['ARB-TK9012-20260801-41b7', 'ARB-TK9012-20260801-8c2a'],
-    scopeKey: 'TK9012|AR|2026-08-01/07|BC-TK9012-D|BILL_GENERATE',
-    sourceSql: 'SELECT ... FROM sale_order_fee_detail\nWHERE customer_no = :customerNo\n  AND sign_time BETWEEN :periodStart AND :dataCutoff\n  AND bms_reviewed = 0;',
-  },
-  {
-    id: 3,
-    taskNo: 'BMS-20260802-00079',
-    status: 'RUNNING',
-    taskType: 'FEE_POOL',
-    currentStage: 'FEE_POOL_WRITE',
-    triggerType: 'SCHEDULED',
-    configNo: 'BC-ADDITIONAL-INCR',
-    configVersion: 'V5',
-    customerName: '全部客户',
-    periodStart: '2026-08-02',
-    periodEnd: '2026-08-02',
-    dataCutoff: '2026-08-02 10:00:00',
-    createdAt: '2026-08-02 10:00:01',
-    startedAt: '2026-08-02 10:03:00',
-    duration: '8分12秒',
-    operator: 'system',
-    sourceCount: 916,
-    pooledFeeCount: 342,
-    resultConclusion: '执行中',
-    scopeKey: 'ALL|ADDITIONAL|2026-08-02 09:00/10:00|V5',
-    sourceSql: 'SELECT ... FROM sale_order_additional_fee\nWHERE created_at > :lastCheckpoint\n  AND created_at <= :dataCutoff\n  AND billing_status = :billable;',
-  },
-  {
-    id: 4,
-    taskNo: 'BMS-20260802-00077',
-    status: 'PENDING',
-    taskType: 'BILL_RECALCULATE',
-    currentStage: 'SCOPE_LOCK',
-    configNo: 'BC-NW2048-W',
-    configVersion: 'V9',
-    customerName: 'NorthWind Cargo',
-    customerNo: 'NW2048',
-    memberCode: 'M-204801',
-    shop: '上海集运店',
-    periodStart: '2026-07-21',
-    periodEnd: '2026-07-27',
-    dataCutoff: '2026-08-02 09:48:16',
-    createdAt: '2026-08-02 09:48:18',
-    operator: '郑雅雯',
-    pooledFeeCount: 6188,
-    billCount: 1,
-    resultConclusion: '排队中',
-    resultVersion: 'RV-20260728-00196',
-    originalBills: ['ARB-NW2048-20260721-7f3c'],
-    scopeKey: 'ARB-NW2048-20260721-7f3c|BILL_RECALCULATE',
-    recalculateScope: '特调汇率、已审核调账及币种汇总',
-  },
-  {
-    id: 5,
-    taskNo: 'BMS-20260802-00072',
-    generationMode: 'SUPPLEMENT',
-    closeResult: '已收口',
-    configNo: 'BC-HL2388-WEEK',
-    configVersion: 'V6',
-    customerName: 'Hualei Express',
-    customerNo: 'HL2388',
-    memberCode: 'M-238801',
-    shop: '广州同行店',
-    periodStart: '2026-07-27',
-    periodEnd: '2026-08-02',
-    dataCutoff: '2026-08-02 08:35:00',
-    createdAt: '2026-08-02 08:35:03',
-    startedAt: '2026-08-02 08:35:18',
-    finishedAt: '2026-08-02 08:36:09',
-    duration: '51秒',
-    operator: '郑雅雯',
-    sourceCount: 642,
-    billCount: 1,
-    resultConclusion: '无需补充',
-    resultVersion: '未新增结果版本',
-    originalBills: ['ARB-HL2388-20260727-3d90'],
-    scopeKey: 'HL2388|AR|2026-07-27/08-02|BC-HL2388-WEEK|BILL_GENERATE',
-    sourceSql: 'SELECT ... FROM peer_order_fee_detail\nWHERE customer_no = :customerNo\n  AND fee_created_at <= :dataCutoff\n  AND bms_reviewed = 0;',
-  },
-  {
-    id: 6,
-    taskNo: 'BMS-20260801-00068',
-    generationMode: 'REPLACE',
-    configNo: 'BC-OG4155-M-UK',
-    configVersion: 'V13',
-    configType: '分支配置',
-    customerName: 'OceanGate Logistics',
-    customerNo: 'OG4155',
-    memberCode: 'M-700127',
-    shop: '深圳集运店',
-    periodStart: '2026-07-01',
-    periodEnd: '2026-07-31',
-    dataCutoff: '2026-08-01 18:19:00',
-    createdAt: '2026-08-01 18:19:03',
-    startedAt: '2026-08-01 18:19:28',
-    finishedAt: '2026-08-01 18:25:06',
-    duration: '5分38秒',
-    operator: '谭清辉',
-    sourceCount: 3188,
-    pooledFeeCount: 11290,
-    billCount: 3,
-    netChange: -1266.4,
-    resultConclusion: '替换生成成功',
-    resultVersion: 'RV-20260801-00288',
-    originalBills: ['ARB-OG4155-20260701-a20f', 'ARB-OG4155-20260701-d819'],
-    newBills: ['ARB-OG4155-20260701-f802', 'ARB-OG4155-20260701-a664', 'ARB-OG4155-20260701-339c'],
-    scopeKey: 'REPLACE-BATCH-20260801-0017',
-    sourceSql: 'SELECT ... FROM sale_order_fee_detail\nWHERE customer_no = :customerNo\n  AND sign_time BETWEEN :periodStart AND :dataCutoff;',
-  },
-  {
-    id: 7,
-    taskNo: 'BMS-20260801-00064',
-    status: 'FAILED',
-    taskType: 'FEE_POOL',
-    currentStage: 'SOURCE_FILTER',
-    triggerType: 'SCHEDULED',
-    configNo: 'BC-ADDITIONAL-INCR',
-    configVersion: 'V5',
-    customerName: '全部客户',
-    periodStart: '2026-08-01',
-    periodEnd: '2026-08-01',
-    dataCutoff: '2026-08-01 23:00:00',
-    createdAt: '2026-08-01 23:00:01',
-    startedAt: '2026-08-01 23:01:11',
-    finishedAt: '2026-08-01 23:03:42',
-    duration: '2分31秒',
-    operator: 'system',
-    failedStage: 'SOURCE_FILTER',
-    error: '来源库连接超时，系统自动重试后仍未恢复。',
-    advice: '该费项入池任务由系统负责恢复，财务无需重新执行或删除。',
-    resultConclusion: '系统恢复中',
-    scopeKey: 'ALL|ADDITIONAL|2026-08-01 22:00/23:00|V5',
-    sourceSql: 'SELECT ... FROM sale_order_additional_fee\nWHERE created_at > :lastCheckpoint\n  AND created_at <= :dataCutoff;',
-  },
-].map(normalizeTask), 5)
-
-const sourceScansByTaskId = {
-  1: [
-    { dataset: '订单费用明细', method: '增量', range: '(2026-08-01 02:00:00, 2026-08-02 02:00:00]', previousWatermark: '2026-08-01 02:00:00 / 记录 918842', cutoff: '2026-08-02 02:00:00', pulled: 1320, matched: 1186, result: '成功', failure: '-' },
-    { dataset: '订单附加费', method: '增量', range: '(2026-08-01 02:00:00, 2026-08-02 02:00:00]', previousWatermark: '2026-08-01 02:00:00 / 记录 28416', cutoff: '2026-08-02 02:00:00', pulled: 544, matched: 517, result: '成功', failure: '-' },
-  ],
-  2: [
-    { dataset: '订单费用明细', method: '全量', range: '[2026-08-01 00:00:00, 2026-08-02 09:30:00]', previousWatermark: '无有效水位', cutoff: '2026-08-02 09:30:00', pulled: 1984, matched: 1742, result: '成功', failure: '-' },
-    { dataset: '订单附加费', method: '增量', range: '(2026-08-01 09:30:00, 2026-08-02 09:30:00]', previousWatermark: '2026-08-01 09:30:00 / 记录 28107', cutoff: '2026-08-02 09:30:00', pulled: 556, matched: 498, result: '成功', failure: '-' },
-  ],
-  3: [
-    { dataset: '订单附加费', method: '增量', range: '(2026-08-02 09:00:00, 2026-08-02 10:00:00]', previousWatermark: '2026-08-02 09:00:00 / 记录 28601', cutoff: '2026-08-02 10:00:00', pulled: 916, matched: 342, result: '执行中', failure: '-' },
-  ],
-  5: [
-    { dataset: '同行订单费用明细', method: '增量', range: '(2026-08-02 07:35:00, 2026-08-02 08:35:00]', previousWatermark: '2026-08-02 07:35:00 / 记录 72628', cutoff: '2026-08-02 08:35:00', pulled: 642, matched: 0, result: '成功', failure: '-' },
-  ],
-  6: [
-    { dataset: '订单费用明细', method: '全量', range: '[2026-07-01 00:00:00, 2026-08-01 18:19:00]', previousWatermark: '配置版本变化，原水位失效', cutoff: '2026-08-01 18:19:00', pulled: 2624, matched: 2410, result: '成功', failure: '-' },
-    { dataset: '订单附加费', method: '增量', range: '(2026-07-31 18:19:00, 2026-08-01 18:19:00]', previousWatermark: '2026-07-31 18:19:00 / 记录 27954', cutoff: '2026-08-01 18:19:00', pulled: 564, matched: 521, result: '成功', failure: '-' },
-  ],
-  7: [
-    { dataset: '订单附加费', method: '增量', range: '(2026-08-01 22:00:00, 2026-08-01 23:00:00]', previousWatermark: '2026-08-01 22:00:00 / 记录 28068', cutoff: '2026-08-01 23:00:00', pulled: 0, matched: 0, result: '失败', failure: '来源库连接超时' },
-  ],
-}
-
-const currentMenu = computed(() => menus.find((item) => item.key === activeMenu.value))
-const currentGroup = computed(() => menuGroups.find((group) => group.items.some((item) => item.key === activeMenu.value)))
-const currentView = computed(() => viewRegistry[activeMenu.value])
+const taskRecords = useDemoDataset('billingTasks', billingTaskFixtures)
 const canFilterGenerationMode = computed(() => !taskQuery.taskType || taskQuery.taskType === 'BILL_GENERATE')
 const selectedSourceScans = computed(() => sourceScansByTaskId[selectedTask.value?.id] || [])
 
@@ -491,62 +185,7 @@ function viewResult(row) {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'is-collapsed': collapsed, 'is-embedded': embedded }">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark"><Coin /></div>
-        <div v-if="!collapsed" class="brand-copy"><strong>BMS</strong><span>账单管理系统</span></div>
-      </div>
-
-      <nav class="main-nav" aria-label="账单系统菜单">
-        <template v-for="group in menuGroups" :key="group.label">
-          <div v-if="!collapsed" class="nav-section-label">{{ group.label }}</div>
-          <button
-            v-for="item in group.items"
-            :key="item.key"
-            class="nav-item"
-            :class="{ active: activeMenu === item.key }"
-            :title="collapsed ? item.label : ''"
-            :aria-label="item.label"
-            @click="navigateMenu(item.key)"
-          >
-            <el-icon><component :is="item.icon" /></el-icon>
-            <span v-if="!collapsed">{{ item.label }}</span>
-            <i v-if="item.key === 'tasks' && !collapsed" class="nav-count">{{ taskRecords.filter((task) => ['PENDING', 'RUNNING', 'FAILED'].includes(task.status)).length }}</i>
-          </button>
-        </template>
-      </nav>
-
-      <div class="sidebar-spacer" />
-      <div v-if="!collapsed" class="side-meta">
-        <span class="meta-dot" />
-        <div><strong>任务服务正常</strong><small>最近检查 10:26</small></div>
-      </div>
-      <button class="collapse-button" :title="collapsed ? '展开菜单' : '收起菜单'" @click="collapsed = !collapsed">
-        <el-icon><Expand v-if="collapsed" /><Fold v-else /></el-icon><span v-if="!collapsed">收起菜单</span>
-      </button>
-    </aside>
-
-    <section class="workspace">
-      <header class="topbar">
-        <div class="topbar-left"><el-icon class="mobile-menu"><Menu /></el-icon><span>账单系统</span><i>/</i><strong>{{ currentGroup?.label }}</strong><i>/</i><span>{{ currentMenu?.label }}</span></div>
-        <div class="topbar-actions">
-          <button class="icon-action" title="全局搜索"><el-icon><Search /></el-icon></button>
-          <button class="icon-action notification" title="通知" @click="notifications = 0">
-            <el-icon><Bell /></el-icon><b v-if="notifications">{{ notifications }}</b>
-          </button>
-          <button class="icon-action" title="帮助"><el-icon><QuestionFilled /></el-icon></button>
-          <span class="topbar-divider" />
-          <button class="profile-action">
-            <span class="avatar"><User /></span>
-            <span class="profile-copy"><strong>谭清辉</strong><small>财务管理员</small></span>
-            <el-icon><ArrowDown /></el-icon>
-          </button>
-        </div>
-      </header>
-
-      <main class="page-main">
-        <template v-if="activeMenu === 'tasks'">
+  <div class="billing-task-page">
         <PageHeader v-if="taskPageTab === 'list'">
           <template #export>
             <el-button :icon="Download">导出任务</el-button>
@@ -619,10 +258,6 @@ function viewResult(row) {
             <ProcessView mode="base" embedded />
           </el-tab-pane>
         </el-tabs>
-        </template>
-        <component v-else-if="currentView" :is="currentView.component" v-bind="currentView.props || {}" />
-      </main>
-    </section>
 
     <el-drawer v-model="detailVisible" size="760px" class="detail-drawer">
       <template #header>
@@ -666,8 +301,8 @@ function viewResult(row) {
 
           <el-tab-pane label="执行快照" name="snapshot">
             <h4 class="section-title first-title">来源扫描记录</h4>
-            <div class="table-reference-toolbar"><TableFieldSortButton /></div>
-<el-table v-if="selectedSourceScans.length" :data="selectedSourceScans" border class="source-scan-table">
+            <DataTableFrame v-if="selectedSourceScans.length" :total="selectedSourceScans.length" :page-size="10">
+<el-table :data="selectedSourceScans" border class="source-scan-table">
               <el-table-column prop="dataset" label="来源数据集" min-width="130" fixed="left" />
               <el-table-column prop="method" label="扫描方式" width="86">
                 <template #default="scope"><el-tag :type="scope.row.method === '全量' ? 'warning' : 'success'" effect="plain">{{ scope.row.method }}</el-tag></template>
@@ -681,7 +316,7 @@ function viewResult(row) {
               <el-table-column prop="result" label="扫描结果" width="86" />
               <el-table-column prop="failure" label="失败原因" min-width="150" />
             </el-table>
-            <TablePagination v-if="selectedSourceScans.length" :total="selectedSourceScans.length" :page-size="10" />
+            </DataTableFrame>
             <div v-else class="na-box">不适用：账单重算不读取来源数据，也不产生来源扫描记录。</div>
             <h4 class="section-title">任务执行快照</h4>
             <pre class="json-box">{{ snapshotJson }}</pre>

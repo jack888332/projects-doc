@@ -1,11 +1,11 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { DEMO_DATA_CHANGED_EVENT } from '../data/prototypeDb.js'
-import { createRepository } from '../data/repository.js'
+import { DEMO_DATA_CHANGED_EVENT } from '../data/events.ts'
+import { createTableRepository } from '../data/repositories/tableRepository.ts'
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
 
 export function useCostTable(tableName) {
-  const repository = createRepository(tableName)
+  const repository = createTableRepository(tableName)
   const rows = ref([])
   const ready = ref(false)
   let persistedRows = []

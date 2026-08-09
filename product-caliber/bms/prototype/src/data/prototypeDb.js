@@ -24,9 +24,3 @@ prototypeDb.version(3).stores({
 prototypeDb.version(4).stores({
   demoRecords: '&key,dataset,position',
 })
-
-export const DEMO_DATA_CHANGED_EVENT = 'bms-demo-data-changed'
-
-export function notifyDemoDataChanged() {
-  window.dispatchEvent(new CustomEvent(DEMO_DATA_CHANGED_EVENT))
-}

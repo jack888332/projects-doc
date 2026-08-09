@@ -1,38 +1,55 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { BILLING_PATHS, COST_PATHS } from '../domain/constants.ts'
 
-const billingRoute = (path, billingMenu, title, taskTab = 'list', back = '') => ({
-  path,
-  component: () => import('../billing/BillingRoute.vue'),
-  meta: { domain: 'billing', billingMenu, title, taskTab, ...(back ? { back } : {}) },
+const routeMeta = (domain, key, title, back = '') => ({
+  domain,
+  ...(domain === 'billing' ? { billingMenu: key } : { costView: key }),
+  title,
+  ...(back ? { back } : {}),
 })
+
+const billingRoute = (path, key, title, component, props) => ({
+  path,
+  component,
+  ...(props ? { props } : {}),
+  meta: routeMeta('billing', key, title),
+})
+
+const processRoute = (path, key, title, mode) => billingRoute(
+  path,
+  key,
+  title,
+  () => import('../billing/views/ProcessView.vue'),
+  { mode },
+)
 
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     { path: '/', redirect: BILLING_PATHS.receivableSummary },
-    billingRoute(BILLING_PATHS.receivableSummary, 'receivableSummary', '营收总览'),
-    billingRoute(BILLING_PATHS.receivable, 'receivable', '应收账单'),
-    billingRoute(BILLING_PATHS.refund, 'refund', '返款账单'),
-    billingRoute(BILLING_PATHS.remittance, 'remittance', '回款管理'),
-    billingRoute(BILLING_PATHS.adjustments, 'adjustments', '调账中心'),
-    billingRoute(BILLING_PATHS.config, 'config', '账单配置'),
-    billingRoute(BILLING_PATHS.rates, 'rates', '汇率配置'),
-    billingRoute(BILLING_PATHS.tasks, 'tasks', '生成任务'),
-    billingRoute(BILLING_PATHS.base, 'tasks', '基础配置', 'base', BILLING_PATHS.tasks),
-    billingRoute(BILLING_PATHS.exports, 'exports', '导出管理'),
-    billingRoute(BILLING_PATHS.audit, 'audit', '内部审计'),
-    billingRoute(BILLING_PATHS.compare, 'compare', '报表比对'),
-    billingRoute(BILLING_PATHS.migration, 'migration', '数据迁移'),
-    { path: COST_PATHS.overview, component: () => import('../cost/views/OverviewView.vue'), meta: { domain: 'cost', costView: 'overview', title: '成本总览' } },
-    { path: COST_PATHS.suppliers, component: () => import('../cost/views/SupplierView.vue'), meta: { domain: 'cost', costView: 'suppliers', title: '供应商管理' } },
-    { path: COST_PATHS.bills, component: () => import('../cost/views/CostBillView.vue'), meta: { domain: 'cost', costView: 'bills', title: '成本账单' } },
-    { path: COST_PATHS.billImport, component: () => import('../cost/views/CostBillImportView.vue'), meta: { domain: 'cost', costView: 'bills', title: '导入供应商账单', back: COST_PATHS.bills } },
-    { path: `${COST_PATHS.bills}/:id`, component: () => import('../cost/views/CostBillDetailView.vue'), meta: { domain: 'cost', costView: 'bills', title: '成本账单详情', back: COST_PATHS.bills } },
-    { path: COST_PATHS.pool, component: () => import('../cost/views/CostPoolView.vue'), meta: { domain: 'cost', costView: 'pool', title: '成本池' } },
-    { path: COST_PATHS.rules, component: () => import('../cost/views/AllocationRuleView.vue'), meta: { domain: 'cost', costView: 'rules', title: '分摊规则' } },
-    { path: COST_PATHS.profit, component: () => import('../cost/views/ProfitView.vue'), meta: { domain: 'cost', costView: 'profit', title: '利润分析' } },
-    { path: COST_PATHS.fees, component: () => import('../cost/views/FeeIndexView.vue'), meta: { domain: 'cost', costView: 'fees', title: '成本费项索引' } },
+    billingRoute(BILLING_PATHS.receivableSummary, 'receivableSummary', '营收总览', () => import('../billing/views/ReceivableSummaryView.vue')),
+    billingRoute(BILLING_PATHS.receivable, 'receivable', '应收账单', () => import('../billing/views/BillsView.vue'), { billType: 'AR' }),
+    billingRoute(BILLING_PATHS.refund, 'refund', '返款账单', () => import('../billing/views/BillsView.vue'), { billType: 'RF' }),
+    billingRoute(BILLING_PATHS.remittance, 'remittance', '回款管理', () => import('../billing/views/RemittanceView.vue')),
+    billingRoute(BILLING_PATHS.adjustments, 'adjustments', '调账中心', () => import('../billing/views/AdjustmentView.vue')),
+    billingRoute(BILLING_PATHS.config, 'config', '账单配置', () => import('../billing/views/BillingConfigView.vue')),
+    billingRoute(BILLING_PATHS.rates, 'rates', '汇率配置', () => import('../billing/views/RateConfigView.vue')),
+    billingRoute(BILLING_PATHS.tasks, 'tasks', '生成任务', () => import('../billing/views/TasksView.vue')),
+    billingRoute(BILLING_PATHS.base, 'tasks', '基础配置', () => import('../billing/views/TasksView.vue'), { initialTaskTab: 'base' }),
+    processRoute(BILLING_PATHS.exports, 'exports', '导出管理', 'exports'),
+    processRoute(BILLING_PATHS.audit, 'audit', '内部审计', 'audit'),
+    processRoute(BILLING_PATHS.compare, 'compare', '报表比对', 'compare'),
+    processRoute(BILLING_PATHS.migration, 'migration', '数据迁移', 'migration'),
+    { path: COST_PATHS.overview, component: () => import('../cost/views/OverviewView.vue'), meta: routeMeta('cost', 'overview', '成本总览') },
+    { path: COST_PATHS.suppliers, component: () => import('../cost/views/SupplierView.vue'), meta: routeMeta('cost', 'suppliers', '供应商管理') },
+    { path: COST_PATHS.bills, component: () => import('../cost/views/CostBillView.vue'), meta: routeMeta('cost', 'bills', '成本账单') },
+    { path: COST_PATHS.billImport, component: () => import('../cost/views/CostBillImportView.vue'), meta: routeMeta('cost', 'bills', '导入供应商账单', COST_PATHS.bills) },
+    { path: `${COST_PATHS.bills}/:id`, component: () => import('../cost/views/CostBillDetailView.vue'), meta: routeMeta('cost', 'bills', '成本账单详情', COST_PATHS.bills) },
+    { path: COST_PATHS.pool, component: () => import('../cost/views/CostPoolView.vue'), meta: routeMeta('cost', 'pool', '成本池') },
+    { path: COST_PATHS.rules, component: () => import('../cost/views/AllocationRuleView.vue'), meta: routeMeta('cost', 'rules', '分摊规则') },
+    { path: COST_PATHS.profit, component: () => import('../cost/views/ProfitView.vue'), meta: routeMeta('cost', 'profit', '利润分析') },
+    { path: COST_PATHS.fees, component: () => import('../cost/views/FeeIndexView.vue'), meta: routeMeta('cost', 'fees', '成本费项索引') },
+    { path: '/__dev/ui', component: () => import('../shared/views/UiGalleryView.vue'), meta: routeMeta('billing', '', '组件陈列') },
     { path: '/:pathMatch(.*)*', redirect: BILLING_PATHS.receivableSummary },
   ],
   scrollBehavior: () => ({ top: 0 }),

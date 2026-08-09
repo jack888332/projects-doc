@@ -1,22 +1,27 @@
-import { prototypeDb } from './prototypeDb.js'
+import { prototypeDb } from '../prototypeDb.js'
 
-const clone = (value) => JSON.parse(JSON.stringify(value))
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 
-export function createRepository(tableName) {
+export interface TableRepository<T extends Record<string, unknown>> {
+  list(): Promise<T[]>
+  get(key: unknown): Promise<T | undefined>
+  put(row: T): Promise<unknown>
+  update(key: unknown, changes: Partial<T>): Promise<number>
+  remove(key: unknown): Promise<void>
+  sync(previousRows: T[], nextRows: T[]): Promise<void>
+}
+
+export function createTableRepository<T extends Record<string, unknown>>(tableName: string): TableRepository<T> {
   const table = prototypeDb.table(tableName)
-  const keyPath = table.schema.primKey.keyPath
-  const keyOf = (row) => row?.[keyPath]
+  const keyPath = table.schema.primKey.keyPath as string
+  const keyOf = (row: T) => row?.[keyPath]
 
   return {
-    tableName,
-    keyOf,
     list: () => table.toArray(),
     get: (key) => table.get(key),
     put: (row) => table.put(clone(row)),
-    bulkPut: (rows) => table.bulkPut(clone(rows)),
     update: (key, changes) => table.update(key, clone(changes)),
     remove: (key) => table.delete(key),
-    clear: () => table.clear(),
     async sync(previousRows, nextRows) {
       const previous = new Map(previousRows.map((row) => [keyOf(row), row]))
       const next = new Map(nextRows.map((row) => [keyOf(row), row]))
@@ -30,4 +35,3 @@ export function createRepository(tableName) {
     },
   }
 }
-

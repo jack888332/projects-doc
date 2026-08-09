@@ -1,5 +1,6 @@
 import { costSeed } from './costSeed.js'
-import { notifyDemoDataChanged, prototypeDb } from './prototypeDb.js'
+import { notifyDemoDataChanged } from './events.ts'
+import { prototypeDb } from './prototypeDb.js'
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const COST_SEED_VERSION = 1
@@ -42,4 +43,3 @@ export async function resetPrototypeData() {
   await initializePrototypeData(true)
   notifyDemoDataChanged()
 }
-

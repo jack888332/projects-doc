@@ -9,13 +9,16 @@ import MetricGrid from '../../shared/components/MetricGrid.vue'
 import PageHeader from '../../shared/components/PageHeader.vue'
 import SegmentedControl from '../../shared/components/SegmentedControl.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
-import TablePagination from '../../shared/components/TablePagination.vue'
+import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
+import { createBillListSchema } from '../schemas/billListSchema.ts'
+import { billingBillFixtures } from '../../data/fixtures/billingBills.ts'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const props = defineProps({ billType: { type: String, required: true } })
 const isReceivable = computed(() => props.billType === 'AR')
 const title = computed(() => isReceivable.value ? '应收账单' : '返款账单')
+const pageSchema = computed(() => createBillListSchema(isReceivable.value))
 const initialQuery = { billNo: '', customer: '', shop: '', country: '', periodType: '', period: [] }
 const { query, appliedQuery, applyQuery, resetQuery: resetStagedQuery } = useStagedQuery(initialQuery)
 const activeStatus = ref('待审核')
@@ -31,16 +34,7 @@ const exportFormatOptions = [
 ]
 const expectedSheetCount = computed(() => exportPurpose.value === 'INTERNAL' && exportFormat.value === 'MERGED' ? 1 : selectedRows.value.length)
 
-const bills = useDemoDataset('billingBills', [
-  { type: 'AR', billNo: 'ARB-OG0271-20260731-81FF', status: '待审核', closeStatus: '未收口', issued: false, customer: '渣渣辉3号', customerNo: 'OG0271', memberCode: '700127', shop: '星际货运(中转)', country: '台湾', sector: '默认业务板块', periodType: '日', periodStart: '2026/07/31', periodEnd: '2026/07/31', sentAt: '-', dueAt: '2026/08/03', overdueDays: 0, notice: '-', currency: 'CNY', amount: 68, paid: 0, secondCurrency: 'TWD', secondAmount: -721 },
-  { type: 'AR', billNo: 'ARB-OG0370-20260707-81FF', status: '待审核', closeStatus: '已收口', issued: false, customer: 'JYK-深圳立杰海快', customerNo: 'OG0370', memberCode: '20260701-009', shop: '星际中转2', country: '台湾', sector: '默认业务板块', periodType: '7天', periodStart: '2026/07/07', periodEnd: '2026/07/13', sentAt: '-', dueAt: '2026/07/20', overdueDays: 0, notice: '-', currency: 'CNY', amount: 3096.09, paid: 0 },
-  { type: 'AR', billNo: 'ARB-OG0360-20260601-81FF', status: '待结清', closeStatus: '已收口', issued: true, customer: 'liujiaya1', customerNo: 'OG0360', shop: '测试专用', country: '-', sector: '-', periodType: '月', periodStart: '2026/06/01', periodEnd: '2026/06/30', sentAt: '2026/07/03', dueAt: '2026/06/30', overdueDays: 33, notice: '已通知', currency: 'CNY', amount: 11760.5, paid: 8000, secondCurrency: 'TWD', secondAmount: 23712 },
-  { type: 'AR', billNo: 'ARB-OG0347-20260401-9A35', status: '已结清', closeStatus: '已收口', issued: true, customer: '测试1', customerNo: 'OG0347', shop: '星际中转2', country: '中國臺灣', sector: '默认业务板块', periodType: '周', periodStart: '2026/04/01', periodEnd: '2026/04/05', sentAt: '2026/04/08', dueAt: '2026/04/12', overdueDays: 0, notice: '已通知', currency: 'TWD', amount: 10678, paid: 10678 },
-  { type: 'AR', billNo: 'ARB-OG0347-20260325-VOID', status: '已作废', closeStatus: '已收口', issued: false, customer: '测试1', customerNo: 'OG0347', shop: '星际中转2', country: '中國臺灣', sector: '默认业务板块', periodType: '周', periodStart: '2026/03/25', periodEnd: '2026/03/31', sentAt: '-', dueAt: '-', overdueDays: 0, notice: '-', currency: 'TWD', amount: 9860, paid: 0, voidReason: '替换生成后原账单作废' },
-  { type: 'RF', billNo: 'PCB-OG0347-20260526', status: '待结清', closeStatus: '已收口', issued: true, customer: '测试1', customerNo: 'OG0347', memberCode: '20260228-002', shop: '星际中转2', country: 'TW', periodType: '半周', periodStart: '2026/05/26', periodEnd: '2026/05/29', sentAt: '2026/05/30', notice: '已通知', refundMode: '回款返款', currency: 'TWD', original: 9780, deduction: 0, amount: 9780, paid: 2101, baseRefundable: 41076, baseReturned: 8824.2 },
-  { type: 'RF', billNo: 'PCB-OG0370-20260721', status: '待审核', closeStatus: '未收口', issued: false, customer: 'JYK-深圳立杰海快', customerNo: 'OG0370', memberCode: '20260701-009', shop: '星际中转2', country: 'TW', periodType: '周', periodStart: '2026/07/21', periodEnd: '2026/07/27', sentAt: '-', notice: '-', refundMode: '签收返款', currency: 'CNY', original: 91640, deduction: 3020, amount: 88620, paid: 0 },
-  { type: 'RF', billNo: 'PCB-OG0271-20260714-VOID', status: '已作废', closeStatus: '已收口', issued: false, customer: '渣渣辉3号', customerNo: 'OG0271', memberCode: '700127', shop: '星际货运(中转)', country: 'TW', periodType: '周', periodStart: '2026/07/14', periodEnd: '2026/07/20', sentAt: '-', notice: '-', refundMode: '回款返款', currency: 'TWD', original: 7380, deduction: 220, amount: 7160, paid: 0, voidReason: '替换生成后原账单作废' },
-], 4)
+const bills = useDemoDataset('billingBills', billingBillFixtures, 4)
 
 const statuses = computed(() => isReceivable.value
   ? ['待审核', '待结清', '逾期未结清', '已结清', '已作废', '全部']
@@ -108,12 +102,14 @@ async function handleBillAction(name) {
 
     <section class="condition-query-panel">
       <div class="condition-filter-bar">
-        <ConditionFilter v-model="query.billNo" label="账单编号" type="text" />
-        <ConditionFilter v-model="query.customer" label="客户名称" type="text" />
-        <ConditionFilter v-model="query.shop" label="店铺" type="text" />
-        <ConditionFilter v-model="query.country" :label="isReceivable ? '运抵国' : '目的国'" :options="['台湾','中國臺灣']" />
-        <ConditionFilter v-model="query.periodType" label="账期类型" :options="['日','7天','周','月']" />
-        <ConditionFilter v-model="query.period" label="账期" type="date-range" />
+        <ConditionFilter
+          v-for="filter in pageSchema.filters"
+          :key="filter.key"
+          v-model="query[filter.key]"
+          :label="filter.label"
+          :type="filter.type"
+          :options="filter.options"
+        />
         <div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
       </div>
     </section>
@@ -123,7 +119,8 @@ async function handleBillAction(name) {
     <div class="status-tabs-row"><button v-for="status in statuses" :key="status" :class="{ active: activeStatus === status }" @click="activeStatus = status">{{ status }}</button></div>
 
     <section class="module-panel">
-      <div class="table-reference-toolbar"><TableFieldSortButton /><span>已选 {{ selectedRows.length }} 行</span><div class="table-reference-actions"><el-button :icon="Setting">字段显示</el-button></div></div>
+      <DataTableFrame :total="filteredBills.length" :selected-count="selectedRows.length">
+        <template #actions><el-button :icon="Setting">字段显示</el-button></template>
       <el-table :data="filteredBills" class="clean-table" row-key="billNo" border @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="44" fixed />
         <el-table-column prop="billNo" label="账单编号" width="205" fixed />
@@ -137,7 +134,7 @@ async function handleBillAction(name) {
         <el-table-column v-if="isReceivable" prop="dueAt" label="信用期结束日" width="120" /><el-table-column v-if="isReceivable" prop="overdueDays" label="逾期天数" width="90" /><el-table-column prop="notice" label="通知状态" width="95" />
         <el-table-column label="操作" width="112" fixed="right"><template #default="scope"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="openDetail(scope.row)" /><HoverActionMenu v-if="!['已结清','已作废'].includes(scope.row.status) && !scope.row.processingState"><el-dropdown-item :icon="RefreshRight" @click="openDetail(scope.row); handleBillAction('账单重算')">账单重算</el-dropdown-item></HoverActionMenu></div></template></el-table-column>
       </el-table>
-      <TablePagination :total="filteredBills.length" />
+      </DataTableFrame>
     </section>
 
     <el-drawer v-model="detailVisible" size="86%" class="detail-drawer module-drawer" :close-on-click-modal="false">

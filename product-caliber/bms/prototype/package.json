@@ -9,8 +9,9 @@
     "build:release": "vite build --outDir dist --emptyOutDir",
     "preview": "vite preview --host 0.0.0.0 --outDir .tmp-build",
     "preview:release": "vite preview --host 0.0.0.0 --outDir dist",
+    "audit:architecture": "node scripts/architecture-audit.mjs",
     "test": "vitest run",
-    "check": "npm run test && npm run build"
+    "check": "npm run audit:architecture && npm run test && npm run build"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",

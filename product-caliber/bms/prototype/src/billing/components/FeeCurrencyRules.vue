@@ -1,6 +1,7 @@
-<script setup>
+﻿<script setup>
 import { Delete, Plus } from '@element-plus/icons-vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
+import TablePagination from '../../shared/components/TablePagination.vue'
 
 const props = defineProps({
   scheme: { type: Object, required: true },
@@ -24,12 +25,14 @@ function applyTemplate(value) {
   <div class="setting-row matrix-row">
     <div class="setting-meta"><b>费项指定结算币种</b><small>未配置的费项采用默认结算币种</small></div>
     <div class="matrix-wrap">
-      <el-table :data="scheme.feeRules" border empty-text="未配置，默认使用费项默认结算币种">
+      <div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="scheme.feeRules" border empty-text="未配置，默认使用费项默认结算币种">
         <el-table-column label="费项" min-width="170"><template #default="{row}"><el-select v-model="row.feeCode" filterable placeholder="请选择费项"><el-option v-for="item in feeItems" :key="item.value" :label="item.label" :value="item.value" /></el-select></template></el-table-column>
         <el-table-column label="结算币种" min-width="140"><template #default="{row}"><el-select v-model="row.mode" @change="changeMode(row)"><el-option label="按数据源币种" value="SOURCE" /><el-option label="固定币种" value="FIXED" /></el-select></template></el-table-column>
         <el-table-column label="固定币种" width="130"><template #default="{row}"><el-select v-model="row.currency" :disabled="row.mode !== 'FIXED'" clearable><el-option v-for="item in currencies" :key="item" :label="item" :value="item" /></el-select></template></el-table-column>
         <el-table-column label="操作" width="64"><template #default="{$index}"><HoverActionMenu><el-dropdown-item class="danger-action" :icon="Delete" @click="scheme.feeRules.splice($index, 1)">删除</el-dropdown-item></HoverActionMenu></template></el-table-column>
       </el-table>
+      <TablePagination :total="scheme.feeRules.length" :page-size="10" />
       <div class="matrix-actions"><el-select v-model="scheme.template" clearable placeholder="引用费项币种模版" @change="applyTemplate"><el-option v-for="item in templates" :key="item.value" :label="item.label" :value="item.value" /></el-select><el-button :icon="Plus" @click="addRule">新增费项币种</el-button></div>
     </div>
   </div>

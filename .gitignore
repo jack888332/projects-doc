@@ -15,3 +15,7 @@
 public/
 .vitepress-work/
 .aidocs-cache/
+
+# BMS prototype build output
+/product-caliber/bms/prototype/.tmp-build/
+/product-caliber/bms/prototype/dist/

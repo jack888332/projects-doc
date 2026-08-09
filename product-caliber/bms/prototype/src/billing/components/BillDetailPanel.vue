@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { Download, EditPen, Search } from '@element-plus/icons-vue'
@@ -229,11 +229,14 @@ function submitGenerationTask() {
 
     <el-tabs v-if="isReceivable" v-model="activeTab" class="bill-detail-tabs">
       <el-tab-pane label="账单汇率" name="rates">
-        <div class="bill-detail-table-block"><h4>费项结算币种折算</h4><el-table :data="arRates" border><el-table-column prop="settlement" label="费项结算币种" /><el-table-column prop="target" label="财务本位币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column prop="rate" label="锁定汇率" align="right" /></el-table></div>
-        <div class="bill-detail-table-block"><h4>费项原始币种折算</h4><el-table :data="arRates" border><el-table-column prop="settlement" label="费项结算币种" /><el-table-column prop="target" label="费项原始币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column prop="rate" label="锁定汇率" align="right" /></el-table></div>
+       <div class="bill-detail-table-block"><h4>费项结算币种折算</h4><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="arRates" border><el-table-column prop="settlement" label="费项结算币种" /><el-table-column prop="target" label="财务本位币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column prop="rate" label="锁定汇率" align="right" /></el-table><TablePagination :total="arRates.length" :page-size="20" /></div>
+        <div class="bill-detail-table-block"><h4>费项原始币种折算</h4><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="arRates" border><el-table-column prop="settlement" label="费项结算币种" /><el-table-column prop="target" label="费项原始币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column prop="rate" label="锁定汇率" align="right" /></el-table><TablePagination :total="arRates.length" :page-size="20" /></div>
         <el-button :icon="EditPen" :disabled="!['待审核'].includes(bill.status)" @click="openRateEditor">编辑特调汇率</el-button>
       </el-tab-pane>
-      <el-tab-pane label="费用汇总" name="summary"><el-table :data="arFeeSummary" border><el-table-column prop="fee" label="费项" /><el-table-column prop="currency" label="结算币种" /><el-table-column label="应收金额" align="right"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column label="已核销金额" align="right"><template #default="scope">{{ money(scope.row.written) }}</template></el-table-column><el-table-column label="待核销金额" align="right"><template #default="scope">{{ money(scope.row.pending) }}</template></el-table-column></el-table></el-tab-pane>
+      <el-tab-pane label="费用汇总" name="summary"><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="arFeeSummary" border><el-table-column prop="fee" label="费项" /><el-table-column prop="currency" label="结算币种" /><el-table-column label="应收金额" align="right"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column label="已核销金额" align="right"><template #default="scope">{{ money(scope.row.written) }}</template></el-table-column><el-table-column label="待核销金额" align="right"><template #default="scope">{{ money(scope.row.pending) }}</template></el-table-column></el-table><TablePagination :total="arFeeSummary.length" :page-size="20" /></el-tab-pane>
       <el-tab-pane label="费用明细" name="details">
         <div class="fee-detail-workbench">
           <div class="fee-detail-viewbar">
@@ -244,7 +247,8 @@ function submitGenerationTask() {
             <el-button class="supplement-fee-button" type="primary" @click="emit('action', '补录费项')">补录费项</el-button>
           </div>
           <div class="fee-detail-query"><span>业务单号</span><el-input v-model="feeBusinessNo" placeholder="输入业务单号" clearable /><el-button type="primary" :icon="Search">查询</el-button></div>
-          <el-table v-if="feeView === 'horizontal'" :data="filteredArOrderFeeRows" border class="fee-horizontal-table">
+          <div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table v-if="feeView === 'horizontal'" :data="filteredArOrderFeeRows" border class="fee-horizontal-table">
             <el-table-column prop="businessNo" label="业务单号" width="245" fixed />
             <el-table-column prop="lastMileNo" label="尾程运单号" width="215" />
             <el-table-column prop="firstMileNo" label="首程运单号" width="215" />
@@ -253,7 +257,7 @@ function submitGenerationTask() {
             <el-table-column label="仓储费" min-width="150" align="right"><template #default="scope">{{ scope.row.warehouseFee === null ? '-' : `${money(scope.row.warehouseFee)} CNY` }}</template></el-table-column>
             <el-table-column label="操作费" min-width="150" align="right"><template #default="scope">{{ scope.row.operationFee === null ? '-' : `${money(scope.row.operationFee)} CNY` }}</template></el-table-column>
           </el-table>
-          <el-table v-else :data="arVerticalFeeRows" border class="fee-vertical-table">
+<el-table v-else :data="arVerticalFeeRows" border class="fee-vertical-table">
             <el-table-column prop="feeNo" label="费用编号" width="190" /><el-table-column prop="businessNo" label="业务单号" width="220" /><el-table-column prop="lastMileNo" label="尾程运单号" width="180" /><el-table-column prop="fee" label="费项" /><el-table-column prop="currency" label="币种" width="90" /><el-table-column label="结算金额" align="right"><template #default="scope">{{ money(scope.row.amount) }} {{ scope.row.currency }}</template></el-table-column>
           </el-table>
           <TablePagination
@@ -262,17 +266,24 @@ function submitGenerationTask() {
           />
         </div>
       </el-tab-pane>
-      <el-tab-pane label="调账记录" name="adjustments"><el-table v-if="adjustments.length" :data="adjustments" border><el-table-column prop="no" label="调账单号" width="180" /><el-table-column prop="status" label="审核状态" /><el-table-column prop="fee" label="费项" /><el-table-column prop="objectNo" label="挂靠对象编号" width="220" /><el-table-column prop="currency" label="币种" /><el-table-column label="金额变幅" align="right"><template #default="scope">{{ money(scope.row.delta) }}</template></el-table-column><el-table-column prop="adjustedAt" label="调账时间" width="155" /></el-table><el-empty v-else description="暂无调账记录" /></el-tab-pane>
-      <el-tab-pane label="核销记录" name="writeoffs"><el-table v-if="writeoffs.length" :data="writeoffs" border><el-table-column prop="no" label="核销编号" /><el-table-column prop="type" label="核销类型" /><el-table-column prop="currency" label="币种" /><el-table-column label="核销金额"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column prop="time" label="核销时间" /><el-table-column prop="operator" label="操作人" /></el-table><el-empty v-else description="暂无核销记录" /></el-tab-pane>
+     <el-tab-pane label="调账记录" name="adjustments"><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table v-if="adjustments.length" :data="adjustments" border><el-table-column prop="no" label="调账单号" width="180" /><el-table-column prop="status" label="审核状态" /><el-table-column prop="fee" label="费项" /><el-table-column prop="objectNo" label="挂靠对象编号" width="220" /><el-table-column prop="currency" label="币种" /><el-table-column label="金额变幅" align="right"><template #default="scope">{{ money(scope.row.delta) }}</template></el-table-column><el-table-column prop="adjustedAt" label="调账时间" width="155" /></el-table><TablePagination v-if="adjustments.length" :total="adjustments.length" :page-size="20" /><el-empty v-else description="暂无调账记录" /></el-tab-pane>
+      <el-tab-pane label="核销记录" name="writeoffs"><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table v-if="writeoffs.length" :data="writeoffs" border><el-table-column prop="no" label="核销编号" /><el-table-column prop="type" label="核销类型" /><el-table-column prop="currency" label="币种" /><el-table-column label="核销金额"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column prop="time" label="核销时间" /><el-table-column prop="operator" label="操作人" /></el-table><TablePagination v-if="writeoffs.length" :total="writeoffs.length" :page-size="20" /><el-empty v-else description="暂无核销记录" /></el-tab-pane>
     </el-tabs>
 
     <el-tabs v-else v-model="activeTab" class="bill-detail-tabs">
       <el-tab-pane label="账单信息" name="info"><dl class="bill-info-grid"><div><dt>账单编号</dt><dd>{{ bill.billNo }}</dd></div><div><dt>账单状态</dt><dd>{{ bill.status }}</dd></div><div><dt>账期收口状态</dt><dd>{{ bill.closeStatus }}</dd></div><div><dt>客户</dt><dd>{{ bill.customer }}</dd></div><div><dt>返款模式</dt><dd>{{ bill.refundMode }}</dd></div><div><dt>模式说明</dt><dd>{{ bill.refundMode }}：{{ bill.refundMode === '回款返款' ? '先回收，后返还' : '先返还，后回收' }}</dd></div><div><dt>账期类型</dt><dd>{{ bill.periodType }}</dd></div><div><dt>账期起始日</dt><dd>{{ bill.periodStart }}</dd></div><div><dt>账期结束日</dt><dd>{{ bill.periodEnd }}</dd></div></dl></el-tab-pane>
-      <el-tab-pane label="账单汇率" name="rates"><el-table :data="[{ source: bill.currency, target: 'CNY', direction: `${bill.currency} → CNY`, rate: '4.200000', state: '已锁定' }]" border><el-table-column prop="source" label="货款结算币种" /><el-table-column prop="target" label="财务本位币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column prop="rate" label="锁定汇率" /><el-table-column prop="state" label="状态" /></el-table></el-tab-pane>
-      <el-tab-pane label="返款明细" name="refunds"><el-table :data="refundDetails" border><el-table-column prop="waybill" label="尾程运单号" width="150" /><el-table-column prop="order" label="所属内部订单" width="155" /><el-table-column prop="signedAt" label="签收时间" width="150" /><el-table-column label="原始货款"><template #default="scope">{{ money(scope.row.original) }} {{ scope.row.currency }}</template></el-table-column><el-table-column label="应返货款"><template #default="scope">{{ money(scope.row.refundable) }} {{ scope.row.currency }}</template></el-table-column><el-table-column label="已返货款"><template #default="scope">{{ money(scope.row.returned) }} {{ scope.row.currency }}</template></el-table-column><el-table-column label="待返货款"><template #default="scope">{{ money(scope.row.pending) }} {{ scope.row.currency }}</template></el-table-column><el-table-column prop="state" label="核销状态" /></el-table></el-tab-pane>
-      <el-tab-pane label="扣减费项明细" name="deductions"><el-table v-if="deductionDetails.length" :data="deductionDetails" border><el-table-column prop="feeNo" label="费用编号" width="190" /><el-table-column prop="fee" label="扣减费项" /><el-table-column prop="order" label="业务订单号" /><el-table-column prop="currency" label="币种" /><el-table-column label="扣减金额"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column prop="state" label="处理状态" /></el-table><el-empty v-else description="当前账单无扣减费项" /></el-tab-pane>
-      <el-tab-pane label="关联调账" name="adjustments"><el-table v-if="adjustments.length" :data="adjustments" border><el-table-column prop="no" label="调账单号" width="180" /><el-table-column prop="status" label="审核状态" /><el-table-column prop="fee" label="费项" /><el-table-column prop="objectNo" label="挂靠对象编号" width="220" /><el-table-column prop="currency" label="币种" /><el-table-column label="金额变幅" align="right"><template #default="scope">{{ money(scope.row.delta) }}</template></el-table-column><el-table-column prop="adjustedAt" label="调账时间" width="155" /></el-table><el-empty v-else description="暂无关联调账" /></el-tab-pane>
-      <el-tab-pane label="核销记录" name="writeoffs"><el-table :data="writeoffs" border><el-table-column prop="no" label="核销编号" /><el-table-column prop="type" label="核销类型" /><el-table-column prop="currency" label="币种" /><el-table-column label="核销金额"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column prop="time" label="核销时间" /><el-table-column prop="operator" label="操作人" /></el-table></el-tab-pane>
+      <el-tab-pane label="账单汇率" name="rates"><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="[{ source: bill.currency, target: 'CNY', direction: `${bill.currency} → CNY`, rate: '4.200000', state: '已锁定' }]" border><el-table-column prop="source" label="货款结算币种" /><el-table-column prop="target" label="财务本位币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column prop="rate" label="锁定汇率" /><el-table-column prop="state" label="状态" /></el-table><TablePagination :total="1" :page-size="20" /></el-tab-pane>
+      <el-tab-pane label="返款明细" name="refunds"><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="refundDetails" border><el-table-column prop="waybill" label="尾程运单号" width="150" /><el-table-column prop="order" label="所属内部订单" width="155" /><el-table-column prop="signedAt" label="签收时间" width="150" /><el-table-column label="原始货款"><template #default="scope">{{ money(scope.row.original) }} {{ scope.row.currency }}</template></el-table-column><el-table-column label="应返货款"><template #default="scope">{{ money(scope.row.refundable) }} {{ scope.row.currency }}</template></el-table-column><el-table-column label="已返货款"><template #default="scope">{{ money(scope.row.returned) }} {{ scope.row.currency }}</template></el-table-column><el-table-column label="待返货款"><template #default="scope">{{ money(scope.row.pending) }} {{ scope.row.currency }}</template></el-table-column><el-table-column prop="state" label="核销状态" /></el-table><TablePagination :total="refundDetails.length" :page-size="20" /></el-tab-pane>
+      <el-tab-pane label="扣减费项明细" name="deductions"><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table v-if="deductionDetails.length" :data="deductionDetails" border><el-table-column prop="feeNo" label="费用编号" width="190" /><el-table-column prop="fee" label="扣减费项" /><el-table-column prop="order" label="业务订单号" /><el-table-column prop="currency" label="币种" /><el-table-column label="扣减金额"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column prop="state" label="处理状态" /></el-table><TablePagination v-if="deductionDetails.length" :total="deductionDetails.length" :page-size="20" /><el-empty v-else description="当前账单无扣减费项" /></el-tab-pane>
+      <el-tab-pane label="关联调账" name="adjustments"><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table v-if="adjustments.length" :data="adjustments" border><el-table-column prop="no" label="调账单号" width="180" /><el-table-column prop="status" label="审核状态" /><el-table-column prop="fee" label="费项" /><el-table-column prop="objectNo" label="挂靠对象编号" width="220" /><el-table-column prop="currency" label="币种" /><el-table-column label="金额变幅" align="right"><template #default="scope">{{ money(scope.row.delta) }}</template></el-table-column><el-table-column prop="adjustedAt" label="调账时间" width="155" /></el-table><TablePagination v-if="adjustments.length" :total="adjustments.length" :page-size="20" /><el-empty v-else description="暂无关联调账" /></el-tab-pane>
+      <el-tab-pane label="核销记录" name="writeoffs"><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="writeoffs" border><el-table-column prop="no" label="核销编号" /><el-table-column prop="type" label="核销类型" /><el-table-column prop="currency" label="币种" /><el-table-column label="核销金额"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column><el-table-column prop="time" label="核销时间" /><el-table-column prop="operator" label="操作人" /></el-table><TablePagination :total="writeoffs.length" :page-size="20" /></el-tab-pane>
     </el-tabs>
 
     <el-dialog v-model="generationVisible" title="账单生成" width="1040px" align-center append-to-body :close-on-click-modal="false" class="generation-dialog">
@@ -309,18 +320,21 @@ function submitGenerationTask() {
       <section v-else-if="generationStep === 1 && !mayReplaceExistingBills" class="generation-step-panel">
         <el-alert title="系统执行时将根据是否已有可沿用的待审核账单，判定为首次生成或补充生成。" type="info" :closable="false" />
         <div class="generation-summary-row"><div><span>待选择费项</span><strong>{{ candidateFees.length }}</strong></div><div><span>已选择</span><strong>{{ selectedCandidateFees.length }}</strong></div><div><span>预计金额变化</span><strong>{{ money(candidateAmount) }} {{ bill.currency }}</strong></div><div><span>结果处理</span><strong>新增结果版本</strong></div></div>
-        <el-table :data="candidateFees" border class="generation-table">
+        <div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="candidateFees" border class="generation-table">
           <el-table-column label="纳入" width="64" align="center"><template #default="scope"><el-checkbox v-model="scope.row.selected" /></template></el-table-column>
           <el-table-column prop="fee" label="费项" width="150" /><el-table-column prop="businessNo" label="业务单号" min-width="220" /><el-table-column prop="sourceAt" label="进入费项池时间" width="160" /><el-table-column prop="reason" label="待补充原因" width="130" /><el-table-column prop="currency" label="币种" width="80" /><el-table-column label="金额" align="right" width="130"><template #default="scope">{{ money(scope.row.amount) }}</template></el-table-column>
-        </el-table>
+        </el-table><TablePagination :total="candidateFees.length" :page-size="20" />
       </section>
 
       <section v-else-if="generationStep === 1" class="generation-step-panel">
         <el-alert title="新版配置可能改变账单范围或分组。系统执行时若不能沿用原账单，将判定为替换生成；候选账单在任务成功前不可见。" type="warning" :closable="false" />
         <div class="replacement-config-line"><span>原配置：<strong>{{ currentConfigVersion }}</strong></span><span>新版配置：<strong>{{ selectedReplacementOption?.label }}</strong></span><span>切换时点：<strong>{{ generationForm.switchAt }}</strong></span></div>
         <div class="replacement-columns">
-          <div><h4>待替换账单集合</h4><el-table :data="replacementOldRows" border><el-table-column prop="billNo" label="原账单" min-width="210" /><el-table-column prop="group" label="分组范围" min-width="170" /><el-table-column prop="config" label="配置" width="80" /><el-table-column prop="feeCount" label="费项" width="70" /><el-table-column label="金额" width="130" align="right"><template #default="scope">{{ money(scope.row.amount) }} {{ scope.row.currency }}</template></el-table-column></el-table></div>
-          <div><h4>候选新账单集合</h4><el-table :data="replacementNewRows" border><el-table-column prop="billNo" label="候选账单" min-width="120" /><el-table-column prop="group" label="新版拆单结果" min-width="170" /><el-table-column prop="config" label="配置" width="80" /><el-table-column prop="feeCount" label="费项" width="70" /><el-table-column label="金额" width="130" align="right"><template #default="scope">{{ money(scope.row.amount) }} {{ scope.row.currency }}</template></el-table-column></el-table></div>
+          <div><h4>待替换账单集合</h4><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="replacementOldRows" border><el-table-column prop="billNo" label="原账单" min-width="210" /><el-table-column prop="group" label="分组范围" min-width="170" /><el-table-column prop="config" label="配置" width="80" /><el-table-column prop="feeCount" label="费项" width="70" /><el-table-column label="金额" width="130" align="right"><template #default="scope">{{ money(scope.row.amount) }} {{ scope.row.currency }}</template></el-table-column></el-table><TablePagination :total="replacementOldRows.length" :page-size="20" /></div>
+          <div><h4>候选新账单集合</h4><div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="replacementNewRows" border><el-table-column prop="billNo" label="候选账单" min-width="120" /><el-table-column prop="group" label="新版拆单结果" min-width="170" /><el-table-column prop="config" label="配置" width="80" /><el-table-column prop="feeCount" label="费项" width="70" /><el-table-column label="金额" width="130" align="right"><template #default="scope">{{ money(scope.row.amount) }} {{ scope.row.currency }}</template></el-table-column></el-table><TablePagination :total="replacementNewRows.length" :page-size="20" /></div>
         </div>
         <div class="generation-summary-row replacement-summary"><div><span>原账单数量</span><strong>{{ replacementOldRows.length }}</strong></div><div><span>候选账单数量</span><strong>{{ replacementNewRows.length }}</strong></div><div><span>原账单金额</span><strong>{{ money(replacementOldAmount) }}</strong></div><div><span>候选金额</span><strong>{{ money(replacementNewAmount) }}</strong></div><div><span>金额变化</span><strong>{{ money(replacementNewAmount - replacementOldAmount) }}</strong></div></div>
       </section>
@@ -342,7 +356,8 @@ function submitGenerationTask() {
 
     <el-dialog v-model="rateEditorVisible" title="编辑账单特调汇率" width="760px" align-center append-to-body>
       <el-alert title="仅修改当前待审核账单的锁定汇率，不回写汇率配置。" type="info" :closable="false" />
-      <el-table :data="editableRates" border style="margin-top:var(--space-4)"><el-table-column prop="settlement" label="费项结算币种" /><el-table-column prop="target" label="财务本位币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column label="锁定汇率"><template #default="scope"><el-input-number v-model="scope.row.rate" :precision="6" :step="0.000001" :min="0.000001" controls-position="right" /></template></el-table-column></el-table>
+      <div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="editableRates" border style="margin-top:var(--space-4)"><el-table-column prop="settlement" label="费项结算币种" /><el-table-column prop="target" label="财务本位币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column label="锁定汇率"><template #default="scope"><el-input-number v-model="scope.row.rate" :precision="6" :step="0.000001" :min="0.000001" controls-position="right" /></template></el-table-column></el-table><TablePagination :total="editableRates.length" :page-size="20" />
       <template #footer><el-button @click="rateEditorVisible=false">取消</el-button><el-button type="primary" @click="saveRates">保存特调汇率</el-button></template>
     </el-dialog>
   </div>

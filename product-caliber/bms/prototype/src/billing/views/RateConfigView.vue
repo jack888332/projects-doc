@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { Delete, Download, EditPen, Plus, RefreshRight, View } from '@element-plus/icons-vue'
@@ -47,7 +47,8 @@ function viewCustomerRate(row) {
         </header>
 
         <div class="rate-table-frame">
-          <el-table :data="baseRates" class="clean-table rate-table" border height="100%">
+          <div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="baseRates" class="clean-table rate-table" border height="100%">
             <el-table-column label="货币对" min-width="130">
               <template #default="scope"><strong>{{ formatDirection(scope.row.direction) }}</strong></template>
             </el-table-column>
@@ -64,7 +65,7 @@ function viewCustomerRate(row) {
             </el-table-column>
           </el-table>
         </div>
-        <TablePagination :total="baseRates.length" :page-size="20" layout="prev, pager, next" />
+        <TablePagination :total="baseRates.length" :page-size="20" />
       </section>
 
       <section class="rate-panel customer-rate-panel">
@@ -77,7 +78,8 @@ function viewCustomerRate(row) {
         </header>
 
         <div class="rate-table-frame">
-          <el-table :data="customerRates" class="clean-table rate-table" border height="100%">
+          <div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table :data="customerRates" class="clean-table rate-table" border height="100%">
             <el-table-column prop="customerNo" label="客户编号" width="130" />
             <el-table-column prop="customer" label="客户名称" min-width="190" />
             <el-table-column prop="shop" label="所属店铺" min-width="150" />
@@ -94,7 +96,7 @@ function viewCustomerRate(row) {
             </el-table-column>
           </el-table>
         </div>
-        <TablePagination :total="customerRates.length" :page-size="20" layout="prev, pager, next" />
+        <TablePagination :total="customerRates.length" :page-size="20" />
       </section>
     </div>
   </div>

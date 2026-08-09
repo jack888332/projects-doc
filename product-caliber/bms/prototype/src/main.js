@@ -58,6 +58,7 @@ import 'element-plus/es/components/upload/style/css.mjs'
 import AppShell from './AppShell.vue'
 import { router } from './router/index.js'
 import { initializePrototypeData } from './data/prototypeDataService.js'
+import TableFieldSortButton from './shared/components/TableFieldSortButton.vue'
 import '../styles.css'
 import '../billing-embedded.css'
 
@@ -76,6 +77,7 @@ async function bootstrap() {
     ElSteps, ElSwitch, ElTable, ElTableColumn, ElTabPane, ElTabs, ElTag, ElText, ElTooltip,
     ElUpload,
   ].forEach((component) => app.component(component.name, component))
+  app.component('TableFieldSortButton', TableFieldSortButton)
   app.mount('#app')
 }
 

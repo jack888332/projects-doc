@@ -4,7 +4,8 @@ import { ref, watch } from 'vue'
 const props = defineProps({
   total: { type: Number, default: 0 },
   pageSize: { type: Number, default: 20 },
-  layout: { type: String, default: 'sizes, prev, pager, next, jumper' },
+  pageSizes: { type: Array, default: () => [10, 20, 50, 100] },
+  layout: { type: String, default: 'sizes, prev, pager, next' },
   summary: { type: String, default: '' },
 })
 const emit = defineEmits(['update:pageSize', 'update:currentPage'])
@@ -25,14 +26,15 @@ const handleCurrentPageChange = (value) => emit('update:currentPage', value)
 
 <template>
   <div class="table-pagination">
-    <span>{{ summary || `共 ${total} 条` }}</span>
     <el-pagination
       v-model:current-page="currentPage"
       v-model:page-size="currentPageSize"
       :layout="layout"
+      :page-sizes="pageSizes"
       :total="total"
       @update:page-size="handlePageSizeChange"
       @update:current-page="handleCurrentPageChange"
     />
+    <span>{{ summary || `共 ${total} 行` }}</span>
   </div>
 </template>

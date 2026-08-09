@@ -1,6 +1,5 @@
-<script setup>
+﻿<script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import {
@@ -39,7 +38,6 @@ const selectedTask = ref(null)
 const collapsed = ref(false)
 const advancedVisible = ref(false)
 const notifications = ref(4)
-const lastRefreshedAt = ref('2026-08-02 10:26:18')
 
 const initialTaskQuery = {
   keyword: '',
@@ -444,7 +442,6 @@ function resetFilters() {
 }
 
 function refreshTasks() {
-  lastRefreshedAt.value = dayjs().format('YYYY-MM-DD HH:mm:ss')
   ElMessage.success('任务状态已刷新')
 }
 
@@ -580,12 +577,7 @@ function viewResult(row) {
 
           <MetricGrid :items="taskSummary" :columns="5" />
 
-          <div class="table-reference-toolbar"><span>BMS任务</span><div class="table-reference-actions"><el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button></div></div>
-
-          <div class="result-summary">
-            筛选结果 <strong>{{ filteredTasks.length }}</strong> 条
-            <span class="refresh-copy">最后刷新 {{ lastRefreshedAt }}</span>
-          </div>
+          <div class="table-reference-toolbar"><TableFieldSortButton /><span>已选 0 行</span><div class="table-reference-actions"><el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button></div></div>
 
           <el-table :data="filteredTasks" class="clean-table" row-key="taskNo">
             <el-table-column prop="taskNo" label="任务编号" width="185" fixed />
@@ -619,7 +611,7 @@ function viewResult(row) {
               </template>
             </el-table-column>
           </el-table>
-          <TablePagination :total="filteredTasks.length" :page-size="10" layout="prev, pager, next" :summary="`展示 1-${filteredTasks.length} 条`" />
+          <TablePagination :total="filteredTasks.length" :page-size="10" />
         </section>
           </el-tab-pane>
           <el-tab-pane label="基础配置" name="base">
@@ -673,7 +665,8 @@ function viewResult(row) {
 
           <el-tab-pane label="执行快照" name="snapshot">
             <h4 class="section-title first-title">来源扫描记录</h4>
-            <el-table v-if="selectedSourceScans.length" :data="selectedSourceScans" border class="source-scan-table">
+            <div class="table-reference-toolbar"><TableFieldSortButton /></div>
+<el-table v-if="selectedSourceScans.length" :data="selectedSourceScans" border class="source-scan-table">
               <el-table-column prop="dataset" label="来源数据集" min-width="130" fixed="left" />
               <el-table-column prop="method" label="扫描方式" width="86">
                 <template #default="scope"><el-tag :type="scope.row.method === '全量' ? 'warning' : 'success'" effect="plain">{{ scope.row.method }}</el-tag></template>
@@ -687,6 +680,7 @@ function viewResult(row) {
               <el-table-column prop="result" label="扫描结果" width="86" />
               <el-table-column prop="failure" label="失败原因" min-width="150" />
             </el-table>
+            <TablePagination v-if="selectedSourceScans.length" :total="selectedSourceScans.length" :page-size="10" />
             <div v-else class="na-box">不适用：账单重算不读取来源数据，也不产生来源扫描记录。</div>
             <h4 class="section-title">任务执行快照</h4>
             <pre class="json-box">{{ snapshotJson }}</pre>

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { Download, RefreshRight, Setting, View } from '@element-plus/icons-vue'
@@ -123,7 +123,7 @@ async function handleBillAction(name) {
     <div class="status-tabs-row"><button v-for="status in statuses" :key="status" :class="{ active: activeStatus === status }" @click="activeStatus = status">{{ status }}</button></div>
 
     <section class="module-panel">
-      <div class="table-reference-toolbar"><span>已选 {{ selectedRows.length }} 个账单</span><div class="table-reference-actions"><el-button :icon="Setting">字段显示</el-button></div></div>
+      <div class="table-reference-toolbar"><TableFieldSortButton /><span>已选 {{ selectedRows.length }} 行</span><div class="table-reference-actions"><el-button :icon="Setting">字段显示</el-button></div></div>
       <el-table :data="filteredBills" class="clean-table" row-key="billNo" border @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="44" fixed />
         <el-table-column prop="billNo" label="账单编号" width="205" fixed />

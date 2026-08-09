@@ -1,4 +1,4 @@
-import { createListPageSchema } from '../../shared/schemas/listSchema.ts'
+import { createListPageSchema } from '../../shared/schemas/listSchema'
 
 export const createBillListSchema = (isReceivable: boolean) => createListPageSchema({
   filters: [

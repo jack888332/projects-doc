@@ -4,6 +4,7 @@ import { join, relative } from 'node:path'
 const root = new URL('..', import.meta.url).pathname.replace(/^\//, '').replace(/\//g, '\\')
 const srcRoot = join(root, 'src')
 const files = []
+const maxSourceCharacters = 30_000
 
 async function collect(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -16,15 +17,16 @@ async function collect(directory) {
 await collect(srcRoot)
 
 const directDbRefs = []
-const largeFiles = []
+const oversizedFiles = []
 let tableFrameUses = 0
 let legacyPaginationUses = 0
 
 for (const file of files) {
   const content = await readFile(file, 'utf8')
   const name = relative(root, file).replaceAll('\\', '/')
-  const lines = content.split(/\r?\n/).length
-  if (lines > 300) largeFiles.push(`${name} (${lines} lines)`)
+  if (content.length > maxSourceCharacters) {
+    oversizedFiles.push(`${name} (${content.length.toLocaleString()} chars)`)
+  }
   tableFrameUses += (content.match(/<DataTableFrame\b/g) || []).length
   if (!name.startsWith('src/shared/components/DataTableFrame.vue')) {
     legacyPaginationUses += (content.match(/<TablePagination\b/g) || []).length
@@ -36,7 +38,12 @@ for (const file of files) {
 
 console.log(`[architecture] DataTableFrame usages: ${tableFrameUses}`)
 console.log(`[architecture] legacy TablePagination usages outside frame: ${legacyPaginationUses}`)
-if (largeFiles.length) console.log(`[architecture] large files: ${largeFiles.join(', ')}`)
+if (oversizedFiles.length) {
+  console.error(`[architecture] files over ${maxSourceCharacters.toLocaleString()} characters: ${oversizedFiles.join(', ')}`)
+  process.exitCode = 1
+} else {
+  console.log(`[architecture] source-size budget: OK (<= ${maxSourceCharacters.toLocaleString()} chars/file)`)
+}
 
 if (directDbRefs.length) {
   console.error(`[architecture] direct prototypeDb references outside src/data: ${directDbRefs.join(', ')}`)

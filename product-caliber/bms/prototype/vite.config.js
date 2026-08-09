@@ -10,6 +10,10 @@ export default defineConfig({
     AutoImport({ resolvers: [ElementPlusResolver()], dts: false }),
     Components({ resolvers: [ElementPlusResolver()], dts: false }),
   ],
+  optimizeDeps: {
+    entries: ['index.html', 'src/**/*.{js,ts,vue}'],
+    include: ['element-plus', '@element-plus/icons-vue'],
+  },
   build: {
     chunkSizeWarningLimit: 550,
     rollupOptions: {
@@ -28,5 +32,8 @@ export default defineConfig({
   },
   preview: {
     port: 10520,
+  },
+  test: {
+    include: ['tests/**/*.{test,spec}.{js,ts}'],
   },
 })

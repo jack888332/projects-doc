@@ -1,20 +1,21 @@
 import { prototypeDb } from '../prototypeDb.js'
+import type { IndexableType } from 'dexie'
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 
 export interface TableRepository<T extends Record<string, unknown>> {
   list(): Promise<T[]>
-  get(key: unknown): Promise<T | undefined>
-  put(row: T): Promise<unknown>
-  update(key: unknown, changes: Partial<T>): Promise<number>
-  remove(key: unknown): Promise<void>
+  get(key: IndexableType): Promise<T | undefined>
+  put(row: T): Promise<IndexableType>
+  update(key: IndexableType, changes: Partial<T>): Promise<number>
+  remove(key: IndexableType): Promise<void>
   sync(previousRows: T[], nextRows: T[]): Promise<void>
 }
 
 export function createTableRepository<T extends Record<string, unknown>>(tableName: string): TableRepository<T> {
   const table = prototypeDb.table(tableName)
   const keyPath = table.schema.primKey.keyPath as string
-  const keyOf = (row: T) => row?.[keyPath]
+  const keyOf = (row: T) => row[keyPath] as IndexableType
 
   return {
     list: () => table.toArray(),

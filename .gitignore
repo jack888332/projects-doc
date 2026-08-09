@@ -20,4 +20,8 @@ public/
 
 # BMS prototype build output
 /product-caliber/bms/prototype/.tmp-build/
+/product-caliber/bms/prototype/.tmp-e2e/
 /product-caliber/bms/prototype/dist/
+/product-caliber/bms/prototype/.npm-cache/
+/product-caliber/bms/prototype/playwright-report/
+/product-caliber/bms/prototype/test-results/

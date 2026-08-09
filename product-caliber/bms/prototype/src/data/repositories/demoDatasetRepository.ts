@@ -1,4 +1,5 @@
 import { prototypeDb } from '../prototypeDb.js'
+import type { Table } from 'dexie'
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 
@@ -9,6 +10,16 @@ interface DemoRecord<T> {
   value: T
 }
 
+interface SettingRecord {
+  key: string
+  value: unknown
+}
+
+type PrototypeDb<T> = typeof prototypeDb & {
+  demoRecords: Table<DemoRecord<T>, string>
+  settings: Table<SettingRecord, string>
+}
+
 export interface DemoDatasetRepository<T> {
   list(): Promise<T[]>
   ensureSeed(seedRows: T[], seedVersion?: number): Promise<void>
@@ -16,8 +27,9 @@ export interface DemoDatasetRepository<T> {
 }
 
 export function createDemoDatasetRepository<T>(dataset: string): DemoDatasetRepository<T> {
+  const db = prototypeDb as PrototypeDb<T>
   const versionKey = `demoDatasetVersion:${dataset}`
-  const records = prototypeDb.demoRecords.where('dataset').equals(dataset)
+  const records = db.demoRecords.where('dataset').equals(dataset)
 
   return {
     async list() {
@@ -25,28 +37,28 @@ export function createDemoDatasetRepository<T>(dataset: string): DemoDatasetRepo
       return rows.map((record) => clone(record.value))
     },
     async ensureSeed(seedRows, seedVersion = 1) {
-      const currentVersion = await prototypeDb.settings.get(versionKey)
+      const currentVersion = await db.settings.get(versionKey)
       const recordCount = await records.count()
       if (recordCount && Number(currentVersion?.value || 0) >= seedVersion) return
 
-      await prototypeDb.transaction('rw', prototypeDb.demoRecords, prototypeDb.settings, async () => {
+      await db.transaction('rw', db.demoRecords, db.settings, async () => {
         await records.delete()
         if (seedRows.length) {
-          await prototypeDb.demoRecords.bulkPut(seedRows.map((value, position) => ({
+          await db.demoRecords.bulkPut(seedRows.map((value, position) => ({
             key: `${dataset}:${position}`,
             dataset,
             position,
             value: clone(value),
           })))
         }
-        await prototypeDb.settings.put({ key: versionKey, value: seedVersion })
+        await db.settings.put({ key: versionKey, value: seedVersion })
       })
     },
     async replace(rows) {
-      await prototypeDb.transaction('rw', prototypeDb.demoRecords, async () => {
+      await db.transaction('rw', db.demoRecords, async () => {
         await records.delete()
         if (rows.length) {
-          await prototypeDb.demoRecords.bulkPut(rows.map((value, position) => ({
+          await db.demoRecords.bulkPut(rows.map((value, position) => ({
             key: `${dataset}:${position}`,
             dataset,
             position,

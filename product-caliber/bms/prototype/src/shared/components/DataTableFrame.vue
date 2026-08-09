@@ -7,6 +7,7 @@ defineProps({
   selectedCount: { type: Number, default: null },
   pageSize: { type: Number, default: 20 },
   pageSizes: { type: Array, default: () => [10, 20, 50, 100] },
+  toolbar: { type: Boolean, default: true },
   pagination: { type: Boolean, default: true },
   summary: { type: String, default: '' },
 })
@@ -16,7 +17,7 @@ defineEmits(['update:pageSize', 'update:currentPage'])
 
 <template>
   <div class="data-table-frame">
-    <div class="table-reference-toolbar">
+    <div v-if="toolbar" class="table-reference-toolbar">
       <div class="table-reference-leading">
         <slot name="sort"><TableFieldSortButton /></slot>
         <span v-if="selectedCount !== null">已选 {{ selectedCount }} 行</span>

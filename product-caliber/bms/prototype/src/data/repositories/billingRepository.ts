@@ -9,7 +9,7 @@ export interface BillingRepository {
 }
 
 export function createIndexedDbBillingRepository(): BillingRepository {
-  const dataset = import('./demoDatasetRepository.ts')
+  const dataset = import('./demoDatasetRepository')
     .then(({ createDemoDatasetRepository }) => createDemoDatasetRepository<BillingRecord>('billingBills'))
   return {
     async list() {

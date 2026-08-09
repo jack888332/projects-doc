@@ -21,6 +21,7 @@ import PageHeader from '../shared/components/PageHeader.vue'
 import StackedCell from '../shared/components/StackedCell.vue'
 import StatusTag from '../shared/components/StatusTag.vue'
 import TablePagination from '../shared/components/TablePagination.vue'
+import DataTableFrame from '../shared/components/DataTableFrame.vue'
 import { useStagedQuery } from '../shared/composables/useStagedQuery.js'
 import { useDemoDataset } from './data/useDemoDataset.js'
 
@@ -577,9 +578,9 @@ function viewResult(row) {
 
           <MetricGrid :items="taskSummary" :columns="5" />
 
-          <div class="table-reference-toolbar"><TableFieldSortButton /><span>已选 0 行</span><div class="table-reference-actions"><el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button></div></div>
-
-          <el-table :data="filteredTasks" class="clean-table" row-key="taskNo">
+          <DataTableFrame :total="filteredTasks.length" :selected-count="0" :page-size="10">
+            <template #actions><el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button></template>
+            <el-table :data="filteredTasks" class="clean-table" row-key="taskNo">
             <el-table-column prop="taskNo" label="任务编号" width="185" fixed />
             <el-table-column label="任务状态" width="98">
               <template #default="scope"><StatusTag :label="taskStatus(scope.row).label" :tone="taskStatus(scope.row).className" /></template>
@@ -610,8 +611,8 @@ function viewResult(row) {
                 </div>
               </template>
             </el-table-column>
-          </el-table>
-          <TablePagination :total="filteredTasks.length" :page-size="10" />
+            </el-table>
+          </DataTableFrame>
         </section>
           </el-tab-pane>
           <el-tab-pane label="基础配置" name="base">

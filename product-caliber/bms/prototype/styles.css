@@ -41,6 +41,7 @@
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
+  --reference-section-gap: var(--space-3);
   color: var(--ink);
   background: var(--canvas);
 }
@@ -150,7 +151,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
 .route-tabs svg { width: 13px; height: 13px; }
 .route-tabs .current-route { color: var(--ink); }
 .sidebar-toggle { display: none; margin-right: var(--space-1); }
-.content { padding: var(--space-3); min-width: 0; }
+.content { padding: var(--reference-section-gap) var(--space-3) var(--space-3); min-width: 0; }
 
 .btn { height: var(--action-button-height); min-height: var(--action-button-height); padding: 0 var(--space-3); border: 1px solid var(--border); border-radius: var(--action-button-radius); background: #fff; color: #3c4350; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; transition: color .15s ease, border-color .15s ease, background-color .15s ease; }
 .btn svg { width: 15px; height: 15px; }

@@ -61,7 +61,7 @@
 .environment-banner { min-height: 58px; margin-bottom: var(--space-3); padding: var(--space-3) var(--space-4); display: flex; align-items: center; gap: 13px; border: 1px solid #e5b9bf; border-radius: 6px; color: #7f3840; background: #fff3f4; }
 .environment-banner strong { padding: var(--space-1) var(--space-2); border-radius: 4px; color: #fff; background: #c34e56; font-size: var(--content-font-size); }.environment-banner span { font-size: var(--content-font-size); }
 .migration-panel { padding: var(--space-4); }.migration-panel h3 { margin: 0 0 var(--space-3); color: #354157; font-size: var(--section-title-font-size); }.migration-panel h3:not(:first-child) { margin-top: var(--space-6); }
-.live-reference-page { display: flex; flex-direction: column; gap: var(--space-3); }
+.live-reference-page { display: flex; flex-direction: column; gap: var(--reference-section-gap); }
 .live-reference-page > .condition-query-panel { margin-bottom: 0; }
 .live-reference-page .module-kpis, .live-reference-page .module-segmented { margin-bottom: 0; }
 .query-panel { padding: var(--space-3) var(--space-4) var(--space-3); overflow: visible; }
@@ -86,6 +86,10 @@
 .status-tabs-row button.active { color: var(--primary); background: transparent; font-weight: var(--font-weight-bold); }
 .status-tabs-row button.active::after { transform: scaleX(1); }
 .table-reference-toolbar { min-height: 54px; padding: var(--space-2) var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border: 1px solid var(--border); border-bottom: 0; color: #7c8798; background: #fff; font-size: 13px; }
+.table-reference-leading { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.data-table-frame { min-width: 0; }
+.data-table-frame > .el-table { border: 1px solid var(--border); }
+.data-table-frame > .table-pagination { border: 1px solid var(--border); border-top: 0; background: #fff; }
 .module-panel > .table-reference-toolbar { border-width: 0 0 1px; }
 .filter-table-panel > .table-reference-toolbar { border: 1px solid var(--border); border-bottom: 0; }
 .table-field-sort-button { flex: 0 0 auto; }

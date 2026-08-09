@@ -5,6 +5,8 @@
 **/temp/
 **/.cache/
 **/cache/
+**/node_modules/
+**/.vite/
 **/*.pid
 **/*.pid.lock
 **/*.seed

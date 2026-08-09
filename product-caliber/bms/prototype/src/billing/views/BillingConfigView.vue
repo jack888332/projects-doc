@@ -11,7 +11,7 @@ import RefundConfigEditor from '../components/RefundConfigEditor.vue'
 import SegmentedControl from '../../shared/components/SegmentedControl.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
-import TablePagination from '../../shared/components/TablePagination.vue'
+import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
@@ -74,12 +74,13 @@ function generate(row){ ElMessage.success(`已为 ${row.customer} 创建账单�
     </section>
     <MetricGrid class="reference-kpis" :items="configSummary" :columns="3" />
     <section class="module-panel">
-      <div class="table-reference-toolbar"><TableFieldSortButton /><span>已选 0 行</span><div class="table-reference-actions"><el-button type="primary" :icon="Plus" @click="newConfig">新建账单配置</el-button></div></div>
-      <el-table :data="rows" border row-key="no" class="clean-table">
+      <DataTableFrame :total="rows.length" :selected-count="0">
+        <template #actions><el-button type="primary" :icon="Plus" @click="newConfig">新建账单配置</el-button></template>
+        <el-table :data="rows" border row-key="no" class="clean-table">
         <el-table-column type="expand"><template #default="scope"><dl class="inline-detail-grid"><div><dt>配置类型</dt><dd>{{ activeType==='AR'?'应收账单配置':'返款账单配置' }}</dd></div><div><dt>客户</dt><dd>{{ scope.row.customer }} / {{ scope.row.customerNo }}</dd></div><div><dt>账期规则</dt><dd>{{ scope.row.cycle }}</dd></div><div><dt>账单发出时间</dt><dd>{{ scope.row.sentRule }}</dd></div></dl></template></el-table-column>
         <el-table-column prop="no" label="配置编号" width="245" /><el-table-column prop="version" label="版本" width="72" /><el-table-column prop="customer" label="客户名称" width="180" /><el-table-column prop="customerNo" label="客户编码" width="105" /><el-table-column prop="memberCode" label="会员编码" width="130" /><el-table-column prop="shop" label="店铺" width="170" /><el-table-column prop="email" label="客户邮箱" width="220" /><el-table-column prop="currency" label="默认结算币种" width="125" /><el-table-column prop="cycle" label="账期类型" width="110" /><el-table-column prop="sentRule" label="账单发出时间" width="170" /><el-table-column v-if="activeType==='AR'" prop="branches" label="分支数" width="80" /><el-table-column v-else prop="mode" label="返款模式" width="110" /><el-table-column label="生效周期" width="185"><template #default="scope">{{ scope.row.effectStart }} 至 {{ scope.row.effectEnd }}</template></el-table-column><el-table-column label="最近操作" width="170"><template #default="scope"><StackedCell :primary="scope.row.operator" :secondary="scope.row.updatedAt" /></template></el-table-column><el-table-column label="状态" width="80"><template #default="scope"><StatusTag :label="scope.row.status" /></template></el-table-column><el-table-column label="操作" width="64" fixed="right"><template #default="scope"><HoverActionMenu><el-dropdown-item :icon="EditPen" @click="openDetail(scope.row)">编辑</el-dropdown-item><el-dropdown-item @click="generate(scope.row)">生成账单</el-dropdown-item></HoverActionMenu></template></el-table-column>
-      </el-table>
-      <TablePagination :total="rows.length" />
+        </el-table>
+      </DataTableFrame>
     </section>
     <el-drawer v-model="detailVisible" size="86%" class="billing-config-drawer" :close-on-click-modal="false">
       <template #header><div class="drawer-title"><span>{{ selectedConfig?.no==='新配置'?'新建账单配置':'编辑账单配置' }}</span><small>{{ selectedConfig?.type==='AR'?'应收账单配置':'返款账单配置' }}</small></div></template>

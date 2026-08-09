@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
+import zhCn from 'element-plus/es/locale/lang/zh-cn.mjs'
 import {
   ArrowRight, Back, ChatDotSquare, DataAnalysis, Download, Files,
   Grid, List, Lock, Money, OfficeBuilding, Operation, Refresh, Search, Setting,
@@ -98,6 +99,7 @@ async function resetData() {
 </script>
 
 <template>
+  <el-config-provider :locale="zhCn">
   <div class="app-shell">
     <header class="topbar">
       <div class="brand"><div class="brand-mark">BMS</div><span>测试供应链</span></div>
@@ -150,6 +152,7 @@ async function resetData() {
     <input ref="fileInput" type="file" accept="application/json,.json" hidden @change="handleImport">
     <template #footer><el-button @click="dataToolsVisible = false">关闭</el-button></template>
   </el-dialog>
+  </el-config-provider>
 </template>
 
 <style scoped>

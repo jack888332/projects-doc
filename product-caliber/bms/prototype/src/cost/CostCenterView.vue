@@ -12,6 +12,7 @@ import SegmentedControl from '../shared/components/SegmentedControl.vue'
 import StackedCell from '../shared/components/StackedCell.vue'
 import StatusTag from '../shared/components/StatusTag.vue'
 import TablePagination from '../shared/components/TablePagination.vue'
+import DataTableFrame from '../shared/components/DataTableFrame.vue'
 import { useStagedQuery } from '../shared/composables/useStagedQuery.js'
 import { useCostTable } from './useCostTable.js'
 import { formatAmount, matchesKeyword, normalizeCostBoard, numericAmount } from '../domain/costLogic.js'
@@ -191,8 +192,9 @@ function finishImport() {
             <div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
           </div>
         </div>
-        <div class="table-reference-toolbar"><TableFieldSortButton /><span>已选 0 行</span><div class="table-reference-actions"><el-button type="primary" :icon="Plus" @click="openEditor('supplier', { boards: [], periodConfigs: [], currency: 'CNY', state: '启用' })">新增供应商</el-button></div></div>
-        <el-table class="clean-table" :data="filteredSuppliers" border>
+        <DataTableFrame :total="filteredSuppliers.length" :selected-count="0">
+          <template #actions><el-button type="primary" :icon="Plus" @click="openEditor('supplier', { boards: [], periodConfigs: [], currency: 'CNY', state: '启用' })">新增供应商</el-button></template>
+          <el-table class="clean-table" :data="filteredSuppliers" border>
           <el-table-column prop="code" label="供应商编码" min-width="150" />
           <el-table-column label="供应商名称" min-width="170"><template #default="{ row }"><StackedCell :primary="row.name" :secondary="row.currency" /></template></el-table-column>
           <el-table-column label="适用成本板块" min-width="190"><template #default="{ row }">{{ row.boards.join('、') }}</template></el-table-column>
@@ -200,8 +202,8 @@ function finishImport() {
           <el-table-column label="状态" width="100"><template #default="{ row }"><StatusTag :label="row.state" /></template></el-table-column>
           <el-table-column prop="updated" label="最近更新时间" width="140" />
           <el-table-column label="操作" width="84" fixed="right"><template #default="{ row }"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" @click="showDetail(row)" /><HoverActionMenu><el-dropdown-item @click="openEditor('supplier', row)">编辑档案</el-dropdown-item><el-dropdown-item @click="toggleStatus(row, 'state')">{{ row.state === '启用' ? '停用' : '启用' }}</el-dropdown-item></HoverActionMenu></div></template></el-table-column>
-        </el-table>
-        <TablePagination :total="filteredSuppliers.length" />
+          </el-table>
+        </DataTableFrame>
       </section>
     </template>
 
@@ -252,7 +254,7 @@ function finishImport() {
           <el-table-column prop="type" label="成本类型" min-width="120" />
           <el-table-column prop="target" label="归属对象" min-width="190" />
           <el-table-column label="状态" width="110"><template #default="{ row }"><StatusTag :label="row.status" /></template></el-table-column>
-        </el-table>
+          </el-table>
         <TablePagination :total="selectedBillCosts.length" :page-size="10" />
       </section>
       <dl v-else class="bill-info-grid">

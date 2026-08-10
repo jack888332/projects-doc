@@ -6,7 +6,6 @@ import BillDetailPanel from '../components/BillDetailPanel.vue'
 import ConditionFilter from '../../shared/components/ConditionFilter.vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
 import MetricGrid from '../../shared/components/MetricGrid.vue'
-import PageHeader from '../../shared/components/PageHeader.vue'
 import SegmentedControl from '../../shared/components/SegmentedControl.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
@@ -75,7 +74,7 @@ function openExport() {
 function confirmExport() {
   exportVisible.value = false
   const formatText = exportPurpose.value === 'INTERNAL' ? `，采用${exportFormat.value === 'SPLIT' ? '拆分式' : '合并式'}` : ''
-  ElMessage.success(`已创建 ${selectedRows.value.length} 个账单的导出任务${formatText}`)
+  ElMessage.success(`已创建 ${selectedRows.value.length} 个账单的下载任务${formatText}`)
 }
 async function handleBillAction(name) {
   const bill = selectedBill.value
@@ -94,12 +93,6 @@ async function handleBillAction(name) {
 
 <template>
   <div class="module-page live-reference-page">
-    <PageHeader>
-      <template #export>
-        <el-button :icon="Download" :disabled="!selectedRows.length" @click="openExport">导出</el-button>
-      </template>
-    </PageHeader>
-
     <section class="condition-query-panel">
       <div class="condition-filter-bar">
         <ConditionFilter
@@ -119,7 +112,8 @@ async function handleBillAction(name) {
     <div class="status-tabs-row"><button v-for="status in statuses" :key="status" :class="{ active: activeStatus === status }" @click="activeStatus = status">{{ status }}</button></div>
 
     <section class="module-panel">
-      <DataTableFrame :total="filteredBills.length" :selected-count="selectedRows.length">
+      <DataTableFrame :total="filteredBills.length" :selected-count="selectedRows.length" selection-summary>
+      <template #actions><el-button :icon="Download" :disabled="!selectedRows.length" @click="openExport">下载</el-button></template>
       <el-table :data="filteredBills" class="clean-table" row-key="billNo" border @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="44" fixed />
         <el-table-column prop="billNo" label="账单编号" width="205" fixed />
@@ -141,7 +135,7 @@ async function handleBillAction(name) {
       <BillDetailPanel v-if="selectedBill" :bill="selectedBill" :is-receivable="isReceivable" @action="handleBillAction" />
     </el-drawer>
 
-    <el-dialog v-model="exportVisible" title="创建账单导出任务" width="680px" align-center>
+    <el-dialog v-model="exportVisible" title="下载账单" width="680px" align-center>
       <el-form label-width="110px">
         <el-form-item label="账单类型"><strong>{{ title }}</strong></el-form-item>
         <el-form-item label="账单数量"><strong>{{ selectedRows.length }} 个</strong></el-form-item>
@@ -155,7 +149,7 @@ async function handleBillAction(name) {
         <el-alert v-else title="客户导出按客户拆分文件，并使用当前生效的客户导出配置。" type="info" :closable="false" />
         <el-text v-if="isReceivable && exportPurpose === 'INTERNAL'" type="info" size="small">费项列固定优先展示运费、派送费，其余费项按费项索引顺序排列。</el-text>
       </el-form>
-      <template #footer><el-button @click="exportVisible=false">取消</el-button><el-button type="primary" @click="confirmExport">创建导出任务</el-button></template>
+      <template #footer><el-button @click="exportVisible=false">取消</el-button><el-button type="primary" @click="confirmExport">下载</el-button></template>
     </el-dialog>
   </div>
 </template>

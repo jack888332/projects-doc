@@ -1,9 +1,9 @@
 ﻿<script setup>
-import { Download, Edit, Plus, Upload, View } from '@element-plus/icons-vue'
+import { Edit, Plus, Upload, View } from '@element-plus/icons-vue'
 import ConditionFilter from '../shared/components/ConditionFilter.vue'
+import DownloadButton from '../shared/components/DownloadButton.vue'
 import HoverActionMenu from '../shared/components/HoverActionMenu.vue'
 import MetricGrid from '../shared/components/MetricGrid.vue'
-import PageHeader from '../shared/components/PageHeader.vue'
 import SegmentedControl from '../shared/components/SegmentedControl.vue'
 import StackedCell from '../shared/components/StackedCell.vue'
 import StatusTag from '../shared/components/StatusTag.vue'
@@ -27,15 +27,12 @@ const {
 
 <template>
   <div class="module-page cost-center-vue">
-    <PageHeader v-if="initialView === 'overview'">
-      <template #export><el-button :icon="Download">导出总表</el-button></template>
-    </PageHeader>
-
     <template v-if="initialView === 'overview'">
       <MetricGrid :items="overviewKpis" />
       <section class="module-panel">
         <div class="cost-section-head"><h2>五大成本板块</h2><span>按财务本位币人民币折算</span></div>
         <DataTableFrame :total="boardOptions.length" :page-size="10">
+          <template #actions><DownloadButton title="下载成本数据" :options="[{ label: '成本汇总表', value: 'summary', description: '下载五大成本板块汇总' }, { label: '供应商账单明细', value: 'bill-detail', description: '下载供应商账单与成本明细' }]" /></template>
           <el-table class="clean-table" :data="boardOptions.map(({ value }) => ({ board: value, bills: bills.filter(row => row.board === value).length, details: costs.filter(row => `${row.board}成本` === value).reduce((sum, row) => sum + row.detailCount, 0), pool: pools.filter(row => row.board === value).length }))" border>
             <el-table-column prop="board" label="成本板块" min-width="180" />
             <el-table-column prop="bills" label="成本账单" min-width="140" />

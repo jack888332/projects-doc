@@ -5,7 +5,6 @@ const props = defineProps({
   total: { type: Number, default: 0 },
   pageSize: { type: Number, default: 20 },
   pageSizes: { type: Array, default: () => [10, 20, 50, 100] },
-  summary: { type: String, default: '' },
 })
 const emit = defineEmits(['update:pageSize', 'update:currentPage'])
 const currentPage = ref(1)
@@ -63,7 +62,6 @@ const handleCurrentPageChange = (value) => emit('update:currentPage', value)
   <div ref="anchor" class="table-pagination">
     <div class="table-pagination-inner" :class="{ 'is-docked': docked }" :style="dockStyle">
       <div class="table-pagination-left">
-        <span class="table-pagination-summary">{{ summary || `共 ${total} 行` }}</span>
         <el-pagination
           class="table-pagination-pager"
           v-model:current-page="currentPage"

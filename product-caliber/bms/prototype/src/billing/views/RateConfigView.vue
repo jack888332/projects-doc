@@ -1,19 +1,23 @@
 ﻿<script setup>
+import { ref } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
-import { Delete, Download, EditPen, Plus, RefreshRight, View } from '@element-plus/icons-vue'
+import { Delete, EditPen, Plus, RefreshRight, UploadFilled, View } from '@element-plus/icons-vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
+import ImportDialog from '../../shared/components/ImportDialog.vue'
 import { billingBaseRateFixtures, billingCustomerRateFixtures } from '../../data/fixtures/billingRates.ts'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const baseRates = useDemoDataset('billingBaseRates', billingBaseRateFixtures)
+const importVisible = ref(false)
 
 const customerRates = useDemoDataset('billingCustomerRates', billingCustomerRateFixtures, 2)
 
 const formatDirection = (direction) => direction.replace('->', '→')
 const formatRate = (rate) => Number(rate).toFixed(6)
 const simpleAction = (name) => ElMessage.success(`${name}已提交`)
+const finishImport = (file) => ElMessage.success(`${file.name} 已导入，汇率校验任务已创建`)
 
 async function removeBaseRate(row) {
   await ElMessageBox.confirm(`确认删除 ${formatDirection(row.direction)} 的基准汇率？`, '删除基准汇率', { type: 'warning' })
@@ -35,10 +39,10 @@ function viewCustomerRate(row) {
             <h2>基准汇率表</h2>
             <p>维护外币到财务本位币的默认汇率</p>
           </div>
-          <div class="rate-panel-actions"><el-button :icon="Download" @click="simpleAction('导入任务')">导入</el-button><el-button :icon="RefreshRight" disabled>抓取</el-button></div>
         </header>
 
-        <DataTableFrame class="rate-table-frame" :total="baseRates.length" :page-size="20">
+        <DataTableFrame class="rate-table-frame" :total="baseRates.length" :page-size="20" :column-sort="false">
+          <template #actions><el-button :icon="RefreshRight" disabled>抓取</el-button><el-button :icon="UploadFilled" @click="importVisible = true">导入</el-button></template>
 <el-table :data="baseRates" class="clean-table rate-table" border height="100%">
             <el-table-column label="货币对" min-width="130">
               <template #default="scope"><strong>{{ formatDirection(scope.row.direction) }}</strong></template>
@@ -64,10 +68,10 @@ function viewCustomerRate(row) {
             <h2>客户特调汇率</h2>
             <p>客户维度覆盖默认汇率</p>
           </div>
-          <div class="rate-panel-actions"><el-button type="primary" :icon="Plus" @click="simpleAction('新增客户特调汇率')">添加</el-button></div>
         </header>
 
-        <DataTableFrame class="rate-table-frame" :total="customerRates.length" :page-size="20">
+        <DataTableFrame class="rate-table-frame" :total="customerRates.length" :page-size="20" :column-sort="false">
+          <template #actions><el-button type="primary" :icon="Plus" @click="simpleAction('新增客户特调汇率')">添加</el-button></template>
 <el-table :data="customerRates" class="clean-table rate-table" border height="100%">
             <el-table-column prop="customerNo" label="客户编号" width="130" />
             <el-table-column prop="customer" label="客户名称" min-width="190" />
@@ -87,5 +91,6 @@ function viewCustomerRate(row) {
         </DataTableFrame>
       </section>
     </div>
+    <ImportDialog v-model="importVisible" title="导入基准汇率" template-name="基准汇率导入模板.xlsx" @submit="finishImport" />
   </div>
 </template>

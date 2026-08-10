@@ -1,10 +1,10 @@
 ﻿<script setup>
 import { computed, ref } from 'vue'
-import { Download, View } from '@element-plus/icons-vue'
+import { View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import ConditionFilter from '../../shared/components/ConditionFilter.vue'
+import DownloadButton from '../../shared/components/DownloadButton.vue'
 import MetricGrid from '../../shared/components/MetricGrid.vue'
-import PageHeader from '../../shared/components/PageHeader.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
@@ -98,12 +98,6 @@ function resetFilters() {
 
 <template>
   <div class="module-page receivable-summary-page">
-    <PageHeader>
-      <template #export>
-        <el-button :icon="Download" @click="ElMessage.success('导出任务已创建')">导出</el-button>
-      </template>
-    </PageHeader>
-
     <div class="summary-dimension-heading"><strong>店铺</strong></div>
     <div class="summary-scope-row">
       <ConditionFilter v-model="shop" label="店铺" :options="shops" />
@@ -127,6 +121,7 @@ function resetFilters() {
 
     <section class="module-panel summary-table-panel">
       <DataTableFrame :total="filteredRecords.length" :page-size="10">
+      <template #actions><DownloadButton title="下载营收汇总" :options="[{ label: '客户汇总', value: 'customer', description: '按当前客户筛选结果下载' }, { label: '店铺汇总', value: 'shop', description: '按当前店铺范围下载' }]" /></template>
 <el-table
         :data="filteredRecords"
         class="clean-table receivable-summary-table"
@@ -181,7 +176,7 @@ function resetFilters() {
 .customer-dimension-heading { margin-top: var(--space-2); }
 .summary-dimension-heading strong { position: relative; height: 38px; padding-left: var(--space-3); display: inline-flex; align-items: center; color: var(--primary); font-size: var(--section-title-font-size); font-weight: var(--font-weight-semibold); }
 .summary-dimension-heading strong::before { content: "◤"; position: absolute; left: 0; color: var(--primary); font-size: var(--font-size-body); line-height: 1; transform: translateY(-1px); }
-.summary-table-panel { overflow: hidden; }
+.summary-table-panel { overflow: visible; }
 .outstanding-amount { color: #9a611a; font-variant-numeric: tabular-nums; }
 .overdue-amount { color: #b6424d; font-weight: var(--font-weight-semibold); }
 .summary-bill-table { margin-top: var(--space-4); }

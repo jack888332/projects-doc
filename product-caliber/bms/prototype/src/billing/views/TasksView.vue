@@ -4,13 +4,13 @@ import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import {
-  Delete, DocumentChecked, Download, Operation, Refresh, RefreshRight, View,
+  Delete, DocumentChecked, Refresh, RefreshRight, View,
 } from '@element-plus/icons-vue'
 import ProcessView from './ProcessView.vue'
 import ConditionFilter from '../../shared/components/ConditionFilter.vue'
+import DownloadButton from '../../shared/components/DownloadButton.vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
 import MetricGrid from '../../shared/components/MetricGrid.vue'
-import PageHeader from '../../shared/components/PageHeader.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
@@ -26,7 +26,6 @@ const taskPageTab = ref(props.initialTaskTab)
 const detailVisible = ref(false)
 const detailTab = ref('overview')
 const selectedTask = ref(null)
-const advancedVisible = ref(false)
 
 const initialTaskQuery = {
   keyword: '',
@@ -186,12 +185,6 @@ function viewResult(row) {
 
 <template>
   <div class="billing-task-page">
-        <PageHeader v-if="taskPageTab === 'list'">
-          <template #export>
-            <el-button :icon="Download">导出任务</el-button>
-          </template>
-        </PageHeader>
-
         <el-tabs v-model="taskPageTab" class="task-page-tabs">
           <el-tab-pane label="任务列表" name="list">
         <section class="panel work-panel task-list-panel">
@@ -200,17 +193,14 @@ function viewResult(row) {
               <ConditionFilter v-model="taskQuery.keyword" label="关键词" type="text" search-placeholder="任务编号 / 配置 / 客户 / 会员编码" />
               <ConditionFilter v-model="taskQuery.taskType" label="任务类型" :options="Object.entries(taskTypeMeta).map(([value, label]) => ({ value, label }))" @change="handleTaskTypeChange" />
               <ConditionFilter v-model="taskQuery.status" label="任务状态" :options="Object.entries(statusMeta).map(([value, meta]) => ({ value, label: meta.label }))" />
-              <template v-if="advancedVisible">
-                <ConditionFilter v-model="taskQuery.generationMode" label="账单生成方式" :options="Object.entries(generationModeMeta).map(([value, label]) => ({ value, label }))" :disabled="!canFilterGenerationMode" />
-                <ConditionFilter v-model="taskQuery.triggerType" label="触发方式" :options="Object.entries(triggerMeta).map(([value, label]) => ({ value, label }))" />
-                <ConditionFilter v-model="taskQuery.configType" label="配置类型" :options="['默认配置','分支配置']" />
-                <ConditionFilter v-model="taskQuery.shop" label="店铺" :options="['深圳集运店','义乌集运店','广州同行店','上海集运店']" />
-                <ConditionFilter v-model="taskQuery.period" label="账期" type="date-range" />
-              </template>
+              <ConditionFilter v-model="taskQuery.generationMode" label="账单生成方式" :options="Object.entries(generationModeMeta).map(([value, label]) => ({ value, label }))" :disabled="!canFilterGenerationMode" />
+              <ConditionFilter v-model="taskQuery.triggerType" label="触发方式" :options="Object.entries(triggerMeta).map(([value, label]) => ({ value, label }))" />
+              <ConditionFilter v-model="taskQuery.configType" label="配置类型" :options="['默认配置','分支配置']" />
+              <ConditionFilter v-model="taskQuery.shop" label="店铺" :options="['深圳集运店','义乌集运店','广州同行店','上海集运店']" />
+              <ConditionFilter v-model="taskQuery.period" label="账期" type="date-range" />
               <div class="condition-filter-actions task-filter-actions">
                 <el-button type="primary" @click="applyTaskQuery">查询</el-button>
                 <el-button @click="resetFilters">重置</el-button>
-                <el-button class="advanced-filter-toggle" :icon="Operation" @click="advancedVisible = !advancedVisible">{{ advancedVisible ? '隐藏高级筛选项' : '显示高级筛选项' }}</el-button>
               </div>
             </div>
           </div>
@@ -218,7 +208,7 @@ function viewResult(row) {
           <MetricGrid :items="taskSummary" :columns="5" />
 
           <DataTableFrame :total="filteredTasks.length" :selected-count="0" :page-size="10">
-            <template #actions><el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button></template>
+            <template #actions><el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button><DownloadButton title="下载任务" :options="[{ label: '当前筛选结果', value: 'filtered', description: '下载当前筛选条件下的任务列表' }, { label: '全部任务', value: 'all', description: '下载全部生成任务' }]" /></template>
             <el-table :data="filteredTasks" class="clean-table" row-key="taskNo">
             <el-table-column prop="taskNo" label="任务编号" width="185" fixed />
             <el-table-column label="任务状态" width="98">

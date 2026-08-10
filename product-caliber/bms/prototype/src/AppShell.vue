@@ -74,7 +74,7 @@ async function downloadData() {
   link.download = `bms-prototype-${new Date().toISOString().slice(0, 10)}.json`
   link.click()
   URL.revokeObjectURL(url)
-  ElMessage.success('模拟数据已导出')
+  ElMessage.success('模拟数据已下载')
 }
 
 async function handleImport(event) {
@@ -136,7 +136,6 @@ async function resetData() {
           <button class="sidebar-toggle icon-btn" title="展开或收起菜单" @click="sidebarOpen = !sidebarOpen"><el-icon><Grid /></el-icon></button>
           <span>首页</span><el-icon><ArrowRight /></el-icon><span class="current-route">{{ route.meta.title }}</span>
         </div>
-        <div id="route-export-actions" class="route-export-actions" aria-label="数据导出" />
       </div>
       <section id="content" class="content"><RouterView /></section>
     </main>
@@ -145,7 +144,7 @@ async function resetData() {
   <el-dialog v-model="dataToolsVisible" title="模拟数据管理" width="680px">
     <div class="data-tools-note">账单系统与成本中心的演示数据统一保存在当前浏览器的 IndexedDB 中。</div>
     <div class="data-tools-grid">
-      <button type="button" @click="downloadData"><el-icon><Download /></el-icon><span><strong>导出模拟数据</strong><small>导出账单、任务、供应商、成本和分摊数据</small></span></button>
+      <button type="button" @click="downloadData"><el-icon><Download /></el-icon><span><strong>下载</strong><small>下载账单、任务、供应商、成本和分摊模拟数据</small></span></button>
       <button type="button" @click="fileInput?.click()"><el-icon><Upload /></el-icon><span><strong>导入模拟数据</strong><small>使用已导出的 JSON 覆盖当前浏览器数据</small></span></button>
       <button type="button" class="danger" @click="resetData"><el-icon><Refresh /></el-icon><span><strong>恢复初始数据</strong><small>清除操作结果并重新载入全部演示数据</small></span></button>
     </div>

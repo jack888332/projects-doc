@@ -1,8 +1,9 @@
 ﻿<script setup>
 import { computed, ref, watch } from 'vue'
-import { Download, EditPen, Search } from '@element-plus/icons-vue'
+import { EditPen, Search } from '@element-plus/icons-vue'
 import BillGenerationDialog from './BillGenerationDialog.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
+import DownloadButton from '../../shared/components/DownloadButton.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
@@ -115,7 +116,7 @@ function openGeneration() { generationDialog.value?.open() }
           <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口' && !bill.processingState" @click="emit('action', '审核通过')">审核通过</el-button>
           <el-button v-if="bill.status === '待审核' && !bill.processingState" @click="openGeneration">账单生成</el-button>
           <el-button v-if="!['已结清','已作废'].includes(bill.status) && !bill.processingState" @click="openPreview('账单重算')">账单重算</el-button>
-          <el-button type="primary" plain :icon="Download" @click="emit('action', '导出账单')">导出账单</el-button>
+          <DownloadButton type="primary" plain title="下载账单" :options="[{ label: '账单文件', value: 'bill', description: '下载账单基本信息和金额汇总' }, { label: '费项明细', value: 'fee-detail', description: '下载账单费项明细' }]" />
         </template>
         <template v-else>
           <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口' && !bill.processingState" @click="emit('action', '审核通过')">审核通过</el-button>
@@ -124,7 +125,7 @@ function openGeneration() { generationDialog.value?.open() }
           <el-button v-if="!['已结清','已作废'].includes(bill.status) && !bill.processingState" @click="openPreview('账单重算')">账单重算</el-button>
           <el-button v-if="bill.status === '待结清' && !bill.processingState" @click="emit('action', '登记返还')">登记返还</el-button>
           <el-button @click="emit('action', '打开调账中心')">调账中心</el-button>
-          <el-button type="primary" plain :icon="Download" @click="emit('action', '导出明细')">导出明细</el-button>
+          <DownloadButton type="primary" plain title="下载返款账单" :options="[{ label: '账单文件', value: 'bill', description: '下载返款账单基本信息和金额汇总' }, { label: '返款明细', value: 'refund-detail', description: '下载返款与扣费明细' }]" />
         </template>
       </div>
     </section>

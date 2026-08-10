@@ -1,11 +1,11 @@
 ﻿<script setup>
 import { computed, ref } from 'vue'
-import { Download, View } from '@element-plus/icons-vue'
+import { View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import BillDetailPanel from '../components/BillDetailPanel.vue'
 import ConditionFilter from '../../shared/components/ConditionFilter.vue'
+import DownloadButton from '../../shared/components/DownloadButton.vue'
 import MetricGrid from '../../shared/components/MetricGrid.vue'
-import PageHeader from '../../shared/components/PageHeader.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
@@ -14,7 +14,6 @@ import { billingRepository } from '../../data/repositories/billingRepository.ts'
 import { billingRemittanceFixtures } from '../../data/fixtures/billingRemittances.ts'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
-const showFx = ref(false)
 const billVisible = ref(false)
 const linkedBill = ref(null)
 const initialQuery = { keyword: '', recoveryStatus: '', refundStatus: '' }
@@ -44,18 +43,17 @@ async function openBill(row) {
 
 <template>
   <div class="module-page">
-    <PageHeader><template #export><el-button :icon="Download">导出</el-button></template></PageHeader>
     <section class="condition-query-panel">
       <div class="condition-filter-bar"><ConditionFilter v-model="query.keyword" label="关键词" type="text" search-placeholder="尾程运单号 / 订单 / 客户 / 返款账单" /><ConditionFilter v-model="query.recoveryStatus" label="回款状态" :options="['已回款','待回款','不回款']" /><ConditionFilter v-model="query.refundStatus" label="返款状态" :options="['已返款','待返款','不返款']" /><div class="condition-filter-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div></div>
     </section>
     <MetricGrid :items="summary" />
     <section class="module-panel filter-table-panel">
       <DataTableFrame :total="rows.length" :selected-count="0" :page-size="10">
-        <template #actions><el-checkbox v-model="showFx">查看汇兑损益</el-checkbox></template>
+      <template #actions><DownloadButton title="下载回款数据" :options="[{ label: '回款明细', value: 'remittance', description: '下载当前筛选范围内的回款与返款明细' }, { label: '汇兑损益明细', value: 'exchange', description: '下载包含汇兑损益的核算明细' }]" /></template>
       <el-table :data="rows" class="clean-table" row-key="tracking" border>
         <el-table-column prop="tracking" label="尾程运单号" width="160" fixed /><el-table-column prop="order" label="所属内部订单" width="155" /><el-table-column label="客户" min-width="180"><template #default="scope"><StackedCell :primary="scope.row.customer" :secondary="scope.row.shop" /></template></el-table-column><el-table-column prop="signStatus" label="签收状态" width="95" /><el-table-column prop="signedAt" label="签收时间" width="155" /><el-table-column prop="original" label="货款原始金额" width="120" align="right" /><el-table-column prop="carrier" label="尾程派送商" width="130" />
         <el-table-column label="回款状态" width="90"><template #default="scope"><StatusTag :label="scope.row.recoveryStatus" /></template></el-table-column><el-table-column label="返款状态" width="90"><template #default="scope"><StatusTag :label="scope.row.refundStatus" /></template></el-table-column><el-table-column prop="recoveredAt" label="回款时间" width="150" /><el-table-column prop="method" label="回款方式" width="100" /><el-table-column prop="serialNo" label="回款流水号" width="160" /><el-table-column prop="recoveryCurrency" label="回款币种" width="90" /><el-table-column label="回款金额" width="115" align="right"><template #default="scope">{{ scope.row.recoveryAmount.toFixed(2) }}</template></el-table-column><el-table-column prop="recoveryRate" label="回款汇率" width="100" /><el-table-column prop="refundedAt" label="返款时间" width="150" /><el-table-column prop="refunded" label="实返货款金额" width="120" align="right" /><el-table-column prop="mode" label="返款模式" width="100" /><el-table-column prop="billNo" label="关联返款账单" width="205" /><el-table-column prop="refundable" label="应返货款金额" width="120" align="right" />
-        <el-table-column v-if="showFx" prop="fx" label="汇兑损益" width="105" align="right" class-name="fx-column" label-class-name="fx-column-header" />
+        <el-table-column prop="fx" label="汇兑损益" width="105" align="right" fixed="right" class-name="fx-column" label-class-name="fx-column-header" />
         <el-table-column label="操作" width="90" fixed="right"><template #default="scope"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" :disabled="scope.row.billNo === '-'" @click="openBill(scope.row)" /></template></el-table-column>
       </el-table>
       </DataTableFrame>

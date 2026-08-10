@@ -1,8 +1,9 @@
 <script setup>
 import { ref } from 'vue'
-import { Download, Plus, Refresh } from '@element-plus/icons-vue'
+import { Plus, Refresh } from '@element-plus/icons-vue'
 import ConditionFilter from '../components/ConditionFilter.vue'
 import DataTableFrame from '../components/DataTableFrame.vue'
+import DownloadButton from '../components/DownloadButton.vue'
 import MetricGrid from '../components/MetricGrid.vue'
 import StatusTag from '../components/StatusTag.vue'
 
@@ -29,7 +30,7 @@ const metrics = [
         <ConditionFilter v-model="filters.period" label="日期范围" type="date-range" />
         <div class="condition-filter-actions"><el-button type="primary">查询</el-button><el-button>重置</el-button></div>
       </div>
-      <div class="gallery-actions"><el-button :icon="Plus">新增</el-button><el-button :icon="Download">导出</el-button><el-button :icon="Refresh">刷新</el-button></div>
+      <div class="gallery-actions"><el-button :icon="Plus">新增</el-button><DownloadButton /><el-button :icon="Refresh">刷新</el-button></div>
     </section>
 
     <section class="gallery-section">
@@ -39,7 +40,7 @@ const metrics = [
 
     <section class="gallery-section">
       <h2>标准数据表</h2>
-      <DataTableFrame :total="rows.length" :selected-count="selectedRows.length" :page-size="10">
+      <DataTableFrame :total="rows.length" :selected-count="selectedRows.length" selection-summary :page-size="10">
         <template #actions><el-button>批量操作</el-button></template>
         <el-table :data="rows" border class="clean-table" @selection-change="selectedRows = $event">
           <el-table-column type="selection" width="44" />

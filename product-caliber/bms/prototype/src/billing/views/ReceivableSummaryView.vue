@@ -8,20 +8,39 @@ import MetricGrid from '../../shared/components/MetricGrid.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
+import { useLinkedQueryAreas } from '../../shared/composables/useLinkedQueryAreas.js'
 import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 import { billingBaseRateFixtures } from '../../data/fixtures/billingRates.ts'
 
 const detailVisible = ref(false)
 const selectedSummary = ref(null)
-const shop = ref('')
+const now = new Date()
+const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+const initialShopQuery = {
+  shop: '',
+  period: { mode: 'month', value: [currentMonth, currentMonth] },
+}
+const {
+  query: shopQuery,
+  appliedQuery: appliedShopQuery,
+  applyQuery: applyShopQuery,
+} = useStagedQuery(initialShopQuery)
 const initialQuery = {
   customerNo: '',
   currency: '',
   overdue: '',
-  period: [],
 }
-const { query, appliedQuery, applyQuery, resetQuery } = useStagedQuery(initialQuery)
+const { query, appliedQuery, applyQuery } = useStagedQuery(initialQuery)
+const linkedQuery = useLinkedQueryAreas({
+  defaultArea: 'shop',
+  submitMode: 'all',
+  buttonPlacement: 'fixed',
+  areas: {
+    shop: { apply: applyShopQuery },
+    customer: { apply: applyQuery },
+  },
+})
 
 const records = useDemoDataset('receivableSummaryRecords', [
   { id: 'SZ-OG4155-CNY', shop: '深圳集运店', shopCode: 'SZ-CONSOL', customer: 'OceanGate Logistics', customerNo: 'OG4155', memberCode: 'M-700127', currency: 'CNY', receivable: 228640.82, received: 171800.00, outstanding: 56840.82, overdue: 21240.50, pendingReview: 12420.00, billCount: 8, outstandingBills: 3, oldestDue: '2026-07-18', lastBillAt: '2026-08-01' },
@@ -52,23 +71,30 @@ const customers = computed(() => [...new Map(records.value.map((row) => [row.cus
 }])).values()])
 const selectedCustomer = computed(() => customers.value.find((item) => item.value === appliedQuery.customerNo))
 
+const matchesPeriodScope = (row) => {
+  const { mode, value } = appliedShopQuery.period || {}
+  if (!Array.isArray(value) || value.length !== 2) return true
+  const [start, end] = value
+  if (mode === 'date') return row.lastBillAt >= start && row.lastBillAt <= end
+  const billMonth = row.lastBillAt.slice(0, 7)
+  return billMonth >= start && billMonth <= end
+}
+const matchesShopScope = (row) => (!appliedShopQuery.shop || row.shop === appliedShopQuery.shop)
+  && matchesPeriodScope(row)
+
 const filteredRecords = computed(() => records.value.filter((row) => {
-  const [periodStart, periodEnd] = appliedQuery.period || []
-  const lastBillDate = new Date(`${row.lastBillAt}T00:00:00`)
   const customerKeyword = appliedQuery.customerNo.trim().toLowerCase()
   const matchesCustomer = !customerKeyword
     || (selectedCustomer.value
       ? row.customerNo === appliedQuery.customerNo
       : `${row.customer}${row.customerNo}${row.memberCode}`.toLowerCase().includes(customerKeyword))
-  return (!shop.value || row.shop === shop.value)
+  return matchesShopScope(row)
     && matchesCustomer
     && (!appliedQuery.currency || row.currency === appliedQuery.currency)
     && (!appliedQuery.overdue || (appliedQuery.overdue === '逾期' ? row.overdue > 0 : row.outstanding > 0 && row.overdue === 0))
-    && (!periodStart || lastBillDate >= periodStart)
-    && (!periodEnd || lastBillDate <= periodEnd)
 }))
 
-const shopRecords = computed(() => records.value.filter((row) => !shop.value || row.shop === shop.value))
+const shopRecords = computed(() => records.value.filter(matchesShopScope))
 
 const summaryStatus = (row) => row.overdue > 0 ? '有逾期' : row.outstanding > 0 ? '待回款' : '已收清'
 
@@ -92,33 +118,34 @@ function openDetail(row) {
   detailVisible.value = true
 }
 function runQuery() {
-  applyQuery()
+  linkedQuery.submit()
   ElMessage.success(`查询完成，共 ${filteredRecords.value.length} 条`)
-}
-function resetFilters() {
-  resetQuery()
 }
 </script>
 
 <template>
   <div class="module-page receivable-summary-page">
     <div class="summary-dimension-heading"><strong>店铺</strong></div>
-    <div class="summary-scope-row">
-      <ConditionFilter v-model="shop" label="店铺" :options="shops" />
-    </div>
+    <section class="condition-query-panel summary-scope-row">
+      <div class="condition-filter-bar">
+        <ConditionFilter v-model="shopQuery.shop" label="店铺" :options="shops" @change="linkedQuery.touch('shop')" />
+        <ConditionFilter v-model="shopQuery.period" label="账期范围" type="period-range" :popover-width="380" @change="linkedQuery.touch('shop')" />
+        <div v-if="linkedQuery.isSubmitArea('shop')" class="condition-filter-actions">
+          <el-button type="primary" @click="runQuery">查询</el-button>
+        </div>
+      </div>
+    </section>
     <MetricGrid :items="kpis" />
 
     <div class="summary-dimension-heading customer-dimension-heading"><strong>客户</strong></div>
 
     <section class="condition-query-panel receivable-summary-query">
       <div class="condition-filter-bar">
-        <ConditionFilter v-model="query.customerNo" label="客户" type="text" :options="customers" search-placeholder="搜索名称 / 客户编号 / 会员编码" :popover-width="360" />
-        <ConditionFilter v-model="query.currency" label="结算币种" :options="['CNY','USD']" />
-        <ConditionFilter v-model="query.overdue" label="未收状态" :options="['逾期','未逾期']" />
-        <ConditionFilter v-model="query.period" label="账期范围" type="date-range" />
-        <div class="condition-filter-actions">
+        <ConditionFilter v-model="query.customerNo" label="客户" type="text" :options="customers" search-placeholder="搜索名称 / 客户编号 / 会员编码" :popover-width="360" @change="linkedQuery.touch('customer')" />
+        <ConditionFilter v-model="query.currency" label="结算币种" :options="['CNY','USD']" @change="linkedQuery.touch('customer')" />
+        <ConditionFilter v-model="query.overdue" label="未收状态" :options="['逾期','未逾期']" @change="linkedQuery.touch('customer')" />
+        <div v-if="linkedQuery.isSubmitArea('customer')" class="condition-filter-actions">
           <el-button type="primary" @click="runQuery">查询</el-button>
-          <el-button @click="resetFilters">重置</el-button>
         </div>
       </div>
     </section>

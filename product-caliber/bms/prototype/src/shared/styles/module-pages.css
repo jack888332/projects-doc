@@ -71,8 +71,11 @@
 .query-actions { margin-top: var(--space-2); display: flex; justify-content: flex-end; gap: 8px; }
 .condition-query-panel { margin: 0 0 var(--space-3); padding: 0; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .condition-filter-bar { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
-.condition-filter-actions { width: 154px; flex: 0 0 154px; display: none; gap: var(--space-3); }
+.condition-filter-actions { width: 71px; flex: 0 0 71px; display: none; gap: var(--space-3); }
 .condition-filter-bar:has(> .condition-filter ~ .condition-filter) > .condition-filter-actions { display: flex; }
+.condition-filter-actions > .el-button:nth-child(2) { display: none; }
+.condition-filter-bar:has(> .condition-filter:nth-child(6)) > .condition-filter-actions { width: 154px; flex-basis: 154px; }
+.condition-filter-bar:has(> .condition-filter:nth-child(6)) > .condition-filter-actions > .el-button:nth-child(2) { display: inline-flex; }
 .condition-filter-actions .el-button.el-button:not(.is-circle) { width: 71px; height: 32px; min-height: 32px; margin: 0; padding: 0 var(--space-3); border-radius: 2px; }
 .condition-filter-tools { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
 .reference-kpis .module-kpi { min-height: 94px; }
@@ -85,7 +88,7 @@
 .status-tabs-row button.active { color: var(--primary); background: transparent; font-weight: var(--font-weight-bold); }
 .status-tabs-row button.active::after { transform: scaleX(1); }
 .table-reference-toolbar { position: sticky; top: var(--header-height); z-index: 20; min-height: var(--table-toolbar-height); height: var(--table-toolbar-height); padding: 0 var(--space-3); display: flex; align-items: center; justify-content: flex-start; gap: var(--space-3); border: 1px solid var(--border); border-bottom: 0; color: #7c8798; background: #fff; font-size: 13px; }
-.table-reference-leading { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.table-reference-leading { min-width: 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--caption-font-size); }
 .table-reference-summary { display: inline-flex; align-items: center; gap: var(--space-3); }
 .table-reference-summary-divider { color: var(--border-strong); }
 .data-table-frame { min-width: 0; display: flex; flex-direction: column; gap: 0; }
@@ -221,7 +224,8 @@
 
 @media (max-width: 760px) {
   .condition-filter-bar { align-items: stretch; flex-direction: column; }
-  .condition-filter-actions { width: 130px; flex-basis: auto; }
+  .condition-filter-actions { width: 71px; flex-basis: auto; }
+  .condition-filter-bar:has(> .condition-filter:nth-child(6)) > .condition-filter-actions { width: 154px; }
   .condition-filter-tools { width: 100%; margin-left: 0; }
   .rate-panel-head { align-items: stretch; flex-direction: column; }
   .rate-panel-actions { width: 100%; }.rate-panel-actions .el-button { flex: 1; }

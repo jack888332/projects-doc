@@ -4,7 +4,7 @@ import dayjs from 'dayjs'
 import { ArrowDown, CircleClose, Search } from '@element-plus/icons-vue'
 
 const props = defineProps({
-  modelValue: { type: [String, Number, Array], default: '' },
+  modelValue: { type: [String, Number, Array, Object], default: '' },
   label: { type: String, required: true },
   type: { type: String, default: 'select' },
   options: { type: Array, default: () => [] },
@@ -18,6 +18,8 @@ const emit = defineEmits(['update:modelValue', 'change'])
 const panelVisible = ref(false)
 const draft = ref('')
 const optionSearch = ref('')
+const periodMode = ref('month')
+const periodDraft = ref([])
 const referenceRef = ref(null)
 const datePickerRef = ref(null)
 const panelInputRef = ref(null)
@@ -27,12 +29,27 @@ const normalizedOptions = computed(() => props.options.map((item) => typeof item
   : { label: String(item), value: item, secondary: '' }))
 const selectedOption = computed(() => normalizedOptions.value.find((item) => item.value === props.modelValue))
 const isDateRange = computed(() => props.type === 'date-range')
-const hasValue = computed(() => isDateRange.value
-  ? Array.isArray(props.modelValue) && props.modelValue.length === 2
-  : props.modelValue !== '' && props.modelValue !== null && props.modelValue !== undefined)
+const isMonth = computed(() => props.type === 'month')
+const isPeriodRange = computed(() => props.type === 'period-range')
+const isDatePicker = computed(() => isDateRange.value || isMonth.value)
+const hasValue = computed(() => {
+  if (isPeriodRange.value) return Array.isArray(props.modelValue?.value) && props.modelValue.value.length === 2
+  if (isDateRange.value) return Array.isArray(props.modelValue) && props.modelValue.length === 2
+  return props.modelValue !== '' && props.modelValue !== null && props.modelValue !== undefined
+})
 const displayValue = computed(() => {
   if (!hasValue.value) return props.placeholder
+  if (isPeriodRange.value) {
+    const [start, end] = props.modelValue.value
+    if (props.modelValue.mode === 'month') {
+      const startLabel = dayjs(start).format('YYYY年MM月')
+      const endLabel = dayjs(end).format('YYYY年MM月')
+      return start === end ? startLabel : `${startLabel} - ${endLabel}`
+    }
+    return [start, end].map((value) => dayjs(value).format('YYYY/MM/DD')).join(' - ')
+  }
   if (isDateRange.value) return props.modelValue.map((value) => dayjs(value).format('YYYY/MM/DD')).join(' - ')
+  if (isMonth.value) return dayjs(props.modelValue).format('YYYY年MM月')
   return selectedOption.value?.label || String(props.modelValue)
 })
 const filteredOptions = computed(() => {
@@ -50,13 +67,17 @@ function update(value) {
   emit('change', value)
 }
 function preparePanel() {
-  if (props.disabled || isDateRange.value) return
+  if (props.disabled || isDatePicker.value) return
+  if (isPeriodRange.value) {
+    periodMode.value = props.modelValue?.mode || 'month'
+    periodDraft.value = Array.isArray(props.modelValue?.value) ? [...props.modelValue.value] : []
+  }
   draft.value = props.type === 'text' && hasValue.value ? String(props.modelValue) : ''
   optionSearch.value = ''
 }
 function openPanel() {
   if (props.disabled) return
-  if (isDateRange.value) return datePickerRef.value?.handleOpen()
+  if (isDatePicker.value) return datePickerRef.value?.handleOpen()
   preparePanel()
   panelVisible.value = true
 }
@@ -66,7 +87,8 @@ async function focusPanelInput() {
 }
 function clear(event) {
   event?.stopPropagation()
-  update(isDateRange.value ? [] : '')
+  if (isPeriodRange.value) update({ mode: props.modelValue?.mode || periodMode.value, value: [] })
+  else update(isDateRange.value ? [] : '')
   panelVisible.value = false
   datePickerRef.value?.handleClose()
 }
@@ -89,6 +111,15 @@ async function selectOption(option) {
   update(option.value)
   await closeAndBlur()
 }
+function changePeriodMode(mode) {
+  periodMode.value = mode
+  periodDraft.value = []
+}
+async function applyPeriodRange(value) {
+  if (!Array.isArray(value) || value.length !== 2) return
+  update({ mode: periodMode.value, value: [...value] })
+  await closeAndBlur()
+}
 function closeDatePicker() {
   datePickerRef.value?.handleClose()
   referenceRef.value?.blur()
@@ -101,7 +132,7 @@ function closeDatePicker() {
     :class="{ active: hasValue, disabled }"
   >
     <div
-      v-if="isDateRange"
+      v-if="isDatePicker"
       ref="referenceRef"
       class="condition-filter-reference"
       role="button"
@@ -116,12 +147,14 @@ function closeDatePicker() {
       <el-icon v-else class="condition-filter-arrow"><ArrowDown /></el-icon>
     </div>
     <el-date-picker
-      v-if="isDateRange"
+      v-if="isDatePicker"
       ref="datePickerRef"
       v-model="dateModel"
       class="condition-date-anchor"
       style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none;"
-      type="daterange"
+      :type="isMonth ? 'month' : 'daterange'"
+      :format="isMonth ? 'YYYY年MM月' : undefined"
+      :value-format="isMonth ? 'YYYY-MM' : undefined"
       popper-class="condition-date-popper"
       :editable="false"
       tabindex="-1"
@@ -159,8 +192,27 @@ function closeDatePicker() {
       </template>
 
       <div class="condition-filter-panel">
+        <template v-if="isPeriodRange">
+          <div class="condition-period-modes" role="tablist" aria-label="账期范围类型">
+            <button type="button" :class="{ active: periodMode === 'month' }" @click="changePeriodMode('month')">月份范围</button>
+            <button type="button" :class="{ active: periodMode === 'date' }" @click="changePeriodMode('date')">日期范围</button>
+          </div>
+          <el-date-picker
+            v-model="periodDraft"
+            class="condition-period-picker"
+            :type="periodMode === 'month' ? 'monthrange' : 'daterange'"
+            :format="periodMode === 'month' ? 'YYYY年MM月' : 'YYYY/MM/DD'"
+            :value-format="periodMode === 'month' ? 'YYYY-MM' : 'YYYY-MM-DD'"
+            range-separator="至"
+            start-placeholder="开始"
+            end-placeholder="结束"
+            :editable="false"
+            :teleported="false"
+            @change="applyPeriodRange"
+          />
+        </template>
         <el-input
-          v-if="type === 'text'"
+          v-else-if="type === 'text'"
           ref="panelInputRef"
           v-model="draft"
           :prefix-icon="Search"
@@ -208,6 +260,10 @@ function closeDatePicker() {
 .condition-filter-clear:hover { color: var(--primary); }
 .condition-date-anchor { position: absolute !important; inset: 0; width: 100% !important; height: 100%; opacity: 0 !important; pointer-events: none; }
 .condition-filter-panel { display: grid; gap: var(--space-3); }
+.condition-period-modes { padding: 2px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; border: 1px solid var(--border); border-radius: 2px; background: #f4f5f8; }
+.condition-period-modes button { min-height: 30px; padding: 0 var(--space-3); border: 0; border-radius: 1px; color: #596274; background: transparent; cursor: pointer; }
+.condition-period-modes button.active { color: var(--primary-strong); background: #fff; font-weight: var(--font-weight-semibold); }
+.condition-period-picker { width: 100% !important; }
 .condition-filter-options { max-height: 260px; overflow-y: auto; border-top: 0; }
 .condition-filter-options button { width: 100%; min-height: 42px; padding: var(--space-2) var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border: 0; color: #30394b; background: #fff; text-align: left; cursor: pointer; }
 .condition-filter-options button:hover, .condition-filter-options button.active { color: var(--primary); background: var(--primary-soft); }

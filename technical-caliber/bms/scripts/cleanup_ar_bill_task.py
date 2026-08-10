@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""按任务 ID 清理应收账单生成任务产生的调试数据。默认只预览。"""
+"""按任务 ID 清理应收/返款账单生成任务产生的调试数据。默认只预览。"""
 
 import argparse
 import re
@@ -12,7 +12,11 @@ import pymysql
 
 BMS_DB = "tmall_bms"
 SOURCE_DB = "ofp_ofdb1"
-ALLOWED_BILL_STATUSES = {"GENERATING", "DRAFT", "GENERATED", "VOID"}
+ALLOWED_BILL_TYPES = {"MEMBER_AR", "COD_REFUND"}
+ALLOWED_BILL_STATUSES = {
+    "MEMBER_AR": {"GENERATING", "DRAFT", "GENERATED", "VOID"},
+    "COD_REFUND": {"DRAFT", "GENERATED", "UNDER_REVIEW", "VOID"},
+}
 ALLOWED_TASK_STATUSES = {"SUCCESS", "FAILED", "CANCELED"}
 TERMINAL_EXPORT_STATUSES = {"SUCCESS", "PARTIAL_SUCCESS", "FAILED", "CANCELLED"}
 
@@ -31,12 +35,24 @@ SOURCE_TABLE_META = {
 }
 KNOWN_SOURCE_TABLES = set(SOURCE_TABLE_META)
 
+# 各账单类型需要恢复源表标识的表清单：(表名, 恢复时使用的源表主键列, 是否同时清空 bms_billed_at)。
+BILL_TYPE_SOURCE_TABLES = {
+    "MEMBER_AR": (
+        ("sale_order_header_extend", "sale_order_id", False),
+        ("sale_order_additional_matter", "id", False),
+        ("claim_order", "id", True),
+    ),
+    "COD_REFUND": (
+        ("sale_order_header_extend", "sale_order_id", False),
+    ),
+}
+
 
 def parse_args():
     script_dir = Path(__file__).resolve().parent
     default_env = script_dir.parent / "deployment" / "env.md"
     parser = argparse.ArgumentParser(
-        description="清理一个 MEMBER_AR 账单生成任务的数据；不加 --execute 时只做只读预览。"
+        description="清理一个 MEMBER_AR 应收或 COD_REFUND 返款账单生成任务的数据；不加 --execute 时只做只读预览。"
     )
     parser.add_argument("--task-id", required=True, type=int, help="bill_generate_task.id")
     parser.add_argument("--env", type=Path, default=default_env, help="数据库连接说明文件")
@@ -97,6 +113,20 @@ def in_clause(values):
     return ",".join(["%s"] * len(values)), tuple(values)
 
 
+ORDER_TIME_RANGE_RE = re.compile(
+    r"(?P<col>[A-Za-z_][A-Za-z0-9_.]*)\s*>=\s*'\d{4}-\d{2}-\d{2}[^']*'"
+    r"\s+AND\s+(?P=col)\s*<\s*'\d{4}-\d{2}-\d{2}[^']*'"
+)
+
+
+def parse_order_time_field(order_source_sql):
+    """从任务保存的 order_source_sql 快照中提取源单时间范围字段（如 e.recovery_time）。"""
+    if not order_source_sql:
+        return None
+    match = ORDER_TIME_RANGE_RE.search(order_source_sql)
+    return match.group("col") if match else None
+
+
 def source_scope_conditions(task):
     """按任务实际抓取 SQL 的作用域生成源表查询条件（账期、member、shop、sc）。"""
     if not task["billing_period_start_date"] or not task["billing_period_end_date"]:
@@ -107,6 +137,18 @@ def source_scope_conditions(task):
     shop_id = task["shop_id"]
     sc_id = task["sc_id"]
     user_id = task["user_id"]
+    if task["bill_type"] == "COD_REFUND":
+        # 返款账单只打 sale_order_header_extend，时间口径随返款配置变化（recovery_time/signed_time 等）。
+        time_col = parse_order_time_field(task.get("order_source_sql"))
+        if not time_col:
+            raise ValueError("返款任务 order_source_sql 中未找到时间范围条件，无法生成源表清理条件")
+        return {
+            "sale_order_header_extend": (
+                "h.member_code = %s AND h.shop_id = %s AND (h.sc_id = %s OR h.sc_id IS NULL) "
+                f"AND {time_col} >= %s AND {time_col} < %s",
+                (member, shop_id, sc_id, start, end_exclusive),
+            ),
+        }
     return {
         "sale_order_header_extend": (
             "h.member_code = %s AND h.shop_id = %s AND (h.sc_id = %s OR h.sc_id IS NULL) "
@@ -148,14 +190,16 @@ def load_scope(cursor, task_id, lock=False):
         cursor,
         "SELECT id, task_no, bill_type, task_status, data_pull_type, bill_config_id, "
         "sc_id, shop_id, user_id, member_code, "
-        "billing_period_start_date, billing_period_end_date, created_at "
+        "billing_period_start_date, billing_period_end_date, created_at, order_source_sql "
         "FROM bill_generate_task WHERE id = %s" + lock_sql,
         (task_id,),
     )
     if not task:
         raise ValueError(f"账单生成任务不存在：{task_id}")
-    if task["bill_type"] != "MEMBER_AR":
-        raise ValueError(f"仅允许清理 MEMBER_AR 应收任务，当前类型：{task['bill_type']}")
+    if task["bill_type"] not in ALLOWED_BILL_TYPES:
+        raise ValueError(
+            f"仅允许清理 {sorted(ALLOWED_BILL_TYPES)} 类型任务，当前类型：{task['bill_type']}"
+        )
 
     bills = fetch_all(
         cursor,
@@ -203,10 +247,10 @@ def validate_scope(cursor, task, bills, marks, bill_ids, bill_nos):
             errors.append(
                 f"账单 {bill['bill_no']} 属于任务 {bill['generate_task_id']}，当前任务只是增量写入，无法安全整单回滚"
             )
-        if bill["bill_status"] not in ALLOWED_BILL_STATUSES:
+        if bill["bill_status"] not in ALLOWED_BILL_STATUSES[task["bill_type"]]:
             errors.append(f"账单 {bill['bill_no']} 状态为 {bill['bill_status']}，不允许调试清理")
         if (bill["paid_amount"] or 0) != 0 or (bill["paid_amount_fin"] or 0) != 0:
-            errors.append(f"账单 {bill['bill_no']} 已产生核销金额")
+            errors.append(f"账单 {bill['bill_no']} 已产生核销/返款金额")
 
     unknown_tables = sorted({m["source_table"] for m in marks} - KNOWN_SOURCE_TABLES)
     if unknown_tables:
@@ -312,7 +356,8 @@ def preview(cursor, task, bills, marks, bill_ids):
                 f"WHERE {alias}.bms_bill_no IN ({bill_nos_sql}) AND {scope_sql}",
                 bill_nos_args + scope_args,
             )
-            for table, (alias, join_sql) in SOURCE_TABLE_META.items()
+            for table, _id_column, _clear_billed_at in BILL_TYPE_SOURCE_TABLES[task["bill_type"]]
+            for alias, join_sql in [SOURCE_TABLE_META[table]]
             for scope_sql, scope_args in [source_scope[table]]
         ) if bill_nos else 0,
         "external_fee_links_to_clear": 0,
@@ -395,11 +440,7 @@ def execute_cleanup(cursor, task, marks, bill_ids, bill_nos):
 
     bill_nos_sql, bill_nos_args = in_clause(bill_nos)
     source_scope = source_scope_conditions(task)
-    for table, id_column, clear_billed_at in (
-        ("sale_order_header_extend", "sale_order_id", False),
-        ("sale_order_additional_matter", "id", False),
-        ("claim_order", "id", True),
-    ):
+    for table, id_column, clear_billed_at in BILL_TYPE_SOURCE_TABLES[task["bill_type"]]:
         alias, join_sql = SOURCE_TABLE_META[table]
         scope_sql, scope_args = source_scope[table]
         affected = 0

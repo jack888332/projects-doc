@@ -296,8 +296,8 @@
 .billing-content .main-cell strong { color: #303746; }
 .billing-content .main-cell small { color: #8a919e; }
 .table-pagination {
-  min-height: 60px;
-  height: 60px;
+  min-height: var(--table-pagination-height);
+  height: var(--table-pagination-height);
   color: var(--muted);
   background: #fff;
   font-size: 13px;
@@ -313,7 +313,7 @@
   box-sizing: border-box;
   background: #fff;
 }
-.table-pagination-inner.is-docked { position: fixed; z-index: 30; bottom: 0; height: 60px; border: 1px solid var(--border); }
+.table-pagination-inner.is-docked { position: fixed; z-index: 30; bottom: 0; height: var(--table-pagination-height); border: 1px solid var(--border); }
 .billing-content .table-reference-toolbar { top: 0; }
 .table-pagination-left { min-width: 0; display: flex; align-items: center; gap: var(--space-3); }
 .table-pagination-summary { flex: 0 0 auto; white-space: nowrap; font-size: 13px; }
@@ -394,9 +394,9 @@
   .billing-content .keyword-input,
   .billing-content .keyword-input.wide,
   .billing-content .filter-actions { width: 100% !important; }
-  .table-pagination { height: auto; min-height: 60px; }
-  .table-pagination-inner { height: auto; min-height: 60px; flex-wrap: wrap; gap: 8px 12px; padding: var(--space-2) var(--space-3); }
-  .table-pagination-inner.is-docked { height: auto; min-height: 60px; }
+  .table-pagination { height: auto; min-height: var(--table-pagination-height); }
+  .table-pagination-inner { height: auto; min-height: var(--table-pagination-height); flex-wrap: wrap; gap: 8px 12px; padding: var(--space-2) var(--space-3); }
+  .table-pagination-inner.is-docked { height: auto; min-height: var(--table-pagination-height); }
   .table-pagination-left { flex-wrap: wrap; }
   .table-pagination-size { margin-left: auto; }
   .detail-drawer .detail-grid { grid-template-columns: 1fr; }

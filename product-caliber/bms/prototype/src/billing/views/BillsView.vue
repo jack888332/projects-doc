@@ -113,7 +113,7 @@ async function handleBillAction(name) {
 
     <section class="module-panel">
       <DataTableFrame :total="filteredBills.length" :selected-count="selectedRows.length" selection-summary>
-      <template #actions><el-button :icon="Download" :disabled="!selectedRows.length" @click="openExport">下载</el-button></template>
+      <template #actions><el-button :icon="Download" :disabled="!selectedRows.length" @click="openExport">导出</el-button></template>
       <el-table :data="filteredBills" class="clean-table" row-key="billNo" border @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="44" fixed />
         <el-table-column prop="billNo" label="账单编号" width="205" fixed />

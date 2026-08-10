@@ -22,7 +22,7 @@ function syncDock() {
     if (!element || !frame) return
     const anchorRect = element.getBoundingClientRect()
     const frameRect = frame.getBoundingClientRect()
-    const barHeight = 60
+    const barHeight = 56
     const shouldDock = frameRect.top < window.innerHeight - barHeight
       && frameRect.bottom > 0
       && anchorRect.top > window.innerHeight - barHeight

@@ -20,6 +20,8 @@
   --table-font-size: var(--font-size-body);
   --table-secondary-font-size: var(--font-size-sm);
   --table-header-height: 44px;
+  --table-toolbar-height: 56px;
+  --table-pagination-height: 56px;
   --table-row-height-compact: 48px;
   --table-row-height-default: 60px;
   --table-row-height-multiline: 64px;
@@ -60,7 +62,7 @@
   --info: #1769b0;
   --info-soft: #eaf5ff;
   --header-height: 50px;
-  --route-nav-height: 52px;
+  --route-nav-height: 44px;
   --sidebar-width: 228px;
   --radius: 4px;
   --space-1: 4px;

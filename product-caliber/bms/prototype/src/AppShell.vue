@@ -131,11 +131,11 @@ async function resetData() {
 
     <main class="workspace">
       <div class="route-tabs">
-        <button v-if="backTarget" class="route-back" title="返回上级页面" @click="navigate(backTarget)"><el-icon><Back /></el-icon><span>返回</span></button>
         <div class="route-crumbs">
           <button class="sidebar-toggle icon-btn" title="展开或收起菜单" @click="sidebarOpen = !sidebarOpen"><el-icon><Grid /></el-icon></button>
-          <span>首页</span><el-icon><ArrowRight /></el-icon><span class="current-route">{{ route.meta.title }}</span>
+          <span>BMS</span><el-icon><ArrowRight /></el-icon><span class="current-route">{{ route.meta.title }}</span>
         </div>
+        <button v-if="backTarget" class="route-back" title="返回上级页面" @click="navigate(backTarget)"><el-icon><Back /></el-icon><span>返回</span></button>
       </div>
       <section id="content" class="content"><RouterView /></section>
     </main>

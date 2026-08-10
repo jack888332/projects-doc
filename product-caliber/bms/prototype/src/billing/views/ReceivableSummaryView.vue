@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, ref } from 'vue'
 import { View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
@@ -25,20 +25,21 @@ const {
   query: shopQuery,
   appliedQuery: appliedShopQuery,
   applyQuery: applyShopQuery,
+  resetQuery: resetShopQuery,
 } = useStagedQuery(initialShopQuery)
 const initialQuery = {
   customerNo: '',
   currency: '',
   overdue: '',
 }
-const { query, appliedQuery, applyQuery } = useStagedQuery(initialQuery)
+const { query, appliedQuery, applyQuery, resetQuery } = useStagedQuery(initialQuery)
 const linkedQuery = useLinkedQueryAreas({
   defaultArea: 'shop',
   submitMode: 'all',
   buttonPlacement: 'fixed',
   areas: {
-    shop: { apply: applyShopQuery },
-    customer: { apply: applyQuery },
+    shop: { apply: applyShopQuery, reset: resetShopQuery },
+    customer: { apply: applyQuery, reset: resetQuery },
   },
 })
 
@@ -130,8 +131,9 @@ function runQuery() {
       <div class="condition-filter-bar">
         <ConditionFilter v-model="shopQuery.shop" label="店铺" :options="shops" @change="linkedQuery.touch('shop')" />
         <ConditionFilter v-model="shopQuery.period" label="账期范围" type="period-range" :popover-width="380" @change="linkedQuery.touch('shop')" />
-        <div v-if="linkedQuery.isSubmitArea('shop')" class="condition-filter-actions">
+        <div v-if="linkedQuery.isSubmitArea('shop')" class="condition-filter-actions linked-query-actions">
           <el-button type="primary" @click="runQuery">查询</el-button>
+          <el-button @click="linkedQuery.reset()">重置</el-button>
         </div>
       </div>
     </section>
@@ -144,8 +146,9 @@ function runQuery() {
         <ConditionFilter v-model="query.customerNo" label="客户" type="text" :options="customers" search-placeholder="搜索名称 / 客户编号 / 会员编码" :popover-width="360" @change="linkedQuery.touch('customer')" />
         <ConditionFilter v-model="query.currency" label="结算币种" :options="['CNY','USD']" @change="linkedQuery.touch('customer')" />
         <ConditionFilter v-model="query.overdue" label="未收状态" :options="['逾期','未逾期']" @change="linkedQuery.touch('customer')" />
-        <div v-if="linkedQuery.isSubmitArea('customer')" class="condition-filter-actions">
+        <div v-if="linkedQuery.isSubmitArea('customer')" class="condition-filter-actions linked-query-actions">
           <el-button type="primary" @click="runQuery">查询</el-button>
+          <el-button @click="linkedQuery.reset()">重置</el-button>
         </div>
       </div>
     </section>
@@ -171,16 +174,16 @@ function runQuery() {
         <el-table-column prop="outstandingBills" label="未结账单" width="88" />
         <el-table-column prop="oldestDue" label="最早到期日" width="112" />
         <el-table-column label="状态" width="82"><template #default="scope"><StatusTag :label="summaryStatus(scope.row)" /></template></el-table-column>
-        <el-table-column label="操作" width="72" fixed="right">
+        <TableActionColumn compact>
           <template #default="scope">
             <el-button class="table-detail-button" link type="primary" :icon="View" title="查看账单" aria-label="查看账单" @click="openDetail(scope.row)" />
           </template>
-        </el-table-column>
+        </TableActionColumn>
       </el-table>
       </DataTableFrame>
     </section>
 
-    <el-drawer v-model="detailVisible" title="客户应收账单" class="module-drawer" destroy-on-close>
+    <el-dialog v-model="detailVisible" title="客户应收账单" class="module-dialog module-dialog-large" align-center append-to-body destroy-on-close>
       <div v-if="selectedSummary" class="drawer-summary"><div><StatusTag :label="summaryStatus(selectedSummary)" /><span>{{ selectedSummary.customer }}</span></div><strong>{{ money(selectedSummary.outstanding, selectedSummary.currency) }}</strong></div>
       <dl v-if="selectedSummary" class="inline-detail-grid">
         <div><dt>客户编号</dt><dd>{{ selectedSummary.customerNo }}</dd></div><div><dt>会员编码</dt><dd>{{ selectedSummary.memberCode }}</dd></div><div><dt>店铺</dt><dd>{{ selectedSummary.shop }}</dd></div><div><dt>结算币种</dt><dd>{{ selectedSummary.currency }}</dd></div>
@@ -194,7 +197,7 @@ function runQuery() {
         <el-table-column prop="no" label="应收账单编号" min-width="210" /><el-table-column prop="period" label="账期" min-width="180" /><el-table-column prop="due" label="到期日" width="115" /><el-table-column label="未收金额" min-width="140"><template #default="scope">{{ money(scope.row.amount, selectedSummary.currency) }}</template></el-table-column><el-table-column label="状态" width="90"><template #default="scope"><StatusTag :label="scope.row.status" /></template></el-table-column>
       </el-table>
       </DataTableFrame>
-    </el-drawer>
+    </el-dialog>
   </div>
 </template>
 

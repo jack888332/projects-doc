@@ -217,12 +217,12 @@ function openGeneration() { generationDialog.value?.open() }
 
     <BillGenerationDialog ref="generationDialog" :bill="bill" :is-receivable="isReceivable" @submit="emit('action', '创建账单生成任务')" />
 
-    <el-dialog v-model="previewVisible" :title="`${previewAction}预览`" width="720px" align-center append-to-body>
+    <el-dialog v-model="previewVisible" :title="`${previewAction}预览`" class="module-dialog" align-center append-to-body destroy-on-close>
       <dl class="bill-info-grid"><div><dt>账单编号</dt><dd>{{ bill.billNo }}</dd></div><div><dt>客户</dt><dd>{{ bill.customer }}</dd></div><div><dt>当前账单状态</dt><dd>{{ bill.status }}</dd></div><div><dt>当前收口状态</dt><dd>{{ bill.closeStatus }}</dd></div><div><dt>影响范围</dt><dd>当前账单及其账期内已归属费项</dd></div><div><dt>处理结果</dt><dd>创建账单重算任务</dd></div></dl>
       <template #footer><el-button @click="previewVisible=false">取消</el-button><el-button type="primary" @click="confirmPreview">确认执行</el-button></template>
     </el-dialog>
 
-    <el-dialog v-model="rateEditorVisible" title="编辑账单特调汇率" width="760px" align-center append-to-body>
+    <el-dialog v-model="rateEditorVisible" title="编辑账单特调汇率" class="module-dialog" align-center append-to-body destroy-on-close>
       <el-alert title="仅修改当前待审核账单的锁定汇率，不回写汇率配置。" type="info" :closable="false" />
       <div class="table-reference-toolbar"><TableFieldSortButton /></div>
 <DataTableFrame :total="editableRates.length" :page-size="20" :toolbar="false"><el-table :data="editableRates" border style="margin-top:var(--space-4)"><el-table-column prop="settlement" label="费项结算币种" /><el-table-column prop="target" label="财务本位币种" /><el-table-column prop="direction" label="汇兑方向" /><el-table-column label="锁定汇率"><template #default="scope"><el-input-number v-model="scope.row.rate" :precision="6" :step="0.000001" :min="0.000001" controls-position="right" /></template></el-table-column></el-table></DataTableFrame>

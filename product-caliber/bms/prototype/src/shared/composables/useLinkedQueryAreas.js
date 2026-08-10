@@ -26,10 +26,15 @@ export function useLinkedQueryAreas({
     targets.forEach(([, config]) => config.apply?.())
   }
 
+  function reset() {
+    entries.forEach(([, config]) => config.reset?.())
+  }
+
   return {
     activeArea: computed(() => activeArea.value),
     touch,
     isSubmitArea,
     submit,
+    reset,
   }
 }

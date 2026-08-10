@@ -21,7 +21,13 @@
   --table-secondary-font-size: var(--font-size-sm);
   --table-header-height: 44px;
   --table-toolbar-height: 56px;
+  --table-bar-padding-inline: var(--space-3);
+  --table-toolbar-padding-inline: var(--table-bar-padding-inline);
   --table-pagination-height: 56px;
+  --table-operation-width-single: 52px;
+  --table-operation-width-double: 84px;
+  --table-operation-padding-inline: 8px;
+  --table-operation-gap: 5px;
   --table-row-height-compact: 48px;
   --table-row-height-default: 60px;
   --table-row-height-multiline: 64px;

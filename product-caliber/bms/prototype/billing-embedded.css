@@ -273,7 +273,12 @@
 .el-overlay .el-table .el-table__body td .amount-lines { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
 .content .el-table .el-table__body td .amount-lines b,
 .el-overlay .el-table .el-table__body td .amount-lines b { font-size: var(--table-font-size); font-weight: var(--font-weight-regular); }
-.billing-content .row-action-cell { position: relative; right: 8px; display: inline-flex; align-items: center; gap: 5px; }
+.billing-content .row-action-cell { display: inline-flex; align-items: center; gap: var(--table-operation-gap); }
+.billing-content .el-table .table-operation-column > .cell {
+  padding-inline: var(--table-operation-padding-inline) !important;
+  overflow: visible;
+  text-overflow: clip;
+}
 .billing-content .row-action-cell .el-button + .el-button,
 .billing-content .row-action-cell .el-button + .el-dropdown { margin-left: 0; }
 .billing-content .table-detail-button.el-button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; margin: 0; padding: 0 !important; font-size: var(--font-size-lg) !important; }
@@ -305,7 +310,7 @@
 .table-pagination-inner {
   width: 100%;
   height: 100%;
-  padding: 0 var(--space-3);
+  padding: 0 var(--table-bar-padding-inline);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -395,7 +400,7 @@
   .billing-content .keyword-input.wide,
   .billing-content .filter-actions { width: 100% !important; }
   .table-pagination { height: auto; min-height: var(--table-pagination-height); }
-  .table-pagination-inner { height: auto; min-height: var(--table-pagination-height); flex-wrap: wrap; gap: 8px 12px; padding: var(--space-2) var(--space-3); }
+  .table-pagination-inner { height: auto; min-height: var(--table-pagination-height); flex-wrap: wrap; gap: 8px 12px; padding: var(--space-2) var(--table-bar-padding-inline); }
   .table-pagination-inner.is-docked { height: auto; min-height: var(--table-pagination-height); }
   .table-pagination-left { flex-wrap: wrap; }
   .table-pagination-size { margin-left: auto; }

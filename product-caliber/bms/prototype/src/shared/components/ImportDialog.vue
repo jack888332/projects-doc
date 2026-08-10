@@ -38,8 +38,9 @@ function submit() {
   <el-dialog
     :model-value="modelValue"
     :title="title"
-    width="720px"
+    class="module-dialog"
     align-center
+    append-to-body
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
     @closed="reset"

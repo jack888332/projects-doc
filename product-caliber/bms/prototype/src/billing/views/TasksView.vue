@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
@@ -228,7 +228,7 @@ function viewResult(row) {
             <el-table-column prop="shop" label="店铺" width="120" />
             <el-table-column prop="period" label="账期" width="188" />
             <el-table-column prop="dataCutoff" label="数据截止点" width="160" />
-            <el-table-column label="操作" width="112" fixed="right">
+            <TableActionColumn>
               <template #default="scope">
                 <div class="row-action-cell">
                   <el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="openDetail(scope.row)" />
@@ -239,7 +239,7 @@ function viewResult(row) {
                   </HoverActionMenu>
                 </div>
               </template>
-            </el-table-column>
+            </TableActionColumn>
             </el-table>
           </DataTableFrame>
         </section>
@@ -249,7 +249,7 @@ function viewResult(row) {
           </el-tab-pane>
         </el-tabs>
 
-    <el-drawer v-model="detailVisible" size="760px" class="detail-drawer">
+    <el-dialog v-model="detailVisible" class="module-dialog module-dialog-wide" align-center append-to-body destroy-on-close>
       <template #header>
         <div class="drawer-title"><span>任务详情</span><small>{{ selectedTask?.taskNo }}</small></div>
       </template>
@@ -344,6 +344,6 @@ function viewResult(row) {
           </el-tab-pane>
         </el-tabs>
       </template>
-    </el-drawer>
+    </el-dialog>
   </div>
 </template>

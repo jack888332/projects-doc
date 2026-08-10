@@ -3,6 +3,7 @@ import AppShell from './AppShell.vue'
 import { router } from './router/index.js'
 import { initializePrototypeData } from './data/prototypeDataService.js'
 import TableFieldSortButton from './shared/components/TableFieldSortButton.vue'
+import TableActionColumn from './shared/components/TableActionColumn.vue'
 import '../styles.css'
 import '../billing-embedded.css'
 
@@ -14,6 +15,7 @@ async function bootstrap() {
   }
   const app = createApp(AppShell).use(router)
   app.component('TableFieldSortButton', TableFieldSortButton)
+  app.component('TableActionColumn', TableActionColumn)
   app.mount('#app')
 }
 

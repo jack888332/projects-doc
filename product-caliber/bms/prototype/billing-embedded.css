@@ -1,4 +1,4 @@
-@import "./src/billing/module-pages.css";
+@import "./src/shared/styles/module-pages.css";
 
 :root {
   --el-font-family: var(--font-family-ui);
@@ -34,36 +34,6 @@
   min-width: 0;
   padding: 0;
 }
-.billing-content .page-heading,
-.billing-content .module-heading {
-  min-height: 44px;
-  margin: var(--space-1) 0 var(--space-3);
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-}
-.billing-content .eyebrow {
-  margin-bottom: var(--space-1);
-  color: #858c9a;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-}
-.billing-content .page-heading h1,
-.billing-content .module-heading h1 {
-  margin: 0;
-  color: var(--ink);
-  font-size: var(--page-title-font-size);
-  line-height: var(--line-height-base);
-  letter-spacing: 0;
-}
-.billing-content .module-heading p {
-  margin: var(--space-1) 0 0;
-  color: var(--muted);
-  font-size: var(--font-size-sm);
-}
-.billing-content .heading-actions,
-.billing-content .module-heading-actions,
 .billing-content .module-toolbar-actions,
 .billing-content .filter-actions {
   display: flex;
@@ -75,7 +45,7 @@
   height: var(--action-button-height);
   padding: 0 var(--space-3);
   border-radius: var(--action-button-radius);
-  transition: color .15s ease, border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+  transition: color .15s ease, border-color .15s ease, background-color .15s ease;
 }
 .el-button.el-button--small:not(.is-circle) {
   min-height: var(--action-button-small-height);
@@ -97,17 +67,51 @@
   --el-button-disabled-border-color: var(--primary-disabled);
   --el-button-disabled-text-color: rgba(255,255,255,.82);
   font-weight: var(--font-weight-medium);
-  box-shadow: var(--action-button-shadow);
-}
-.el-button.el-button--primary:not(.is-plain):not(.is-link):not(.is-text):active {
-  box-shadow: none;
 }
 .el-button.el-button--primary:not(.is-plain):not(.is-link):not(.is-text):focus-visible {
-  outline: 0;
-  box-shadow: 0 0 0 3px var(--primary-focus-ring), var(--action-button-shadow);
+  outline: 2px solid var(--primary-border);
+  outline-offset: 2px;
 }
-.el-button.el-button--primary:not(.is-plain):not(.is-link):not(.is-text).is-disabled {
+
+/* Page-level actions share one compact treatment; the back control stays separate. */
+.route-export-actions .el-button {
+  --el-button-bg-color: #fff;
+  --el-button-border-color: var(--border);
+  --el-button-text-color: #3c4350;
+  --el-button-hover-bg-color: var(--primary-soft);
+  --el-button-hover-border-color: var(--primary);
+  --el-button-hover-text-color: var(--primary-strong);
+  --el-button-active-bg-color: #f2f3f5;
+  --el-button-active-border-color: var(--primary);
+  --el-button-active-text-color: var(--primary-strong);
+  --el-button-disabled-bg-color: #fff;
+  --el-button-disabled-border-color: var(--border);
+  --el-button-disabled-text-color: #a6acb8;
+  height: var(--action-button-height);
+  min-height: var(--action-button-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--action-button-radius);
+  color: #3c4350;
+  background: #fff;
   box-shadow: none;
+  font-weight: var(--font-weight-regular);
+}
+.route-export-actions .el-button:hover:not(:disabled) {
+  color: var(--primary-strong);
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.route-export-actions .el-button--primary:not(.is-link):not(.is-text) {
+  color: #3c4350;
+  border-color: var(--border);
+  background: #fff;
+  box-shadow: none;
+}
+.route-export-actions .el-button--primary:not(.is-link):not(.is-text):hover:not(:disabled) {
+  color: var(--primary-strong);
+  border-color: var(--primary);
+  background: var(--primary-soft);
 }
 .billing-content .el-input__wrapper,
 .billing-content .el-select__wrapper,
@@ -116,14 +120,15 @@
 }
 .billing-content .panel,
 .billing-content .module-panel,
-.billing-content .module-kpi,
-.billing-content .summary-card {
+.billing-content .module-kpi {
   border-radius: 0;
   box-shadow: none;
 }
 .billing-content .module-kpi {
-  min-height: 88px;
-  padding: var(--space-3) var(--space-3);
+  min-height: 94px;
+  padding: var(--space-4);
+  border-radius: 7px;
+  box-shadow: 0 1px 2px rgba(21,31,48,.03);
 }
 .billing-content .module-kpi strong {
   font-size: var(--font-size-2xl);
@@ -154,6 +159,45 @@
   min-height: 620px;
   overflow: hidden;
 }
+.billing-content .task-list-panel,
+.task-list-panel {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+.billing-content .task-list-panel > .task-filter-toolbar,
+.task-list-panel > .task-filter-toolbar {
+  min-height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.billing-content .task-list-panel > .module-kpis,
+.task-list-panel > .module-kpis {
+  margin: 0;
+}
+.billing-content .task-filter-actions {
+  width: auto;
+  flex-basis: auto;
+}
+.billing-content .task-filter-actions .advanced-filter-toggle {
+  width: auto;
+  white-space: nowrap;
+}
+.billing-content .task-list-panel > .el-table {
+  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  background: #fff;
+}
+.billing-content .task-list-panel > .table-pagination {
+  border: 1px solid var(--border);
+  border-top: 0;
+  background: #fff;
+}
 .billing-content .filter-toolbar {
   min-height: 60px;
   padding: var(--space-3) var(--space-3);
@@ -173,59 +217,6 @@
 .billing-content .keyword-input { width: 230px; }
 .billing-content .keyword-input.wide { width: 310px; }
 .billing-content .primary-filters { flex: 1; }
-.billing-content .advanced-filters {
-  padding: var(--space-3) var(--space-3);
-  display: grid;
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
-  gap: 8px;
-  border-bottom: 1px solid var(--border);
-  background: #fafbfc;
-}
-.billing-content .advanced-filters > * { width: 100% !important; }
-.billing-content .summary-grid {
-  padding: var(--space-3) var(--space-3);
-  display: grid;
-  grid-template-columns: repeat(5, minmax(126px, 1fr));
-  gap: 10px;
-  border-bottom: 1px solid var(--border);
-  background: #fff;
-}
-.billing-content .summary-card {
-  position: relative;
-  min-height: 82px;
-  padding: var(--space-3) var(--space-3);
-  border: 1px solid var(--border);
-  border-top: 3px solid #788294;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  overflow: hidden;
-  color: inherit;
-  background: #fff;
-  text-align: left;
-  cursor: pointer;
-}
-.billing-content .summary-card span { color: var(--muted); font-size: var(--font-size-sm); }
-.billing-content .summary-card strong { color: var(--ink); font-size: var(--metric-font-size); }
-.billing-content .summary-card .el-icon { position: absolute; right: 11px; bottom: 11px; color: rgba(32,36,49,.16); font-size: var(--font-size-4xl); }
-.billing-content .summary-card.blue { border-top-color: var(--primary); }
-.billing-content .summary-card.green { border-top-color: var(--success); }
-.billing-content .summary-card.red { border-top-color: var(--danger); }
-.billing-content .summary-card.amber { border-top-color: var(--warning); }
-.billing-content .summary-card.violet { border-top-color: #6b55b4; }
-.billing-content .summary-card.active { background: var(--primary-soft); outline: 1px solid var(--primary-border); }
-.billing-content .result-summary {
-  height: 36px;
-  padding: 0 var(--space-3);
-  display: flex;
-  align-items: center;
-  color: var(--muted);
-  background: #fafbfc;
-  border-bottom: 1px solid var(--border);
-  font-size: var(--font-size-sm);
-}
-.billing-content .result-summary strong { margin: 0 var(--space-1); color: var(--ink); }
-.billing-content .refresh-copy { margin-left: auto; color: #9299a5; }
 .billing-content .clean-table {
   width: 100%;
   --el-table-header-bg-color: #f7f8fa;
@@ -234,34 +225,62 @@
   --el-table-border-color: var(--border-soft);
   --el-table-row-hover-bg-color: #faf8fb;
 }
-.billing-content .el-table { --current-table-row-height: var(--table-row-height-compact); font-family: var(--font-family-ui); font-size: var(--table-font-size); line-height: var(--table-line-height); }
-.billing-content .el-table.clean-table,
-.billing-content .el-table:has(.main-cell) { --current-table-row-height: var(--table-row-height-default); }
-.billing-content .el-table:has(.amount-lines) { --current-table-row-height: var(--table-row-height-stacked); }
-.billing-content .el-table.rate-table { --current-table-row-height: var(--table-row-height-compact); }
-.billing-content .el-table .el-table__header tr,
-.billing-content .el-table .el-table__header th { height: var(--table-header-height); }
-.billing-content .el-table .el-table__body tr,
-.billing-content .el-table .el-table__body td { height: var(--current-table-row-height); }
-.billing-content .el-table .el-table__cell,
-.billing-content .el-table .el-table__cell .cell { text-align: left !important; }
-.billing-content .el-table .el-table__header th { font-family: inherit; font-size: inherit; font-weight: var(--font-weight-semibold); line-height: inherit; }
-.billing-content .el-table .el-table__body td { font-family: inherit; font-size: inherit; font-weight: var(--font-weight-regular); line-height: inherit; }
-.billing-content .el-table .el-table__body td .cell,
-.billing-content .el-table .el-table__body td :where(a, button, input, select, textarea, span, strong, small, b, em) { font-family: inherit; font-size: inherit; line-height: inherit; }
-.billing-content .el-table .el-table__body td :where(a, button, strong, b) { font-weight: var(--font-weight-regular); }
-.billing-content .el-table .el-table__body td :where(small, .secondary) { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
-.billing-content .el-table .el-table__body td .main-cell strong { font-size: var(--table-font-size); font-weight: var(--font-weight-regular); }
-.billing-content .el-table .el-table__body td .main-cell small { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
-.billing-content .el-table .el-table__body td .amount-lines { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
-.billing-content .el-table .el-table__body td .amount-lines b { font-size: var(--table-font-size); font-weight: var(--font-weight-regular); }
+.content .el-table,
+.el-overlay .el-table {
+  width: 100%;
+  --current-table-row-height: var(--table-row-height-default) !important;
+  --el-table-header-bg-color: #f7f8fa;
+  --el-table-header-text-color: #596170;
+  --el-table-text-color: #414957;
+  --el-table-border-color: var(--border-soft);
+  --el-table-row-hover-bg-color: #faf8fb;
+  font-family: var(--font-family-ui);
+  font-size: var(--table-font-size);
+  line-height: var(--table-line-height);
+}
+.content .el-table .el-table__header tr,
+.content .el-table .el-table__header th,
+.el-overlay .el-table .el-table__header tr,
+.el-overlay .el-table .el-table__header th { height: var(--table-header-height); }
+.content .el-table .el-table__body tr,
+.content .el-table .el-table__body td,
+.el-overlay .el-table .el-table__body tr,
+.el-overlay .el-table .el-table__body td { height: var(--current-table-row-height); }
+.content .el-table .el-table__cell,
+.el-overlay .el-table .el-table__cell { padding: 0; }
+.content .el-table .el-table__cell .cell,
+.el-overlay .el-table .el-table__cell .cell {
+  padding: var(--space-2) var(--space-3);
+  text-align: left !important;
+}
+.content .el-table .el-table__header th,
+.el-overlay .el-table .el-table__header th { font-family: inherit; font-size: inherit; font-weight: var(--font-weight-semibold); line-height: inherit; }
+.content .el-table .el-table__body td,
+.el-overlay .el-table .el-table__body td { font-family: inherit; font-size: inherit; font-weight: var(--font-weight-regular); line-height: inherit; }
+.content .el-table .el-table__body td .cell,
+.content .el-table .el-table__body td :where(a, button, input, select, textarea, span, strong, small, b, em),
+.el-overlay .el-table .el-table__body td .cell,
+.el-overlay .el-table .el-table__body td :where(a, button, input, select, textarea, span, strong, small, b, em) { font-family: inherit; font-size: inherit; line-height: inherit; }
+.content .el-table .el-table__body td :where(a, button, strong, b),
+.el-overlay .el-table .el-table__body td :where(a, button, strong, b) { font-weight: var(--font-weight-regular); }
+.content .el-table .el-table__body td :where(small, .secondary),
+.el-overlay .el-table .el-table__body td :where(small, .secondary) { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
+.content .el-table .el-table__body td .main-cell strong,
+.el-overlay .el-table .el-table__body td .main-cell strong { font-size: var(--table-font-size); font-weight: var(--font-weight-regular); }
+.content .el-table .el-table__body td .main-cell small,
+.el-overlay .el-table .el-table__body td .main-cell small { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
+.content .el-table .el-table__body td .amount-lines,
+.el-overlay .el-table .el-table__body td .amount-lines { font-size: var(--table-secondary-font-size); font-weight: var(--font-weight-regular); }
+.content .el-table .el-table__body td .amount-lines b,
+.el-overlay .el-table .el-table__body td .amount-lines b { font-size: var(--table-font-size); font-weight: var(--font-weight-regular); }
 .billing-content .row-action-cell { position: relative; right: 8px; display: inline-flex; align-items: center; gap: 5px; }
 .billing-content .row-action-cell .el-button + .el-button,
 .billing-content .row-action-cell .el-button + .el-dropdown { margin-left: 0; }
 .billing-content .table-detail-button.el-button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; margin: 0; padding: 0 !important; font-size: var(--font-size-lg) !important; }
 .billing-content .table-detail-button.el-button:hover,
 .billing-content .table-detail-button.el-button:focus-visible { color: var(--primary-strong); background: var(--primary-soft); outline: 0; }
-.billing-content .row-more-button { width: 26px; min-width: 26px; padding: 0 !important; font-size: var(--font-size-xl); }
+.billing-content .row-more-button,
+.row-more-button.el-button { width: 26px; min-width: 26px; height: 28px; min-height: 28px; margin: 0; padding: 0 !important; font-size: var(--font-size-xl); }
 .billing-content .row-more-button:hover,
 .billing-content .row-more-button:focus,
 .billing-content .row-more-button:focus-visible {
@@ -276,16 +295,42 @@
 .billing-content .main-cell { display: flex; flex-direction: column; gap: 2px; }
 .billing-content .main-cell strong { color: #303746; }
 .billing-content .main-cell small { color: #8a919e; }
-.billing-content .table-pagination {
-  min-height: 52px;
+.table-pagination {
+  min-height: 60px;
+  height: 60px;
+  color: var(--muted);
+  background: #fff;
+  font-size: 13px;
+}
+.table-pagination-inner {
+  width: 100%;
+  height: 100%;
   padding: 0 var(--space-3);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: var(--font-size-sm);
+  gap: var(--space-4);
+  box-sizing: border-box;
+  background: #fff;
 }
+.table-pagination-inner.is-docked { position: fixed; z-index: 30; bottom: 0; height: 60px; border: 1px solid var(--border); }
+.billing-content .table-reference-toolbar { top: 0; }
+.table-pagination-left { min-width: 0; display: flex; align-items: center; gap: var(--space-3); }
+.table-pagination-summary { flex: 0 0 auto; white-space: nowrap; font-size: 13px; }
+.table-pagination-pager { flex: 0 0 auto; margin: 0; }
+.table-pagination-size { --el-select-width: 92px; flex: 0 0 92px; width: 92px !important; min-width: 0; margin: 0; }
+.table-pagination .el-pagination { --el-pagination-bg-color: transparent; --el-pagination-button-bg-color: transparent; --el-pagination-hover-color: var(--primary); display: flex; align-items: center; gap: 4px; }
+.table-pagination .el-pagination .btn-prev,
+.table-pagination .el-pagination .btn-next,
+.table-pagination .el-pagination .el-pager li { min-width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 3px; color: #657187; background: #fff; }
+.table-pagination .el-pagination .el-pager li { display: inline-flex; align-items: center; justify-content: center; }
+.table-pagination .el-pagination .el-pager li.is-active { border-color: var(--primary); color: #fff; background: var(--primary); }
+.table-pagination .el-pagination .btn-prev:hover,
+.table-pagination .el-pagination .btn-next:hover,
+.table-pagination .el-pagination .el-pager li:not(.is-active):hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+.table-pagination-size .el-select__wrapper,
+.table-pagination-size .el-input__wrapper { min-height: 32px; padding: 0 var(--space-2); border: 1px solid var(--border) !important; border-radius: 3px; box-shadow: none !important; background: #fff; }
+.table-pagination-size .el-select__wrapper.is-focused { border-color: var(--primary) !important; box-shadow: 0 0 0 2px var(--primary-focus-ring) !important; }
 
 .detail-drawer .el-drawer__header,
 .billing-config-drawer .el-drawer__header {
@@ -341,13 +386,7 @@
 .detail-drawer .detail-grid dt { margin-bottom: var(--space-1); color: #8a919e; font-size: var(--secondary-font-size); }
 .detail-drawer .detail-grid dd { margin: 0; color: #354052; font-size: var(--content-font-size); }
 
-@media (max-width: 1100px) {
-  .billing-content .summary-grid { grid-template-columns: repeat(3, minmax(126px, 1fr)); }
-  .billing-content .advanced-filters { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
-}
 @media (max-width: 720px) {
-  .billing-content .page-heading,
-  .billing-content .module-heading { align-items: flex-start; }
   .billing-content .filter-toolbar { align-items: stretch; flex-direction: column; }
   .billing-content .filter-group,
   .billing-content .filter-group > *,
@@ -355,9 +394,11 @@
   .billing-content .keyword-input,
   .billing-content .keyword-input.wide,
   .billing-content .filter-actions { width: 100% !important; }
-  .billing-content .advanced-filters,
-  .billing-content .summary-grid { grid-template-columns: 1fr; }
-  .billing-content .table-pagination { align-items: flex-start; flex-direction: column; gap: 8px; padding: var(--space-2) var(--space-3); }
+  .table-pagination { height: auto; min-height: 60px; }
+  .table-pagination-inner { height: auto; min-height: 60px; flex-wrap: wrap; gap: 8px 12px; padding: var(--space-2) var(--space-3); }
+  .table-pagination-inner.is-docked { height: auto; min-height: 60px; }
+  .table-pagination-left { flex-wrap: wrap; }
+  .table-pagination-size { margin-left: auto; }
   .detail-drawer .detail-grid { grid-template-columns: 1fr; }
   .el-overlay .el-drawer.detail-drawer,
   .el-overlay .el-drawer.billing-config-drawer,

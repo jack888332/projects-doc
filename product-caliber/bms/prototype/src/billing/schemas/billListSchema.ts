@@ -1,0 +1,25 @@
+import { createListPageSchema } from '../../shared/schemas/listSchema'
+
+export const createBillListSchema = (isReceivable: boolean) => createListPageSchema({
+  filters: [
+    { key: 'billNo', label: '账单编号', type: 'text' },
+    { key: 'customer', label: '客户名称', type: 'text' },
+    { key: 'shop', label: '店铺', type: 'text' },
+    { key: 'country', label: isReceivable ? '运抵国' : '目的国', type: 'select', options: ['台湾', '中國臺灣'] },
+    { key: 'periodType', label: '账期类型', type: 'select', options: ['日', '7天', '周', '月'] },
+    { key: 'period', label: '账期', type: 'date-range' },
+  ],
+  metrics: [
+    { key: 'total', label: '账单总数', tone: 'blue' },
+    { key: 'pendingReview', label: '待审核账单', tone: 'amber' },
+    { key: 'pendingSettlement', label: '待结清', tone: 'violet' },
+  ],
+  columns: [
+    { key: 'billNo', label: '账单编号', width: 205 },
+    { key: 'status', label: '账单状态', width: 100, slot: 'status' },
+    { key: 'periodType', label: '账期类型', width: 90 },
+    { key: 'customer', label: '客户名称', width: 160 },
+  ],
+  rowActions: [{ key: 'detail', label: '详情' }, { key: 'recalculate', label: '账单重算' }],
+  toolbarActions: ['field-display'],
+})

@@ -1,0 +1,20 @@
+import { createApp } from 'vue'
+import AppShell from './AppShell.vue'
+import { router } from './router/index.js'
+import { initializePrototypeData } from './data/prototypeDataService.js'
+import TableFieldSortButton from './shared/components/TableFieldSortButton.vue'
+import '../styles.css'
+import '../billing-embedded.css'
+
+async function bootstrap() {
+  try {
+    await initializePrototypeData()
+  } catch (error) {
+    console.error('原型数据库初始化失败', error)
+  }
+  const app = createApp(AppShell).use(router)
+  app.component('TableFieldSortButton', TableFieldSortButton)
+  app.mount('#app')
+}
+
+bootstrap()

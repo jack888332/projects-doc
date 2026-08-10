@@ -4,6 +4,7 @@
 import argparse
 import re
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 import pymysql
@@ -13,12 +14,22 @@ BMS_DB = "tmall_bms"
 SOURCE_DB = "ofp_ofdb1"
 ALLOWED_BILL_STATUSES = {"GENERATING", "DRAFT", "GENERATED", "VOID"}
 ALLOWED_TASK_STATUSES = {"SUCCESS", "FAILED", "CANCELED"}
-KNOWN_SOURCE_TABLES = {
-    "sale_order_header_extend",
-    "sale_order_additional_matter",
-    "claim_order",
-}
 TERMINAL_EXPORT_STATUSES = {"SUCCESS", "PARTIAL_SUCCESS", "FAILED", "CANCELLED"}
+
+# 各源表在抓取 SQL 中的别名与关联方式，来源：bill_generate_task.order_source_sql /
+# additional_source_sql 中保存的真实 SQL 快照（与 BillGenerateServiceImpl 的 build*QuerySql 一致）。
+SOURCE_TABLE_META = {
+    "sale_order_header_extend": (
+        "e",
+        f"JOIN {SOURCE_DB}.sale_order_header h ON h.id = e.sale_order_id",
+    ),
+    "sale_order_additional_matter": (
+        "a",
+        f"JOIN {SOURCE_DB}.sale_order_header h ON h.id = a.sale_order_id",
+    ),
+    "claim_order": ("c", ""),
+}
+KNOWN_SOURCE_TABLES = set(SOURCE_TABLE_META)
 
 
 def parse_args():
@@ -29,6 +40,12 @@ def parse_args():
     )
     parser.add_argument("--task-id", required=True, type=int, help="bill_generate_task.id")
     parser.add_argument("--env", type=Path, default=default_env, help="数据库连接说明文件")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=3000,
+        help="单次查询等待秒数（读/写），生产库查询较慢或锁等待时调大；默认 3000",
+    )
     parser.add_argument("--execute", action="store_true", help="确认执行清理；省略时只预览")
     parser.add_argument(
         "--confirm-task-no",
@@ -37,7 +54,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def read_connection(env_path):
+def read_connection(env_path, timeout=3000):
     text = env_path.read_text(encoding="utf-8")
     jdbc = re.search(r"jdbc:mysql://([^:/\s]+):(\d+)", text)
     user = re.search(r"账号[：:]\s*([^\s`]+)", text)
@@ -53,9 +70,9 @@ def read_connection(env_path):
         "charset": "utf8mb4",
         "cursorclass": pymysql.cursors.DictCursor,
         "autocommit": False,
-        "connect_timeout": 10,
-        "read_timeout": 30,
-        "write_timeout": 30,
+        "connect_timeout": 300,
+        "read_timeout": timeout,
+        "write_timeout": timeout,
     }
 
 
@@ -80,6 +97,36 @@ def in_clause(values):
     return ",".join(["%s"] * len(values)), tuple(values)
 
 
+def source_scope_conditions(task):
+    """按任务实际抓取 SQL 的作用域生成源表查询条件（账期、member、shop、sc）。"""
+    if not task["billing_period_start_date"] or not task["billing_period_end_date"]:
+        raise ValueError("任务缺少账期起止日期，无法生成带时间范围的源表清理条件")
+    start = task["billing_period_start_date"]
+    end_exclusive = task["billing_period_end_date"] + timedelta(days=1)
+    member = task["member_code"]
+    shop_id = task["shop_id"]
+    sc_id = task["sc_id"]
+    user_id = task["user_id"]
+    return {
+        "sale_order_header_extend": (
+            "h.member_code = %s AND h.shop_id = %s AND (h.sc_id = %s OR h.sc_id IS NULL) "
+            "AND h.delivery_time >= %s AND h.delivery_time < %s",
+            (member, shop_id, sc_id, start, end_exclusive),
+        ),
+        "sale_order_additional_matter": (
+            "h.member_code = %s AND h.shop_id = %s AND (h.sc_id = %s OR h.sc_id IS NULL) "
+            "AND a.create_time >= %s AND a.create_time < %s",
+            (member, shop_id, sc_id, start, end_exclusive),
+        ),
+        "claim_order": (
+            "c.dealer_shop_id = %s AND c.user_id = %s "
+            "AND (c.member_code = %s OR c.member_code IS NULL OR c.member_code = '') "
+            "AND c.update_time >= %s AND c.update_time < %s",
+            (shop_id, user_id, member, start, end_exclusive),
+        ),
+    }
+
+
 def load_export_tasks(cursor, bill_ids):
     if not bill_ids:
         return []
@@ -100,6 +147,7 @@ def load_scope(cursor, task_id, lock=False):
     task = fetch_one(
         cursor,
         "SELECT id, task_no, bill_type, task_status, data_pull_type, bill_config_id, "
+        "sc_id, shop_id, user_id, member_code, "
         "billing_period_start_date, billing_period_end_date, created_at "
         "FROM bill_generate_task WHERE id = %s" + lock_sql,
         (task_id,),
@@ -232,6 +280,7 @@ def preview(cursor, task, bills, marks, bill_ids):
     task_id = task["id"]
     bill_nos = [bill["bill_no"] for bill in bills]
     bill_nos_sql, bill_nos_args = in_clause(bill_nos)
+    source_scope = source_scope_conditions(task)
     export_tasks = load_export_tasks(cursor, bill_ids)
     export_task_ids = [row["id"] for row in export_tasks]
     export_ids_sql, export_ids_args = in_clause(export_task_ids)
@@ -259,11 +308,12 @@ def preview(cursor, task, bills, marks, bill_ids):
         f"{SOURCE_DB}.source_marks": sum(
             scalar(
                 cursor,
-                f"SELECT COUNT(*) FROM {SOURCE_DB}.{table} "
-                f"WHERE bms_bill_no IN ({bill_nos_sql})",
-                bill_nos_args,
+                f"SELECT COUNT(*) FROM {SOURCE_DB}.{table} {alias} {join_sql} "
+                f"WHERE {alias}.bms_bill_no IN ({bill_nos_sql}) AND {scope_sql}",
+                bill_nos_args + scope_args,
             )
-            for table in KNOWN_SOURCE_TABLES
+            for table, (alias, join_sql) in SOURCE_TABLE_META.items()
+            for scope_sql, scope_args in [source_scope[table]]
         ) if bill_nos else 0,
         "external_fee_links_to_clear": 0,
     }
@@ -344,18 +394,22 @@ def execute_cleanup(cursor, task, marks, bill_ids, bill_nos):
         result["bill_export_task.invalidated"] = cursor.rowcount
 
     bill_nos_sql, bill_nos_args = in_clause(bill_nos)
+    source_scope = source_scope_conditions(task)
     for table, id_column, clear_billed_at in (
         ("sale_order_header_extend", "sale_order_id", False),
         ("sale_order_additional_matter", "id", False),
         ("claim_order", "id", True),
     ):
+        alias, join_sql = SOURCE_TABLE_META[table]
+        scope_sql, scope_args = source_scope[table]
         affected = 0
         if bill_nos:
             extra = ", bms_billed_at = NULL" if clear_billed_at else ""
             cursor.execute(
-                f"UPDATE {SOURCE_DB}.{table} SET bms_billed_flag = 0, bms_bill_no = NULL{extra} "
-                f"WHERE bms_bill_no IN ({bill_nos_sql})",
-                bill_nos_args,
+                f"UPDATE {SOURCE_DB}.{table} {alias} {join_sql} "
+                f"SET {alias}.bms_billed_flag = 0, {alias}.bms_bill_no = NULL{extra} "
+                f"WHERE {alias}.bms_bill_no IN ({bill_nos_sql}) AND {scope_sql}",
+                bill_nos_args + scope_args,
             )
             affected += cursor.rowcount
         table_marks = [m for m in marks if m["source_table"] == table]
@@ -373,9 +427,9 @@ def execute_cleanup(cursor, task, marks, bill_ids, bill_nos):
         if bill_nos:
             remaining = scalar(
                 cursor,
-                f"SELECT COUNT(*) FROM {SOURCE_DB}.{table} "
-                f"WHERE bms_bill_no IN ({bill_nos_sql})",
-                bill_nos_args,
+                f"SELECT COUNT(*) FROM {SOURCE_DB}.{table} {alias} {join_sql} "
+                f"WHERE {alias}.bms_bill_no IN ({bill_nos_sql}) AND {scope_sql}",
+                bill_nos_args + scope_args,
             )
             if remaining:
                 raise RuntimeError(f"{SOURCE_DB}.{table} 仍有 {remaining} 条源数据抓取标识未恢复")
@@ -430,9 +484,16 @@ def execute_cleanup(cursor, task, marks, bill_ids, bill_nos):
 
 def main():
     args = parse_args()
-    connection = pymysql.connect(**read_connection(args.env.resolve()))
+    connection = pymysql.connect(**read_connection(args.env.resolve(), args.timeout))
     try:
         with connection.cursor() as cursor:
+            try:
+                cursor.execute(
+                    "SET SESSION net_read_timeout = %s, net_write_timeout = %s",
+                    (args.timeout, args.timeout),
+                )
+            except pymysql.MySQLError:
+                pass
             task, bills, marks, bill_ids, bill_nos = load_scope(cursor, args.task_id, args.execute)
             errors = validate_scope(cursor, task, bills, marks, bill_ids, bill_nos)
             preview(cursor, task, bills, marks, bill_ids)
@@ -459,8 +520,18 @@ def main():
                 print(f"  {name}: {count}")
             return 0
     except Exception as exc:
-        connection.rollback()
-        print(f"清理失败，事务已回滚：{exc}", file=sys.stderr)
+        try:
+            connection.rollback()
+        except pymysql.MySQLError:
+            pass
+        message = f"清理失败：{exc}"
+        if isinstance(exc, pymysql.OperationalError) and exc.args and exc.args[0] == 2013:
+            message += (
+                f"\n提示：连接在查询期间中断（超过 {args.timeout} 秒未收到数据），"
+                "通常是查询较慢、锁等待或网络抖动；可加 --timeout 6000 提高等待时间后重试。"
+                "若连接是被服务端断开，则多半是查询本身太重或缺少索引。"
+            )
+        print(message, file=sys.stderr)
         return 1
     finally:
         connection.close()

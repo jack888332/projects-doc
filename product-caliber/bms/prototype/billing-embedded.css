@@ -255,6 +255,29 @@
 }
 .content .el-table .el-table__header th,
 .el-overlay .el-table .el-table__header th { font-family: inherit; font-size: inherit; font-weight: var(--font-weight-semibold); line-height: inherit; }
+.content .el-table .el-table__header th.is-sortable > .cell,
+.el-overlay .el-table .el-table__header th.is-sortable > .cell {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.content .el-table .el-table__header th.is-sortable .prototype-table-header-label,
+.el-overlay .el-table .el-table__header th.is-sortable .prototype-table-header-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.content .el-table .el-table__header th.is-sortable .caret-wrapper,
+.el-overlay .el-table .el-table__header th.is-sortable .caret-wrapper {
+  flex: 0 0 auto;
+  margin-left: var(--space-1);
+}
+.prototype-table-header-tooltip {
+  max-width: min(420px, calc(100vw - 32px));
+  overflow-wrap: anywhere;
+}
 .content .el-table .el-table__body td,
 .el-overlay .el-table .el-table__body td { font-family: inherit; font-size: inherit; font-weight: var(--font-weight-regular); line-height: inherit; }
 .content .el-table .el-table__body td .cell,

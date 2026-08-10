@@ -46,7 +46,7 @@ function confirm() {
 </script>
 
 <template>
-  <el-button v-bind="$attrs" :icon="Download" :disabled="disabled || !choices.length" @click="open">下载</el-button>
+  <el-button v-bind="$attrs" :icon="Download" :disabled="disabled || !choices.length" @click="open">导出</el-button>
   <el-dialog v-model="visible" :title="title" width="560px" align-center destroy-on-close>
     <el-radio-group v-model="selected" class="download-methods">
       <el-radio v-for="option in options" :key="option.value" :value="option.value" :disabled="option.disabled" border>

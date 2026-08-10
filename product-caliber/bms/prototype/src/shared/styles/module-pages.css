@@ -40,7 +40,7 @@
 .rate-table-frame .el-table { height: 100%; }
 .rate-table .cell { white-space: nowrap; }
 .rate-value { color: #168372; font-variant-numeric: tabular-nums; }
-.rate-panel .table-pagination { min-height: 60px; height: 60px; flex: 0 0 60px; border-top: 0; }
+.rate-panel .table-pagination { min-height: var(--table-pagination-height); height: var(--table-pagination-height); flex: 0 0 var(--table-pagination-height); border-top: 0; }
 .module-drawer { width: min(820px, 100vw) !important; }
 .drawer-summary { min-height: 82px; padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center; border: 1px solid #dfe4eb; border-radius: 6px; background: #f8fafb; }
 .drawer-summary > div:first-child { display: flex; gap: 7px; }.drawer-summary > strong { color: #26354d; font-size: var(--font-size-2xl); }
@@ -84,7 +84,7 @@
 .status-tabs-row button:focus-visible { outline: 2px solid var(--primary-border); outline-offset: -3px; }
 .status-tabs-row button.active { color: var(--primary); background: transparent; font-weight: var(--font-weight-bold); }
 .status-tabs-row button.active::after { transform: scaleX(1); }
-.table-reference-toolbar { position: sticky; top: var(--header-height); z-index: 20; min-height: 60px; height: 60px; padding: 0 var(--space-3); display: flex; align-items: center; justify-content: flex-start; gap: var(--space-3); border: 1px solid var(--border); border-bottom: 0; color: #7c8798; background: #fff; font-size: 13px; }
+.table-reference-toolbar { position: sticky; top: var(--header-height); z-index: 20; min-height: var(--table-toolbar-height); height: var(--table-toolbar-height); padding: 0 var(--space-3); display: flex; align-items: center; justify-content: flex-start; gap: var(--space-3); border: 1px solid var(--border); border-bottom: 0; color: #7c8798; background: #fff; font-size: 13px; }
 .table-reference-leading { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
 .table-reference-summary { display: inline-flex; align-items: center; gap: var(--space-3); }
 .table-reference-summary-divider { color: var(--border-strong); }

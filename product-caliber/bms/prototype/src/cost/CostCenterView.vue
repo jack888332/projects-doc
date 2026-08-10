@@ -95,7 +95,7 @@ const {
       <MetricGrid :items="[{ label: '成本账单', value: `${bills.length} 份`, tone: 'blue' }, { label: '待结清账单', value: `${bills.filter(row => row.state === '待结清').length} 份`, tone: 'amber' }, { label: '成本明细', value: `${bills.reduce((sum, row) => sum + row.rows, 0).toLocaleString()} 笔`, tone: 'green' }]" :columns="3" />
       <section class="module-panel filter-table-panel">
         <DataTableFrame :total="filteredBills.length" :selected-count="0">
-          <template #actions><el-button type="primary" :icon="Upload" @click="navigate('/cost/bills/import')">导入供应商账单</el-button></template>
+          <template #actions><el-button type="primary" :icon="Upload" @click="navigate('/cost/bills/import')">导入</el-button></template>
           <el-table class="clean-table" :data="filteredBills" border>
           <el-table-column label="成本账单编号" min-width="245"><template #default="{ row }"><StackedCell :primary="row.id" :secondary="row.file" /></template></el-table-column>
           <el-table-column prop="supplier" label="供应商" min-width="130" />

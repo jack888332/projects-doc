@@ -10,6 +10,7 @@ import StatusTag from '../../shared/components/StatusTag.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
 import { useDemoDataset } from '../data/useDemoDataset.js'
+import { billingBaseRateFixtures } from '../../data/fixtures/billingRates.ts'
 
 const detailVisible = ref(false)
 const selectedSummary = ref(null)
@@ -32,8 +33,17 @@ const records = useDemoDataset('receivableSummaryRecords', [
   { id: 'SH-NW2048-USD', shop: '上海集运店', shopCode: 'SH-CONSOL', customer: 'NorthWind Cargo', customerNo: 'NW2048', memberCode: 'M-703880', currency: 'USD', receivable: 24680.75, received: 12200.00, outstanding: 12480.75, overdue: 3980.25, pendingReview: 2100.00, billCount: 7, outstandingBills: 3, oldestDue: '2026-07-25', lastBillAt: '2026-08-01' },
   { id: 'SZ-OG4155-USD', shop: '深圳集运店', shopCode: 'SZ-CONSOL', customer: 'OceanGate Logistics', customerNo: 'OG4155', memberCode: 'M-700127', currency: 'USD', receivable: 19640.00, received: 15400.00, outstanding: 4240.00, overdue: 0, pendingReview: 0, billCount: 3, outstandingBills: 1, oldestDue: '2026-08-15', lastBillAt: '2026-07-29' },
 ], 1)
+const baseRates = useDemoDataset('billingBaseRates', billingBaseRateFixtures)
 
+const shopSettlementCurrency = 'CNY'
+const shopConversionRates = computed(() => baseRates.value.reduce((rates, row) => {
+  const [sourceCurrency, targetCurrency] = row.direction.split(' -> ')
+  if (targetCurrency === shopSettlementCurrency && row.status === '生效' && row.current === '是') rates[sourceCurrency] = Number(row.rate)
+  return rates
+}, { CNY: 1 }))
 const money = (value, currency = appliedQuery.currency) => `${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
+const shopMoney = (value) => money(value, shopSettlementCurrency)
+const toShopCurrency = (value, currency) => Number(value || 0) * (shopConversionRates.value[currency] || 1)
 const shops = computed(() => [...new Set(records.value.map((row) => row.shop))])
 const customers = computed(() => [...new Map(records.value.map((row) => [row.customerNo, {
   value: row.customerNo,
@@ -58,27 +68,22 @@ const filteredRecords = computed(() => records.value.filter((row) => {
     && (!periodEnd || lastBillDate <= periodEnd)
 }))
 
-const sumBy = (items, key) => items.reduce((total, row) => total + Number(row[key] || 0), 0)
+const shopRecords = computed(() => records.value.filter((row) => !shop.value || row.shop === shop.value))
+
 const summaryStatus = (row) => row.overdue > 0 ? '有逾期' : row.outstanding > 0 ? '待回款' : '已收清'
 
 const totals = computed(() => ({
-  receivable: sumBy(filteredRecords.value, 'receivable'),
-  received: sumBy(filteredRecords.value, 'received'),
-  outstanding: sumBy(filteredRecords.value, 'outstanding'),
-  overdue: sumBy(filteredRecords.value, 'overdue'),
+  receivable: shopRecords.value.reduce((total, row) => total + toShopCurrency(row.receivable, row.currency), 0),
+  received: shopRecords.value.reduce((total, row) => total + toShopCurrency(row.received, row.currency), 0),
+  outstanding: shopRecords.value.reduce((total, row) => total + toShopCurrency(row.outstanding, row.currency), 0),
+  overdue: shopRecords.value.reduce((total, row) => total + toShopCurrency(row.overdue, row.currency), 0),
 }))
 const kpis = computed(() => {
-  if (!appliedQuery.currency) return [
-    { label: '应收金额', value: '--', tone: 'blue' },
-    { label: '已收金额', value: '--', tone: 'green' },
-    { label: '应收未收', value: '--', tone: 'amber' },
-    { label: '逾期未收', value: '--', tone: 'red' },
-  ]
   return [
-    { label: '应收金额', value: money(totals.value.receivable), tone: 'blue' },
-    { label: '已收金额', value: money(totals.value.received), tone: 'green' },
-    { label: '应收未收', value: money(totals.value.outstanding), tone: 'amber' },
-    { label: '逾期未收', value: money(totals.value.overdue), tone: 'red' },
+    { label: '应收金额', value: shopMoney(totals.value.receivable), tone: 'blue' },
+    { label: '已收金额', value: shopMoney(totals.value.received), tone: 'green' },
+    { label: '应收未收', value: shopMoney(totals.value.outstanding), tone: 'amber' },
+    { label: '逾期未收', value: shopMoney(totals.value.overdue), tone: 'red' },
   ]
 })
 
@@ -91,7 +96,6 @@ function runQuery() {
   ElMessage.success(`查询完成，共 ${filteredRecords.value.length} 条`)
 }
 function resetFilters() {
-  shop.value = ''
   resetQuery()
 }
 </script>

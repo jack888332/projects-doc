@@ -8,7 +8,11 @@ export default defineConfig({
   plugins: [
     vue(),
     AutoImport({ resolvers: [ElementPlusResolver()], dts: false }),
-    Components({ resolvers: [ElementPlusResolver()], dts: false }),
+    Components({
+      dirs: ['src/shared/auto-components'],
+      resolvers: [ElementPlusResolver()],
+      dts: false,
+    }),
   ],
   optimizeDeps: {
     entries: ['index.html', 'src/**/*.{js,ts,vue}'],

@@ -13,14 +13,14 @@ const taskItems = computed(() => props.items.filter((item) => item.taskNo === pr
 </script>
 
 <template>
-  <el-dialog :model-value="detailVisible" title="导出任务详情" width="820px" align-center @update:model-value="emit('update:detailVisible', $event)">
+  <el-dialog :model-value="detailVisible" title="导出任务详情" class="module-dialog module-dialog-large" align-center append-to-body destroy-on-close @update:model-value="emit('update:detailVisible', $event)">
     <template v-if="task">
       <dl class="detail-grid"><div><dt>任务编号</dt><dd>{{ task.no }}</dd></div><div><dt>任务状态</dt><dd>{{ task.status }}</dd></div><div><dt>账单类型 / 用途</dt><dd>{{ task.billType }} / {{ task.purpose }}</dd></div><div><dt>内部导出格式</dt><dd>{{ task.format }}</dd></div><div><dt>处理进度</dt><dd>{{ task.processed }} / {{ task.bills }}（{{ task.progress }}%）</dd></div></dl>
       <DataTableFrame :total="taskItems.length" :page-size="20" :toolbar="false"><el-table :data="taskItems" border><el-table-column prop="billNo" label="账单编号" width="230" /><el-table-column prop="result" label="导出结果" width="100" /><el-table-column prop="output" label="Sheet / 文件" width="180" /><el-table-column prop="reason" label="失败原因" min-width="220" /></el-table></DataTableFrame>
     </template>
   </el-dialog>
 
-  <el-dialog :model-value="configVisible" title="客户对账报表导出配置" width="760px" align-center @update:model-value="emit('update:configVisible', $event)">
+  <el-dialog :model-value="configVisible" title="客户对账报表导出配置" class="module-dialog" align-center append-to-body destroy-on-close @update:model-value="emit('update:configVisible', $event)">
     <el-form label-width="140px"><el-form-item label="应收客户通知"><el-switch model-value active-text="启用" /></el-form-item><el-form-item label="返款客户通知"><el-switch model-value active-text="启用" /></el-form-item><el-form-item label="收款二维码"><el-input model-value="wechat-pay-og4155.png" /></el-form-item><el-form-item label="收款账户"><el-input model-value="招商银行深圳分行 7559 **** 1842" /></el-form-item></el-form>
     <template #footer><el-button @click="emit('update:configVisible', false)">取消</el-button><el-button type="primary" @click="emit('update:configVisible', false); emit('saved')">保存</el-button></template>
   </el-dialog>

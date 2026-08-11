@@ -141,7 +141,7 @@ async function resetData() {
     </main>
   </div>
 
-  <el-dialog v-model="dataToolsVisible" title="模拟数据管理" width="680px">
+  <el-dialog v-model="dataToolsVisible" title="模拟数据管理" class="module-dialog" align-center append-to-body destroy-on-close>
     <div class="data-tools-note">账单系统与成本中心的演示数据统一保存在当前浏览器的 IndexedDB 中。</div>
     <div class="data-tools-grid">
       <button type="button" @click="downloadData"><el-icon><Download /></el-icon><span><strong>下载</strong><small>下载账单、任务、供应商、成本和分摊模拟数据</small></span></button>

@@ -93,7 +93,7 @@ defineExpose({ open })
 </script>
 
 <template>
-  <el-dialog v-model="visible" title="账单生成" width="1040px" align-center append-to-body :close-on-click-modal="false" class="generation-dialog">
+  <el-dialog v-model="visible" title="账单生成" class="generation-dialog module-dialog module-dialog-large" align-center append-to-body destroy-on-close :close-on-click-modal="false">
     <el-steps :active="step" finish-status="success" align-center class="generation-steps">
       <el-step title="设置生成条件" />
       <el-step title="核对判定依据" />

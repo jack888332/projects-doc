@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
@@ -50,14 +50,14 @@ function viewCustomerRate(row) {
             <el-table-column label="汇率" width="112">
               <template #default="scope"><strong class="rate-value">{{ formatRate(scope.row.rate) }}</strong></template>
             </el-table-column>
-            <el-table-column label="操作" width="64">
+            <TableActionColumn compact>
               <template #default="scope">
                 <HoverActionMenu>
                   <el-dropdown-item :icon="EditPen" @click="simpleAction('汇率编辑')">编辑</el-dropdown-item>
                   <el-dropdown-item class="danger-action" :icon="Delete" @click="removeBaseRate(scope.row)">删除</el-dropdown-item>
                 </HoverActionMenu>
               </template>
-            </el-table-column>
+            </TableActionColumn>
           </el-table>
         </DataTableFrame>
       </section>
@@ -82,11 +82,11 @@ function viewCustomerRate(row) {
             <el-table-column label="汇率" width="130">
               <template #default="scope"><strong class="rate-value">{{ formatRate(scope.row.result) }}</strong></template>
             </el-table-column>
-            <el-table-column label="操作" width="90" fixed="right">
+            <TableActionColumn compact>
               <template #default="scope">
                 <el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="viewCustomerRate(scope.row)" />
               </template>
-            </el-table-column>
+            </TableActionColumn>
           </el-table>
         </DataTableFrame>
       </section>

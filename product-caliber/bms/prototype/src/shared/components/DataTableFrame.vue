@@ -1,27 +1,38 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, provide, ref } from 'vue'
 import TablePagination from './TablePagination.vue'
 import TableFieldSortButton from './TableFieldSortButton.vue'
 
-defineProps({
+const props = defineProps({
   total: { type: Number, default: 0 },
   selectedCount: { type: Number, default: null },
   pageSize: { type: Number, default: 20 },
   pageSizes: { type: Array, default: () => [10, 20, 50, 100] },
   toolbar: { type: Boolean, default: true },
+  showToolbar: { type: Boolean, default: true },
   selectionSummary: { type: Boolean, default: false },
   pagination: { type: Boolean, default: true },
+  showPagination: { type: Boolean, default: true },
+  stickyToolbar: { type: Boolean, default: true },
+  stickyPagination: { type: Boolean, default: true },
   columnSort: { type: Boolean, default: true },
+  columnDataSort: { type: Boolean, default: true },
   summary: { type: String, default: '' },
 })
 
 const emit = defineEmits(['update:pageSize', 'update:currentPage', 'column-order-change'])
 const frameRef = ref(null)
+
+provide('prototypeTableColumnDataSort', computed(() => props.columnDataSort))
 </script>
 
 <template>
   <div ref="frameRef" class="data-table-frame">
-    <div v-if="toolbar" class="table-reference-toolbar">
+    <div
+      v-if="toolbar && showToolbar"
+      class="table-reference-toolbar"
+      :class="{ 'is-static': !stickyToolbar }"
+    >
       <div class="table-reference-leading">
         <slot name="toolbar-leading">
           <span v-if="summary">{{ summary }}</span>
@@ -44,10 +55,11 @@ const frameRef = ref(null)
     </div>
     <slot />
     <TablePagination
-      v-if="pagination"
+      v-if="pagination && showPagination"
       :total="total"
       :page-size="pageSize"
       :page-sizes="pageSizes"
+      :sticky="stickyPagination"
       @update:page-size="$emit('update:pageSize', $event)"
       @update:current-page="$emit('update:currentPage', $event)"
     />

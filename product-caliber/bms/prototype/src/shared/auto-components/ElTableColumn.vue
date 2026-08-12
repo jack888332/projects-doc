@@ -1,5 +1,5 @@
 <script>
-import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { defineComponent, h, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElTableColumn as ElementTableColumn, ElTooltip } from 'element-plus'
 import SortDirectionIcon from '../components/SortDirectionIcon.vue'
 
@@ -114,12 +114,6 @@ const PrototypeTableHeaderLabel = defineComponent({
     }, {
       default: () => h('span', {
         class: 'prototype-table-header-content',
-        onMousedown: (event) => {
-          if (!event.target?.closest?.('.prototype-table-header-sort-button')) event.stopPropagation()
-        },
-        onClick: (event) => {
-          if (!event.target?.closest?.('.prototype-table-header-sort-button')) event.stopPropagation()
-        },
       }, [
         h('span', {
           ref: labelElement,
@@ -204,12 +198,17 @@ export default defineComponent({
     sortKey: { type: [String, Function], default: '' },
   },
   setup(props, { attrs, slots }) {
+    const columnDataSort = inject('prototypeTableColumnDataSort', null)
+
     return () => {
       const label = typeof attrs.label === 'string' ? attrs.label : ''
       const excluded = NON_DATA_TYPES.has(attrs.type) || label === '操作'
       const explicitlyDisabled = attrs.sortable === false || attrs.sortable === 'false'
-      const sortable = excluded || explicitlyDisabled ? false : (attrs.sortable ?? true)
+      const frameSortingDisabled = columnDataSort?.value === false
+      const sortable = excluded || explicitlyDisabled || frameSortingDisabled ? false : (attrs.sortable ?? true)
       const forwarded = { ...attrs, sortable }
+
+      if (label === '操作') forwarded.resizable = false
 
       if (!excluded) {
         const headerWidth = estimatedHeaderWidth(label, sortable)

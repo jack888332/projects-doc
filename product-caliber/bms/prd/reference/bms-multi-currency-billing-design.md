@@ -1,5 +1,11 @@
 # BMS 多币种费项收费与按币种核销设计
 
+## 变更记录
+
+| 日期 | 变更人 | 变更内容 | 关联 PR/Issue |
+|------|--------|----------|---------------|
+| 2026-08-11 | BMS | 代收货款类费项（FEE0022/FEE0023/FEE0024，按费项编码清单维护）原币来源改为目的国币种 `dest_country_currency_code`，不再沿用订单本币 `currency_code` | - |
+
 ## 1. 背景
 
 集运账单存在同一张账单、同一个订单内不同费项使用不同结算币种的场景。
@@ -56,6 +62,16 @@ fee_detail.bill_currency / amount_bill_currency
 - `source_currency_column`
 - `source_converted_amount_column`
 - `source_converted_currency_column`
+
+> **代收货款（COD）币种来源**：代收货款及其衍生费项属于目的国到付收款，费用原币应取源单
+> 目的国币种 `dest_country_currency_code`（如台湾 COD 记 TWD）。涉及费项按**费项编码清单**
+> 维护（`BmsConstants.FEE_CODES_SOURCE_CURRENCY_DEST_COUNTRY`：FEE0022 代收货款、
+> FEE0023 代收货款手续费、FEE0024 到付金额），不按费项类型判断——FEE0023 为 AR 类型、
+> FEE0024 为 NON_FEE，同样按目的国币种。当费用直接来源为主单（`sale_order_header`）
+> 且规则未显式配置 `source_currency_column` 时，费用原币（`fee_currency`）优先取
+> `dest_country_currency_code`，再兜底订单本币 `currency_code`/`currency`/账单配置默认币种；
+> 规则显式配置币种列（如 FEE0024）仍以配置为准。
+> 附加费来源（`sale_order_additional_matter`）的费项仍以显式配置的币种列为准。
 
 `fee_detail` 已经有费用原币、结算币种、财务币种字段：
 

@@ -18,7 +18,7 @@ const form = reactive({
   currencyRules: [createRule()], negativePolicy: 'NEXT_REFUND_BILL', effectPeriod: ['2026-08-01', '2027-07-31'],
 })
 const previewNo = computed(() => props.config.no && props.config.no !== '新配置' ? props.config.no : '保存后自动生成')
-const fallbackLabel = computed(() => form.currencyRules.length === 1 ? '不限' : '其他')
+const fallbackLabel = computed(() => form.currencyRules.length === 1 ? '全部' : '其他')
 watch(() => form.billingPeriodType, value => { if (value !== 'HALF_WEEK') form.startDays = [] })
 
 function addRule() { form.currencyRules.splice(form.currencyRules.length - 1, 0, createRule(false)) }

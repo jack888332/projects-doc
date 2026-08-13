@@ -38,7 +38,7 @@ const addRule = () => props.scheme.feeRules.splice(0, 0, {
   fallback: false,
   settlementCurrency: sourceCurrency(),
 })
-const feeLabel = (row) => row.fallback ? (props.scheme.feeRules.length === 1 ? '不限' : '其他') : ''
+const feeLabel = (row) => row.fallback ? (props.scheme.feeRules.length === 1 ? '全部' : '其他') : ''
 const feeDisabled = (feeCode, row) => props.scheme.feeRules.some((item) => item !== row && !item.fallback && item.feeCode === feeCode)
 
 function applyTemplate(value) {

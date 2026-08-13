@@ -95,6 +95,7 @@
 .status-tabs-row button.active { color: var(--primary); background: transparent; font-weight: var(--font-weight-bold); }
 .status-tabs-row button.active::after { transform: scaleX(1); }
 .table-reference-toolbar { position: sticky; top: var(--header-height); z-index: 20; min-height: var(--table-toolbar-height); height: var(--table-toolbar-height); padding: 0 var(--table-toolbar-padding-inline); display: flex; align-items: center; justify-content: flex-start; gap: var(--space-3); border: 1px solid var(--border); border-bottom: 0; color: #7c8798; background: #fff; font-size: 13px; }
+.table-reference-toolbar.is-static { position: static; }
 .table-reference-leading { min-width: 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--caption-font-size); }
 .table-reference-summary { display: inline-flex; align-items: center; gap: var(--space-3); }
 .table-reference-summary-divider { color: var(--border-strong); }
@@ -103,6 +104,7 @@
 .module-panel > .data-table-frame { border: 0; }
 .data-table-frame > .table-reference-toolbar { border: 0; border-bottom: 1px solid var(--border); border-radius: 6px 6px 0 0; }
 .data-table-frame > .el-table { border: 0; }
+.data-table-frame > .el-table .el-table__cell { border-right: 1px solid var(--border); }
 .data-table-frame > .el-table:first-child,
 .data-table-frame > .el-table:first-child .el-table__inner-wrapper { border-radius: 6px 6px 0 0; }
 .data-table-frame > .el-table.el-table--border::before,

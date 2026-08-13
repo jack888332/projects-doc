@@ -254,8 +254,8 @@ stop
 | 区域 | 业务字段 | 业务操作 | 关键业务约束 |
 | --- | --- | --- | --- |
 | 配置列表 | 店铺、客户名称、客户编码、会员编码、状态、配置编号、默认结算币种、账期类型、账单发出时间、返款模式、配置状态 | 查询、新建配置、编辑配置、生成账单 | 应收账单配置与返款账单配置分别维护；编辑时锁定客户主体 |
-| 应收配置编辑 | 配置编号与版本、默认方案、分支方案、费项默认结算币种、费项指定结算币种、履约节点、账期类型、账单发出时间、方案生效周期、信用评级、信用期限、逾期滞纳金、垫资额度上限、合同编号、合同文件 | 新增或移除分支方案、新增或移除费项币种规则、引用费项币种模板、保存配置 | 默认方案不设置限定情形；分支方案必须设置订单类型和目的国；分支方案限定情形不得相互交叉；同一方案内同一费项只能配置一条币种规则 |
-| 返款配置编辑 | 配置编号与版本、启用状态、返款模式、账期类型、半周起始日、账单发出时间、必要归集金额、直接扣减费项、货款原始币种、货款结算币种、客户收款账户、负数金额处理方式、条款生效周期 | 新增或移除币种账户规则、保存配置 | 账期仅支持周和半周；半周必须选择两个起始日且两个账期均不少于 3 天；币种账户规则必须保留一条兜底规则 |
+| 应收配置编辑 | 配置编号与版本、默认方案、分支方案、费项结算币种、履约节点、账期类型、账单发出时间、方案生效周期、信用评级、信用期限、逾期滞纳金、垫资额度上限、合同编号、合同文件 | 新增或移除分支方案、新增或移除费项币种规则、引用模板、保存配置 | 默认方案不设置限定情形；分支方案必须设置订单类型和目的国；分支方案限定情形不得相互交叉；每个方案至少保留一条末行费项结算币种兜底规则；同一方案内同一明确费项只能配置一条币种规则 |
+| 返款配置编辑 | 配置编号与版本、启用状态、返款模式、账期类型、半周起始日、账单发出时间、必要归集金额、直接扣减费项、货款原始币种、货款结算币种、客户收款账户、负数金额处理方式、条款生效周期 | 新增或移除币种账户规则、保存配置 | 账期仅支持周和半周；半周必须选择两个起始日且两个账期均不少于 3 天；币种账户规则必须保留一条末行兜底规则，兜底货款原始币种为只读的“不限”或“其他”；非兜底规则指定货款原始币种前，货款结算币种为空，指定后默认取货款原始币种；每条规则必须配置明确的货款结算币种和客户收款账户，不支持“随原始币种” |
 
 配置变更默认只影响变更后创建的任务和账单，不自动回写已有账单。尚未向客户发出的`待审核`账单如需改用新版配置，财务应发起`账单生成`并选择本次采用的新版配置；系统按<a href="#section-9-6-3">9.6.3 配置变了，怎样安全替换待审核账单？</a>判定是否执行替换生成。已经发出的账单不得作废或替换生成。
 
@@ -453,14 +453,14 @@ Project starts 2026/04/01
 - 账期类型
 - 账单发出时间
 - 费项结算币种
-- 费项默认结算币种
-- 费项指定结算币种
 - 应收账单履约节点
 - 限定情形
 
 客户级信用与合同条款包括信用期限、逾期未结算滞纳金、信用评级、垫资额度上限、合同编号和合同文件，不随默认方案或分支方案分别维护。
 
-配置页面可以套用`费项结算币种模板`，批量填充费项默认结算币种和费项指定结算币种。套用后只保留填充结果，不保存模板引用；财务可以继续修改填充值，模板后续变化也不得联动修改账单配置。
+配置页面可以套用`费项结算币种模板`，批量填充费项结算币种规则。套用后只保留填充结果，不保存模板引用；财务可以继续修改填充值，模板后续变化也不得联动修改账单配置。
+
+费项结算币种规则至少保留一行，且末行固定为兜底规则。当仅有一行时，兜底规则的费项口径为`不限`；存在明确费项规则时，兜底规则的费项口径自动变为`其他`。兜底规则的费项只读，不允许人工修改；其结算币种默认为`随原始币种`，也可以指定为其他币种。兜底规则之前的规则必须配置明确费项和明确币种，新增明确费项规则的结算币种默认取原始币种。同一方案内明确费项不得重复。
 
 应收账单履约节点规则：
 
@@ -1660,14 +1660,23 @@ OIS 当前保存客户侧费用的表、字段、关联对象和数据结构见<
 
 同一张表存在名称相同或相近的金额字段时，启用中的场景取值规则必须明确指定唯一的金额字段和币种字段；任务不得根据字段名称自行猜测。
 
-来源金额没有明确币种时，系统按以下顺序确定默认币种：
+订单费项报表导入采用独立的原始币种口径，优先于下方店铺币种规则：
 
-1. `代收货款`默认采用目的国币种。
-2. 附加费的`payment_method`表示`货到付款`时，该附加费默认采用目的国币种。
-3. 其它费项默认采用店铺币种。
-4. 目的国币种优先读取来源订单的`ofp_ofdb1.sale_order_header.dest_country_currency_code`；该字段为空时，再按来源订单的运抵国匹配运抵国配置。店铺币种读取来源订单的店铺币种。两者均无法确定时，该费项不得进入`BMS费项池`，并记录币种缺失原因。
+1. 每个导入金额都必须在导入时确定原始币种，不得只保存无币种金额。
+2. `仓租费`和`航空费`的原始币种固定为人民币；其它导入金额的原始币种均为来源订单的目的国币种，不得改用店铺币种。
+3. 目的国币种优先读取来源订单的`ofp_ofdb1.sale_order_header.dest_country_currency_code`；该字段为空时，再按运抵国匹配运抵国配置。仍无法确定时，该行不得导入或进入`BMS费项池`，并须反馈币种缺失原因。
+4. `返款汇率`和`回款汇率`不是金额字段，均表示`目的国币种 -> 人民币`的汇率；具体字段口径见<a href="#section-19-2-3-4">19.2.3.4 OIS 有哪些客户侧费用字段？</a>。
 
-以上默认规则只在来源金额未明确币种时启用；来源金额已经具有有效币种时，必须保留并优先使用来源币种，不得由默认币种覆盖。
+以下 OIS 来源采用目的国币种作为 BMS 记录的原始币种，该口径同样优先于店铺币种规则：
+
+1. `ofp_ofdb1.sale_order_additional_matter.payment_method`表示`到付`的全部附加费。
+2. `ofp_ofdb1.sale_order_header.collection_price`、`collection_premium_amount`、`cod_price`和`cod_amount`。
+3. 以上来源即使同时存在其它币种字段，BMS 原始币种仍按目的国币种记录；来源中的其它币种值只作为来源事实保留，不得替代该口径。
+4. 此处只规定原始币种，不改变应收归集范围。到付附加费不得因采用目的国币种而进入应收账单；附加费仍只有`收取方式`为`账期支付`时才进入应收归集，详见<a href="#section-9-5-4">9.5.4 费用达到什么条件才能入池？</a>。
+
+除上述专用口径外，其它费项优先采用录入币种作为 BMS 原始币种；录入币种为空时，使用来源订单所属店铺的店铺币种兜底。店铺币种通常配置为人民币，但系统必须读取实际店铺配置，不得将人民币硬编码为固定值。录入币种和店铺币种均无法确定时，该费项不得进入`BMS费项池`，并记录币种缺失原因。
+
+订单费项报表和上述指定目的国币种的来源不适用本兜底规则，始终按各自专用口径记录 BMS 原始币种。
 
 系统按来源规则选定的时间字段取得实际时间，并把该值写为费项池记录的`费用发生时间`；费项实际写入费项池的时刻记为`入池时间`。账期归属按费用发生时间判断，不按入池时间判断。
 
@@ -3192,7 +3201,7 @@ Voided --> [*]
 #### 15.2.1 模板作用
 
 1. 模板按常用业务场景维护费项与结算币种的映射，减少财务逐项填写工作。
-2. 模板可以同时提供`费项默认结算币种`和各费项的`费项指定结算币种`填充值。
+2. 模板可以提供费项结算币种规则集合。
 3. 模板不是客户级账单配置项，也不是账单计算规则；任务类型为`账单生成`的BMS任务不得根据模板编号或模板当前内容决定结算币种。
 4. 模板不是客户私有配置，不按客户复制维护；客户差异通过应收账单配置最终保存的费项结算币种表达。
 
@@ -3200,11 +3209,11 @@ Voided --> [*]
 
 #### 15.2.2 套用与保存规则
 
-1. 财务编辑应收账单默认方案或分支方案时，可以选择一个模板并预览将要填充的费项默认结算币种和费项指定结算币种。
+1. 财务编辑应收账单默认方案或分支方案时，可以选择一个模板并预览将要填充的费项结算币种规则。
 2. 财务确认套用后，系统把模板当时的字段值复制到账单配置；页面不得只保存模板编号后延迟读取模板内容。
 3. 目标配置已有费项结算币种时，套用前必须展示覆盖差异，由财务确认保留原值或使用模板值。
 4. 套用完成后，财务可以继续新增、删除或修改任一费项结算币种；这些修改不回写模板。
-5. 保存账单配置时，只校验并保存最终的费项默认结算币种和费项指定结算币种，不保存模板引用关系。
+5. 保存账单配置时，只校验并保存最终的费项结算币种规则，不保存模板引用关系。
 6. 模板后续被修改、停用或移除时，不得联动改变任何已套用但未绑定的客户级账单配置。
 
 <div id="section-15-2-3"></div>
@@ -3382,12 +3391,14 @@ Voided --> [*]
 1. 只有正常签收的 COD 包裹才进入返款金额换算。
 2. 异常签收的 COD 包裹不产生回款金额、返款金额。
 3. 返款账单中的回款金额和返款金额都以 `货款结算币种` 作为统一比较币种。
-4. 当到付币种与 `货款结算币种` 一致时，回款金额和返款金额都直接沿用到付金额。
-5. 当到付币种与 `货款结算币种` 不一致时，系统分别按回款时点锁定的汇率和返款时点锁定的汇率，将同一笔到付金额换算到 `货款结算币种`。
-6. `回款金额 = 到付金额 × 回款汇率`。
-7. `返款金额 = 到付金额 × 返款汇率`。
-8. 回款汇率与返款汇率可以不同，因为两者锁定的业务时点不同，系统必须分别保留各自快照，不允许共用一组市场汇率。
-9. 返款账单中的回款金额、返款金额与未回款金额均以本规则为准。
+4. 非兜底币种账户规则在指定 `货款原始币种` 前，`货款结算币种` 为空；指定后，`货款结算币种` 默认取该 `货款原始币种`，允许再改为其他明确币种。
+5. 每条币种账户规则必须明确配置具体的 `货款结算币种` 和对应客户收款账户，不允许配置为“随原始币种”。
+6. 当到付币种与 `货款结算币种` 一致时，回款金额和返款金额都直接沿用到付金额。
+7. 当到付币种与 `货款结算币种` 不一致时，系统分别按回款时点锁定的汇率和返款时点锁定的汇率，将同一笔到付金额换算到 `货款结算币种`。
+8. `回款金额 = 到付金额 × 回款汇率`。
+9. `返款金额 = 到付金额 × 返款汇率`。
+9. 回款汇率与返款汇率可以不同，因为两者锁定的业务时点不同，系统必须分别保留各自快照，不允许共用一组市场汇率。
+10. 返款账单中的回款金额、返款金额与未回款金额均以本规则为准。
 
 <div id="section-15-7-2"></div>
 
@@ -3956,16 +3967,17 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 
 | 来源表 | 归属范围 | 费项识别 | 扫描时间 | 业务状态 | 支付信息 | 金额币种 |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `ofp_ofdb1.sale_order_header` | `member_code`<br>`shop_id`<br>`sc_id`<br>`order_type`<br>`country_code`<br>`dest_warehouse_code`<br>`warehouse_code` | -- | `delivery_time` | -- | -- | `currency`<br>`currency_code`<br>`dest_country_currency_code` |
+| `ofp_ofdb1.sale_order_header` | `member_code`<br>`shop_id`<br>`sc_id`<br>`order_type`<br>`country_code`<br>`dest_warehouse_code`<br>`warehouse_code` | -- | `delivery_time` | -- | -- | `currency`<br>`dest_country_currency_code` |
 | `ofp_ofdb1.sale_order_header_extend` | -- | -- | `order_completed_time` | -- | -- | -- |
+| `ofp_ofdb1.sale_order_package_fee` | -- | `type` | `create_time` | -- | -- | -- |
 | `ofp_ofdb1.sale_order_additional_matter` | -- | `fee_item_type` | `create_time` | -- | `payment_method`<br>`fee_pay_status` | `fee_amount_currency` |
-| `ofp_ofdb1.claim_order` | `member_code`<br>`user_id`<br>`dealer_shop_id` | -- | `update_time` | `status`<br>`customer_service_audit_status`<br>`finance_audit_status` | `payment_status` | `currency`<br>`real_currency` |
+| `ofp_ofdb1.claim_order` | `member_code`<br>`user_id`<br>`dealer_shop_id` | -- | `create_time` | `status`<br>`customer_service_audit_status`<br>`finance_audit_status` | `payment_status` | `currency`<br>`real_currency` |
 
 字段使用口径如下：
 
 1. `归属范围`：匹配任务锁定的客户、店铺和供应链，以及账单配置中的业务场景、运抵国和仓库。`order_type = "BILL"`表示虚拟业务订单。
-2. `费项识别`：`sale_order_additional_matter.fee_item_type`用于匹配启用中的客户侧费项及场景取值规则。
-3. `扫描时间`：履约节点为`出库`时使用`delivery_time`，为`订单完结`时使用`order_completed_time`；`记账单导入`形成的直接客户附加费使用`create_time`，其它附加费跟随真实业务订单的履约节点；理赔记录使用`update_time`。
+2. `费项识别`：`sale_order_package_fee.type`用于区分费用方向，`1`表示应收，`2`表示成本；BMS 归集客户侧费项时只采集`type = 1`的记录。`sale_order_additional_matter.fee_item_type`用于匹配启用中的客户侧费项及场景取值规则。
+3. `扫描时间`：履约节点为`出库`时使用`delivery_time`，为`订单完结`时使用`order_completed_time`。`sale_order_package_fee`本身不保存这两个履约时间，系统通过`sale_order_id`关联业务订单，并按账单配置中的`履约节点`选用对应时间；不得以订单费项报表的导入时间代替。`记账单导入`形成的直接客户附加费使用`create_time`，其它附加费跟随真实业务订单的履约节点；理赔记录使用`update_time`。
 4. `业务状态`：理赔记录只归集有效且已通过客服、财务审核的数据。
 5. `支付信息`：`payment_method`记录附加费的`收取方式`，是应收归集的必要过滤字段；只有其值表示`账期支付`时，该附加费才进入应收归集范围。`fee_pay_status`和理赔记录的`payment_status`用于排除已经完成支付处理的数据，并随来源记录保留以供追溯。
 6. `金额币种`：`currency`和`currency_code`记录来源订单现有币种信息，`dest_country_currency_code`记录目的国币种。币种字段与来源金额一并采集并保留原值，不参与账期范围判断；来源未明确币种时的默认规则见<a href="#section-9-5-3">9.5.3 系统从哪里取金额和币种？</a>，换算规则见<a href="#section-15">15. 金额汇兑</a>。
@@ -3974,12 +3986,13 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 
 ##### 19.2.3.4 OIS 有哪些客户侧费用字段？
 
-下表记录 OIS 当前存在的客户侧费用字段及其财务名称、账单挂靠对象、费项类型、是否由系统计算以及最早形成阶段。费项类型由费项索引定义，见<a href="#section-9-9-3-2">9.9.3.2 费项索引怎样定义费项类型？</a>；挂靠对象边界见<a href="#section-10-2">10.2 核心设计思路</a>。附加事项行按`附加费用报表导入`的现有数据关系列示。
+下表统一记录 OIS 当前存在的客户侧费用字段及其财务名称、账单挂靠对象、费项类型、是否由系统计算、最早形成阶段和 BMS 原始币种或汇率口径。费项类型由费项索引定义，见<a href="#section-9-9-3-2">9.9.3.2 费项索引怎样定义费项类型？</a>；挂靠对象边界见<a href="#section-10-2">10.2 核心设计思路</a>。附加事项行按`附加费用报表导入`的现有数据关系列示。
 
 <style>
 .fee-source-table {
   border-collapse: collapse;
   width: 100%;
+  min-width: 1320px;
 }
 .fee-source-table th {
   background-color: #000000;
@@ -3998,6 +4011,7 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 .fee-source-table .source-claim { background-color: #fff2cc; }
 .fee-source-table .source-additional { background-color: #ffffff; }
 </style>
+<div style="overflow-x: auto;">
 <table class="fee-source-table">
   <thead>
     <tr>
@@ -4007,74 +4021,91 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
       <th>费项类型</th>
       <th>是否机算费项</th>
       <th>最早产生时刻</th>
+      <th>币种</th>
     </tr>
   </thead>
   <tbody>
-    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.tail_freight_amount</code></td><td>派送费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td></tr>
-    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.system_service_amount</code></td><td>系统服务费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td></tr>
-    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.packing_amount</code></td><td>打包费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td></tr>
-    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.overweight_amount</code></td><td>超重费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td></tr>
-    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.overmaterial_amount</code></td><td>超材费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td></tr>
-    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.overlength_amount</code></td><td>超长费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td></tr>
-    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.marketing_activity_discount_amount</code></td><td>满减活动优惠金额</td><td>业务订单</td><td>应收扣减类</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.weight_charge_amount</code></td><td>超重费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.warehouse_rental_amount</code></td><td>仓租费用</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.user_coupon_fee</code></td><td>优惠券优惠金额</td><td>业务订单</td><td>应收扣减类</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.tax_premium_amount</code></td><td>包税手续费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.material_charge_amount</code></td><td>包材费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.length_charge_amount</code></td><td>超长费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.integral_fee</code></td><td>积分优惠金额</td><td>业务订单</td><td>应收扣减类</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.insurance_amount</code></td><td>保险金额</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.freight</code></td><td>运费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.forwarding_charge_amount</code></td><td>转运费用</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.dest_division_amount</code></td><td>偏远地区费用</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.compensation_price</code></td><td>保价金额</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.compensation_premium_amount</code></td><td>保价手续费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.advance_amount</code></td><td>垫付金额</td><td>业务订单</td><td>代付类</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.collection_price</code></td><td>代收货款</td><td>业务订单</td><td>代收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.collection_premium_amount</code></td><td>代收货款手续费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.cod_price</code></td><td>到付金额</td><td>业务订单</td><td>非费项</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.cod_amount</code></td><td>货到付款手续费</td><td>业务订单</td><td>非费项</td><td><code>是</code></td><td>下单核价</td></tr>
-    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.collection</code></td><td>应返货款</td><td>尾程包裹</td><td>代收类</td><td><code>否</code></td><td>订单费项报表导入</td></tr>
-    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.recovery_money</code></td><td>实收回款</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td></tr>
-    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable_collection_amount</code></td><td>代收货款手续费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td></tr>
-    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.resend_fee</code></td><td>重出费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td></tr>
-    <tr class="source-claim"><td><code>ofp_ofdb1.claim_order.claim_amount</code></td><td>理赔费</td><td>业务订单</td><td>应收扣减类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超材费"</code></td><td>超材费</td><td>尾程包裹</td><td>应收类</td><td><code>可能</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="转板费"</code></td><td>转板费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="退运费"</code></td><td>退运费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="税金"</code></td><td>税金</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="税费"</code></td><td>税费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="木架费"</code></td><td>木架费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="加收地址附加费"</code></td><td>加收地址附加费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="加固包装费"</code></td><td>加固包装费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="国内转寄"</code></td><td>国内转寄</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="国内到付"</code></td><td>国内到付</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="改单费"</code></td><td>改单费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="分单费"</code></td><td>分单费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="罚款"</code></td><td>罚款</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="店取费"</code></td><td>店取费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="代客收台币"</code></td><td>代客收台币</td><td>尾程包裹</td><td>代收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="代客付台币"</code></td><td>代客付台币</td><td>尾程包裹</td><td>代付类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超重费"</code></td><td>超重费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超长费"</code></td><td>超长费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超材手续费"</code></td><td>超材手续费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="缠膜费"</code></td><td>缠膜费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="仓租费"</code></td><td>仓租费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="报关费"</code></td><td>报关费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="派送费"</code></td><td>派送费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
-    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="其他"</code></td><td>其他</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td></tr>
+    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.tail_freight_amount</code></td><td>派送费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td><td>店铺币种</td></tr>
+    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.system_service_amount</code></td><td>系统服务费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td><td>店铺币种</td></tr>
+    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.packing_amount</code></td><td>打包费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td><td>店铺币种</td></tr>
+    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.overweight_amount</code></td><td>超重费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td><td>店铺币种</td></tr>
+    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.overmaterial_amount</code></td><td>超材费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td><td>店铺币种</td></tr>
+    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.overlength_amount</code></td><td>超长费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td><td>店铺币种</td></tr>
+    <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.marketing_activity_discount_amount</code></td><td>满减活动优惠金额</td><td>业务订单</td><td>应收扣减类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.weight_charge_amount</code></td><td>超重费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.warehouse_rental_amount</code></td><td>仓租费用</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.user_coupon_fee</code></td><td>优惠券优惠金额</td><td>业务订单</td><td>应收扣减类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.tax_premium_amount</code></td><td>包税手续费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.material_charge_amount</code></td><td>包材费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.length_charge_amount</code></td><td>超长费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.integral_fee</code></td><td>积分优惠金额</td><td>业务订单</td><td>应收扣减类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.insurance_amount</code></td><td>保险金额</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.freight</code></td><td>运费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.forwarding_charge_amount</code></td><td>转运费用</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.dest_division_amount</code></td><td>偏远地区费用</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.compensation_price</code></td><td>保价金额</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.compensation_premium_amount</code></td><td>保价手续费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.advance_amount</code></td><td>垫付金额</td><td>业务订单</td><td>代付类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.cod_price</code></td><td>到付金额</td><td>业务订单</td><td>非费项</td><td><code>是</code></td><td>下单核价</td><td>目的国币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.cod_amount</code></td><td>货到付款手续费</td><td>业务订单</td><td>非费项</td><td><code>是</code></td><td>下单核价</td><td>目的国币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.collection_price</code></td><td>代收货款</td><td>业务订单</td><td>代收类</td><td><code>否</code></td><td>--</td><td>目的国币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.collection_premium_amount</code></td><td>代收货款手续费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td><td>目的国币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.collection</code></td><td>实返货款</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.recovery_money</code></td><td>实回货款</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable_collection_amount</code></td><td>代收货款手续费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.payment_collect where type = '1'</code></td><td>返款汇率</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种兑店铺币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.payment_collect where type = '2'</code></td><td>回款汇率</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种兑店铺币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.resend_fee</code></td><td>重出费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable_freight</code></td><td>运费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable_delivery_fee</code></td><td>派送费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.additional_fee</code></td><td>仓租费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>店铺币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.air_fee</code></td><td>航空费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>店铺币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.customs_clearance</code></td><td>清关费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.remote_fee</code></td><td>偏远费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.should_amount</code></td><td>应付手续费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable6</code></td><td>费用6</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable7</code></td><td>费用7</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
+    <tr class="source-claim"><td><code>ofp_ofdb1.claim_order.claim_amount</code></td><td>理赔费</td><td>业务订单</td><td>应收扣减类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超材费"</code></td><td>超材费</td><td>尾程包裹</td><td>应收类</td><td><code>可能</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="转板费"</code></td><td>转板费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="退运费"</code></td><td>退运费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="税金"</code></td><td>税金</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="税费"</code></td><td>税费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="木架费"</code></td><td>木架费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="加收地址附加费"</code></td><td>加收地址附加费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="加固包装费"</code></td><td>加固包装费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="国内转寄"</code></td><td>国内转寄</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="国内到付"</code></td><td>国内到付</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="改单费"</code></td><td>改单费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="分单费"</code></td><td>分单费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="罚款"</code></td><td>罚款</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="店取费"</code></td><td>店取费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="代客收台币"</code></td><td>代客收台币</td><td>尾程包裹</td><td>代收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="代客付台币"</code></td><td>代客付台币</td><td>尾程包裹</td><td>代付类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超重费"</code></td><td>超重费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超长费"</code></td><td>超长费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="超材手续费"</code></td><td>超材手续费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="缠膜费"</code></td><td>缠膜费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="仓租费"</code></td><td>仓租费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="报关费"</code></td><td>报关费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="派送费"</code></td><td>派送费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
+    <tr class="source-additional"><td><code>ofp_ofdb1.sale_order_additional_matter where fee_item_type="其他"</code></td><td>其他</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>--</td><td>录入币种</td></tr>
   </tbody>
 </table>
+</div>
 
 字段说明：
 
 1. `是否为机算费项`为`是`，表示当前存在明确的系统计算或汇总过程；为`否`，表示当前没有明确的系统计算过程，数据来自历史兼容字段、人工登记、后置录入或外部导入；为`可能`，表示同名费项在不同业务场景下可能属于机算费项，也可能由人工登记或外部导入产生。
 2. `最早形成阶段`为`--`，表示当前没有统一、明确的形成阶段；`下单核价`早于`业务订单完成核重`，后者发生在尾程包裹完成核重并回填费用之后。
 3. 订单主表和订单扩展表中存在名称相同或相近的费项字段。
-4. 表中订单费项报表字段按包裹级来源`sale_order_package_fee`列示；`sale_order_fee_detail`保存由包裹明细形成的业务订单级汇总，不在表中重复展开。`recovery_money`属于返款或资金核对事实，不是普通应收费项；`collection`记录的应返货款属于代收类资金。
+4. 表中订单费项报表字段按包裹级来源`sale_order_package_fee`列示；`sale_order_fee_detail`保存由包裹明细形成的业务订单级汇总，不在表中重复展开。`collection`、`recovery_money`和`payment_collect`属于返款、回款或汇率核对事实，不是普通应收费项；`payment_collect`在`type = '1'`时表示返款汇率，在`type = '2'`时表示回款汇率。
 5. 附加事项通过`fee_item_type`区分费项；上表所列附加费按`附加费用报表导入`口径挂靠尾程包裹。两种导入入口的差异见<a href="#section-19-2-3-5">19.2.3.5 同一张附加事项表，为什么要区分两种导入？</a>。
 6. `代收货款`和`应返货款`属于代收类资金，用于返款账单、回款管理或对账；`cod_price`和`实收回款`属于非费项核对事实。费项类型和账单用途见<a href="#section-9-9-3-2">9.9.3.2 费项索引怎样定义费项类型？</a>。
+7. `录入币种`表示优先采用来源数据中随金额录入的币种；录入币种为空时，使用来源订单所属店铺的店铺币种兜底。店铺币种通常配置为人民币，但必须以实际店铺配置为准。完整规则见<a href="#section-9-5-3">9.5.3 系统从哪里取金额和币种？</a>。
+8. 目的国币种优先读取`ofp_ofdb1.sale_order_header.dest_country_currency_code`，为空时再按运抵国匹配运抵国配置。该规则只确定 BMS 原始币种，不改变费项类型和账单归属：到付附加费仍不进入客户应收账单，只有`收取方式`为`账期支付`的附加费才进入应收归集范围。
+9. 订单费项报表导入的每个金额都必须确定原始币种；其中`仓租费`和`航空费`固定为人民币，其它金额采用目的国币种。`返款汇率`和`回款汇率`均表示`目的国币种 -> 人民币`，不是金额币种。
+10. 表中币种是`费项原始币种`，不是客户账单的`费项结算币种`。进入账单后的换算按<a href="#section-15">15. 金额汇兑</a>执行；系统不得因账单结算币种不同而改写来源数据的原始币种。
 
 <div id="section-19-2-3-5"></div>
 

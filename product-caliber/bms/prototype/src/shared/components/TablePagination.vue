@@ -5,6 +5,7 @@ const props = defineProps({
   total: { type: Number, default: 0 },
   pageSize: { type: Number, default: 20 },
   pageSizes: { type: Array, default: () => [10, 20, 50, 100] },
+  sticky: { type: Boolean, default: true },
 })
 const emit = defineEmits(['update:pageSize', 'update:currentPage'])
 const currentPage = ref(1)
@@ -16,6 +17,11 @@ let frameId = 0
 
 function syncDock() {
   cancelAnimationFrame(frameId)
+  if (!props.sticky) {
+    docked.value = false
+    dockStyle.value = {}
+    return
+  }
   frameId = requestAnimationFrame(() => {
     const element = anchor.value
     const frame = element?.closest('.data-table-frame') || element?.parentElement
@@ -43,15 +49,19 @@ watch(() => props.total, () => {
 })
 
 onMounted(() => {
-  window.addEventListener('scroll', syncDock, { passive: true })
-  window.addEventListener('resize', syncDock)
+  if (props.sticky) {
+    window.addEventListener('scroll', syncDock, { passive: true })
+    window.addEventListener('resize', syncDock)
+  }
   nextTick(syncDock)
 })
 
 onBeforeUnmount(() => {
   cancelAnimationFrame(frameId)
-  window.removeEventListener('scroll', syncDock)
-  window.removeEventListener('resize', syncDock)
+  if (props.sticky) {
+    window.removeEventListener('scroll', syncDock)
+    window.removeEventListener('resize', syncDock)
+  }
 })
 
 const handlePageSizeChange = (value) => emit('update:pageSize', value)

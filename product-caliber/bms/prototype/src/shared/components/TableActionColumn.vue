@@ -3,6 +3,7 @@
     label="操作"
     :width="columnWidth"
     :fixed="fixed"
+    :resizable="false"
     class-name="table-operation-column"
     label-class-name="table-operation-column"
   >

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { Plus, UploadFilled } from '@element-plus/icons-vue'
 import FeeCurrencyRules from './FeeCurrencyRules.vue'
@@ -23,12 +23,16 @@ const creditTerms = [{ label: '0 天', value: 0 }, { label: '3 天', value: 3 },
 const overdueOptions = [{ label: '0%', value: 0 }, { label: '0.03%/天', value: 0.0003 }, { label: '0.05%/天', value: 0.0005 }, { label: '0.1%/天', value: 0.001 }]
 
 let schemeSeed = 1
-const createScheme = () => ({
-  id: schemeSeed++, folded: false, businessTypes: [], targetCountries: [], warehouses: [],
-  currency: props.config.currency || 'CNY', feeRules: [], template: '', node: 'WEIGHT_OUTBOUND',
-  period: props.config.cycle?.includes('7') ? 'DAY_7' : 'WEEK', sendAfterDays: Number.parseInt(props.config.sentRule) || 3,
-  effectPeriod: ['2026-08-01', '2027-07-31'],
-})
+const createScheme = () => {
+  const sourceCurrency = props.config.currency || 'CNY'
+  return {
+    id: schemeSeed++, folded: false, businessTypes: [], targetCountries: [], warehouses: [],
+    sourceCurrency, feeRules: [{ feeCode: 'FALLBACK', fallback: true, settlementCurrency: 'SOURCE_CURRENCY' }],
+    template: '', node: 'WEIGHT_OUTBOUND',
+    period: props.config.cycle?.includes('7') ? 'DAY_7' : 'WEEK', sendAfterDays: Number.parseInt(props.config.sentRule) || 3,
+    effectPeriod: ['2026-08-01', '2027-07-31'],
+  }
+}
 const defaultScheme = createScheme()
 const form = reactive({
   defaultScheme,
@@ -60,16 +64,20 @@ function hasConflict(scheme) {
 }
 function validateScheme(scheme, name, branch = false) {
   if (branch && (!scheme.businessTypes.length || !scheme.targetCountries.length)) return `${name}必须选择订单类型、目的国`
-  if (!scheme.currency) return `${name}请选择费项默认结算币种`
   if (!scheme.node) return `${name}请选择履约节点`
   if (!scheme.period) return `${name}请选择账期类型`
   if (!scheme.effectPeriod?.[0]) return `${name}请选择方案生效周期`
+  if (!scheme.feeRules.length) return `${name}至少保留一条费项结算币种规则`
+  const fallbackRules = scheme.feeRules.filter((rule) => rule.fallback)
+  if (fallbackRules.length !== 1 || !scheme.feeRules.at(-1)?.fallback) return `${name}必须且只能保留一条末行兜底规则`
   const used = new Set()
   for (let i = 0; i < scheme.feeRules.length; i += 1) {
     const rule = scheme.feeRules[i]
-    if (!rule.feeCode) return `${name}第${i + 1}条费项币种规则必须选择费项`
+    if (!rule.settlementCurrency) return `${name}第${i + 1}条费项结算币种规则必须选择结算币种`
+    if (rule.fallback) continue
+    if (!rule.feeCode) return `${name}第${i + 1}条费项结算币种规则必须选择明确费项`
     if (used.has(rule.feeCode)) return `${name}存在重复的费项结算币种规则`
-    if (rule.mode === 'FIXED' && !rule.currency) return `${name}第${i + 1}条规则必须选择固定币种`
+    if (rule.settlementCurrency === 'SOURCE_CURRENCY') return `${name}第${i + 1}条非兜底规则必须选择明确币种`
     used.add(rule.feeCode)
   }
   return ''
@@ -97,7 +105,6 @@ defineExpose({ validate })
       <div class="scheme-section">
         <div class="scheme-title"><strong>默认方案</strong><span>不包含限制条件，默认直接生效</span></div>
         <div class="scheme-body">
-          <div class="setting-row"><div class="setting-meta"><b>费项默认结算币种</b></div><el-select v-model="form.defaultScheme.currency"><el-option v-for="item in currencies" :key="item" :label="item" :value="item" /></el-select></div>
           <FeeCurrencyRules :scheme="form.defaultScheme" :currencies="currencies" :fee-items="feeItems" :templates="templates" />
           <div class="setting-row"><div class="setting-meta"><b>履约节点</b></div><el-select v-model="form.defaultScheme.node"><el-option v-for="item in nodes" :key="item.value" :label="item.label" :value="item.value" /></el-select></div>
           <div class="setting-row"><div class="setting-meta"><b>账期类型</b><small>同时作为账单草稿生成周期</small></div><el-select v-model="form.defaultScheme.period"><el-option v-for="item in periods" :key="item.value" :label="item.label" :value="item.value" /></el-select></div>
@@ -110,7 +117,6 @@ defineExpose({ validate })
         <div class="branch-head"><button type="button" class="fold-button" @click="scheme.folded=!scheme.folded">{{ scheme.folded ? '▶' : '▼' }}</button><strong>分支方案 ({{ index+1 }})</strong><span v-if="hasConflict(scheme)">与其他分支方案限定情形存在交集</span><el-button link type="danger" @click="form.branches.splice(index,1)">移除</el-button></div>
         <div v-show="!scheme.folded" class="scheme-body">
           <div class="scope-block"><h4>限定情形</h4><div class="setting-row"><div class="setting-meta"><b>订单类型 <i>*</i></b></div><el-select v-model="scheme.businessTypes" multiple collapse-tags><el-option v-for="item in businessTypes" :key="item.value" :label="item.label" :value="item.value" /></el-select></div><div class="setting-row"><div class="setting-meta"><b>目的国 <i>*</i></b></div><el-select v-model="scheme.targetCountries" multiple filterable collapse-tags><el-option v-for="item in countries" :key="item.value" :label="item.label" :value="item.value" /></el-select></div><div class="setting-row"><div class="setting-meta"><b>集运仓</b></div><el-select v-model="scheme.warehouses" multiple collapse-tags><el-option v-for="item in warehouses" :key="item.value" :label="item.label" :value="item.value" /></el-select></div></div>
-          <div class="setting-row"><div class="setting-meta"><b>费项默认结算币种</b></div><el-select v-model="scheme.currency"><el-option v-for="item in currencies" :key="item" :label="item" :value="item" /></el-select></div>
           <FeeCurrencyRules :scheme="scheme" :currencies="currencies" :fee-items="feeItems" :templates="templates" />
           <div class="setting-row"><div class="setting-meta"><b>履约节点</b></div><el-select v-model="scheme.node"><el-option v-for="item in nodes" :key="item.value" :label="item.label" :value="item.value" /></el-select></div>
           <div class="setting-row"><div class="setting-meta"><b>账期类型</b></div><el-select v-model="scheme.period"><el-option v-for="item in periods" :key="item.value" :label="item.label" :value="item.value" /></el-select></div>

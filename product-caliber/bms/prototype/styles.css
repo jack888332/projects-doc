@@ -208,6 +208,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
 .data-table .link { color: var(--primary); cursor: pointer; }
 .data-table .muted { color: var(--muted); }
 .row-action-cell { display: inline-flex; align-items: center; gap: var(--table-operation-gap); white-space: nowrap; }
+.el-table .el-table__cell.table-operation-column {
+  border-left: 1px solid var(--border) !important;
+}
 .el-table .table-operation-column > .cell {
   padding-inline: var(--table-operation-padding-inline) !important;
   overflow: visible;

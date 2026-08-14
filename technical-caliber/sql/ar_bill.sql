@@ -1377,3 +1377,28 @@ CREATE TABLE `cost_supplier_board` (
 -- 2026-07-27 成本账单导入与成本池独立表。
 -- 完整结构由下列独立迁移文件维护并纳入本归档。
 SOURCE 2026-07-27-cost-bill-pool-init.sql;
+
+-- 营收总览异步导出任务
+CREATE TABLE `revenue_export_task` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `task_no` varchar(64) NOT NULL COMMENT '任务编号',
+  `sc_id` bigint NOT NULL COMMENT '供应链ID',
+  `shop_id` bigint NOT NULL COMMENT '店铺ID',
+  `user_id` bigint NOT NULL COMMENT '创建用户ID',
+  `task_status` varchar(32) NOT NULL COMMENT '任务状态：WAITING/RUNNING/SUCCESS/PARTIAL_SUCCESS/FAILED/CANCELLED',
+  `query_snapshot_json` longtext NOT NULL COMMENT '查询条件快照JSON',
+  `data_snapshot_json` longtext NOT NULL COMMENT '导出数据快照JSON：店铺总览+客户汇总+下钻账单',
+  `file_key` varchar(500) DEFAULT NULL COMMENT '当前有效结果文件键',
+  `failure_reason` varchar(1000) DEFAULT NULL COMMENT '任务级失败原因',
+  `file_expire_at` datetime DEFAULT NULL COMMENT '文件失效时间',
+  `finished_at` datetime DEFAULT NULL COMMENT '完成时间',
+  `is_deleted` tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除：0正常1删除',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_revenue_export_task_no` (`task_no`),
+  KEY `idx_revenue_export_task_scope` (`sc_id`,`shop_id`,`user_id`),
+  KEY `idx_revenue_export_task_page` (`sc_id`,`user_id`,`task_status`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='营收总览异步导出任务';

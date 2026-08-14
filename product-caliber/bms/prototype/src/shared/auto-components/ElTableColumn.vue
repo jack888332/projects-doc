@@ -136,13 +136,45 @@ const PrototypeTableHeaderLabel = defineComponent({
   },
 })
 
-function estimatedHeaderWidth(label, sortable) {
-  const textWidth = Array.from(label).reduce((width, character) => {
+function estimatedTextWidth(value) {
+  return Array.from(String(value ?? '')).reduce((width, character) => {
     if (/\p{Script=Han}/u.test(character)) return width + 14
     if (/\s/.test(character)) return width + 4
     return width + 8
   }, 0)
-  return Math.ceil(textWidth + 28 + (sortable ? 18 : 0))
+}
+
+function estimatedHeaderWidth(label, sortable) {
+  return Math.ceil(estimatedTextWidth(label) + 28 + (sortable ? 18 : 0))
+}
+
+function displayText(value) {
+  if (value == null) return ''
+  if (Array.isArray(value)) return value.join('、')
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
+
+function estimatedCellWidth(value) {
+  const lines = displayText(value).split(/\r?\n/)
+  const textWidth = Math.max(0, ...lines.map(estimatedTextWidth))
+  return Math.ceil(textWidth + 32)
+}
+
+function valueAtPath(row, path) {
+  if (!path) return ''
+  return String(path).split('.').reduce((value, key) => value?.[key], row)
+}
+
+function contentWidth(rows, prop, valueGetter, maxWidth, sampleSize) {
+  const sampledRows = rows.slice(0, Math.max(1, sampleSize))
+  const widest = sampledRows.reduce((width, row) => {
+    const value = typeof valueGetter === 'function'
+      ? valueGetter(row)
+      : valueAtPath(row, valueGetter || prop)
+    return Math.max(width, estimatedCellWidth(value))
+  }, 0)
+  return Math.min(widest, maxWidth)
 }
 
 function syntheticSortProperty(label) {
@@ -196,9 +228,22 @@ export default defineComponent({
   inheritAttrs: false,
   props: {
     sortKey: { type: [String, Function], default: '' },
+    autoWidthKey: { type: [String, Function], default: '' },
   },
   setup(props, { attrs, slots }) {
     const columnDataSort = inject('prototypeTableColumnDataSort', null)
+    const tableAutoWidth = inject('prototypeTableAutoWidth', null)
+    const autoWidthColumnId = Symbol('prototype-table-column')
+
+    onMounted(() => {
+      const label = typeof attrs.label === 'string' ? attrs.label : ''
+      const excluded = NON_DATA_TYPES.has(attrs.type) || label === '操作'
+      if (!excluded) tableAutoWidth?.value?.registerColumn?.(autoWidthColumnId)
+    })
+
+    onBeforeUnmount(() => {
+      tableAutoWidth?.value?.unregisterColumn?.(autoWidthColumnId)
+    })
 
     return () => {
       const label = typeof attrs.label === 'string' ? attrs.label : ''
@@ -214,10 +259,20 @@ export default defineComponent({
         const headerWidth = estimatedHeaderWidth(label, sortable)
         const declaredWidth = numericWidth(attrs.width)
         const declaredMinWidth = numericWidth(attrs.minWidth)
+        const autoWidthConfig = tableAutoWidth?.value
+        const measuredContentWidth = autoWidthConfig?.enabled && autoWidthConfig.rows?.length
+          ? contentWidth(
+              autoWidthConfig.rows,
+              attrs.prop,
+              props.autoWidthKey,
+              autoWidthConfig.maxWidth,
+              autoWidthConfig.sampleSize,
+            )
+          : 0
 
         forwarded.showOverflowTooltip = attrs.showOverflowTooltip ?? true
         if (declaredWidth) forwarded.width = Math.max(declaredWidth, headerWidth)
-        else forwarded.minWidth = Math.max(declaredMinWidth, headerWidth)
+        else forwarded.minWidth = Math.max(declaredMinWidth, headerWidth, measuredContentWidth)
       }
 
       if (sortable && !attrs.prop && !attrs.sortMethod) {

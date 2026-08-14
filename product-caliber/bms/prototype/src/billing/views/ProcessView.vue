@@ -33,6 +33,7 @@ const migrationDone = ref(false)
 const financeReportReady = ref(false)
 const systemReportReady = ref(false)
 const comparisonReady = ref(false)
+const comparisonTimeField = ref('出库时间')
 
 watch(() => props.mode, resetQuery)
 
@@ -75,16 +76,11 @@ const auditRows = useDemoDataset('billingAudits', [
   { module: '汇率配置', objectType: '基准汇率', objectNo: 'CAD-CNY@20260802', action: '确认生效', operator: '谭清辉', time: '2026-08-02 08:40:03', reason: '汇率值超出允许范围', result: '阻断', relation: 'CAD/CNY', impactCny: 0, impactUsd: 0, objectCount: 1, before: '{}', after: '{}' },
 ], 2)
 const compareRows = useDemoDataset('billingComparisons', [
-  { order: 'SO-260731-004188', checkedAt: '2026-08-02 09:48', finance: true, system: true, financeFees: 8, systemFees: 8, financeFreight: 126.36, systemFreight: 126.36, financeSurcharge: 18, systemSurcharge: 18, currency: 'CNY' },
-  { order: 'SO-260731-004221', checkedAt: '2026-08-02 09:42', finance: true, system: false, financeFees: 6, systemFees: 0, financeFreight: 421.8, systemFreight: null, financeSurcharge: 0, systemSurcharge: null, currency: 'USD' },
-  { order: 'SO-260730-003952', checkedAt: '2026-08-01 17:20', finance: true, system: true, financeFees: 7, systemFees: 6, financeFreight: 198.5, systemFreight: 198.5, financeSurcharge: 18.5, systemSurcharge: 0, currency: 'CAD' },
-  { order: 'SO-260730-003811', checkedAt: '2026-08-01 16:51', finance: false, system: true, financeFees: 0, systemFees: 5, financeFreight: null, systemFreight: 316, financeSurcharge: null, systemSurcharge: 0, currency: 'AUD' },
+  { order: 'SO-260731-004188', shippedAt: '2026-08-02 09:48', closedAt: '2026-08-03 11:20', finance: true, system: true, financeFees: 4, systemFees: 4, financeAmounts: { 运费: 126.36, 派送费: 18, 超材费: 12, 仓租费: 8 }, systemAmounts: { 运费: 126.36, 派送费: 18, 超材费: 12, 报关费: 20 }, currency: 'CNY' },
+  { order: 'SO-260731-004221', shippedAt: '2026-08-02 09:42', closedAt: '2026-08-03 10:55', finance: true, system: false, financeFees: 3, systemFees: 0, financeAmounts: { 运费: 421.8, 派送费: 0, 仓租费: 15 }, systemAmounts: {}, currency: 'USD' },
+  { order: 'SO-260730-003952', shippedAt: '2026-08-01 17:20', closedAt: '2026-08-02 14:06', finance: true, system: true, financeFees: 3, systemFees: 4, financeAmounts: { 运费: 198.5, 派送费: 18.5, 超材费: 9 }, systemAmounts: { 运费: 198.5, 派送费: 0, 超材费: 9, 报关费: 22 }, currency: 'CAD' },
+  { order: 'SO-260730-003811', shippedAt: '2026-08-01 16:51', closedAt: '2026-08-02 09:35', finance: false, system: true, financeFees: 0, systemFees: 3, financeAmounts: {}, systemAmounts: { 运费: 316, 派送费: 0, 报关费: 18 }, currency: 'AUD' },
 ], 2)
-const feeMappings = useDemoDataset('billingComparisonFeeMappings', [
-  { finance: '基础运费', system: '基础运费' },
-  { finance: '附加服务费', system: '派送附加费' },
-  { finance: '操作服务费', system: '操作费' },
-])
 const migrationPreviewStats = useDemoDataset('billingMigrationPreviewStats', [
   { label: '来源订单', value: 2, tone: 'blue' },
   { label: '源扩展', value: 2, tone: 'slate' },
@@ -127,6 +123,16 @@ const filtered = computed(() => {
   })
 })
 
+const comparisonTimeProp = computed(() => comparisonTimeField.value === '出库时间' ? 'shippedAt' : 'closedAt')
+const comparisonFeeNames = computed(() => {
+  const names = new Set(compareRows.value.flatMap(row => [
+    ...Object.keys(row.financeAmounts || {}),
+    ...Object.keys(row.systemAmounts || {}),
+  ]))
+  const priority = ['运费', '派送费']
+  return [...priority.filter(name => names.has(name)), ...[...names].filter(name => !priority.includes(name)).sort((a, b) => a.localeCompare(b, 'zh-CN'))]
+})
+
 function action(name) { ElMessage.success(`${name}已提交`) }
 function openAudit(row) { selectedAudit.value = row; detailVisible.value = true }
 function openExport(row) { selectedExport.value = row; exportDetailVisible.value = true }
@@ -134,6 +140,9 @@ function deleteExport(row) { exportRows.value.splice(exportRows.value.indexOf(ro
 async function runMigration() { await ElMessageBox.confirm(`确认向测试环境同步订单主表及 ${migrationScopes.value.join('、')}，并重置同步数据的 BMS 标记？`, '执行数据迁移', { type: 'warning' }); migrationDone.value = true; ElMessage.success('数据迁移完成，1 条费用明细失败，其余数据已写入') }
 function previewMigration() { migrationPreviewReady.value = true; migrationDone.value = false; ElMessage.success('预览已生成，尚未写入数据或重置 BMS 标记') }
 function runComparison() { comparisonReady.value = true; ElMessage.success('比对结果已生成，仅并排展示两侧原始金额') }
+function uploadFinanceReport() { financeReportReady.value = true; comparisonReady.value = false }
+function uploadSystemReport() { systemReportReady.value = true; comparisonReady.value = false }
+function formatComparisonAmount(value, currency) { return value === null || value === undefined ? '' : `${Number(value).toFixed(3)} ${currency}` }
 </script>
 
 <template>
@@ -168,11 +177,35 @@ function runComparison() { comparisonReady.value = true; ElMessage.success('比�
     </template>
 
     <template v-else-if="mode === 'compare'">
-      <div class="compare-source-bar"><div><span>财务侧报表</span><strong>{{ financeReportReady ? '财务对账明细_20260802.xlsx' : '尚未上传' }}</strong></div><div><span>系统侧报表</span><strong>{{ systemReportReady ? 'BMS内部费项明细_20260802.xlsx' : '尚未上传' }}</strong></div><div class="compare-source-actions"><el-button :icon="Upload" @click="financeReportReady = true">上传财务侧报表</el-button><el-button :icon="Upload" @click="systemReportReady = true">上传系统侧报表</el-button><el-button type="primary" :icon="RefreshRight" :disabled="!financeReportReady || !systemReportReady" @click="runComparison">开始比对</el-button></div></div>
-     <section class="module-panel"><h3>费项映射</h3>
-<DataTableFrame :total="feeMappings.length" :page-size="20"><el-table :data="feeMappings" border><el-table-column prop="finance" label="财务侧费项" /><el-table-column prop="system" label="系统侧费项" /><TableActionColumn compact><template #default><HoverActionMenu><el-dropdown-item :icon="EditPen" @click="action('调整费项映射')">调整</el-dropdown-item></HoverActionMenu></template></TableActionColumn></el-table></DataTableFrame></section>
-     <section class="module-panel"><el-alert v-if="comparisonReady" title="结果仅展示两侧报表原始金额，不校验币种、不换算金额，也不判定一致或差异。" type="info" :closable="false" />
-<DataTableFrame :total="(comparisonReady ? filtered : []).length" :page-size="20"><el-table :data="comparisonReady ? filtered : []" class="clean-table"><el-table-column prop="order" label="业务订单号" width="165" fixed /><el-table-column prop="checkedAt" label="核重时间" width="155" /><el-table-column label="财务侧报表" width="100"><template #default="scope"><el-checkbox :model-value="scope.row.finance" disabled /></template></el-table-column><el-table-column label="系统侧报表" width="100"><template #default="scope"><el-checkbox :model-value="scope.row.system" disabled /></template></el-table-column><el-table-column prop="financeFees" label="财务侧费项数" width="115" /><el-table-column prop="systemFees" label="系统侧费项数" width="115" /><el-table-column label="基础运费（财务侧）" width="150" align="right"><template #default="scope">{{ scope.row.financeFreight === null ? '' : `${scope.row.financeFreight.toFixed(2)} ${scope.row.currency}` }}</template></el-table-column><el-table-column label="基础运费（系统侧）" width="150" align="right"><template #default="scope">{{ scope.row.systemFreight === null ? '' : `${scope.row.systemFreight.toFixed(2)} ${scope.row.currency}` }}</template></el-table-column><el-table-column label="派送附加费（财务侧）" width="170" align="right"><template #default="scope">{{ scope.row.financeSurcharge === null ? '' : `${scope.row.financeSurcharge.toFixed(2)} ${scope.row.currency}` }}</template></el-table-column><el-table-column label="派送附加费（系统侧）" width="170" align="right"><template #default="scope">{{ scope.row.systemSurcharge === null ? '' : `${scope.row.systemSurcharge.toFixed(2)} ${scope.row.currency}` }}</template></el-table-column></el-table></DataTableFrame></section>
+      <div class="compare-source-bar">
+        <div class="compare-report-card">
+          <div class="compare-report-copy"><span>财务侧报表</span><strong>{{ financeReportReady ? '财务对账明细_20260802.xlsx' : '尚未上传' }}</strong></div>
+          <el-button :icon="Upload" @click="uploadFinanceReport">上传</el-button>
+        </div>
+        <div class="compare-report-card">
+          <div class="compare-report-copy"><span>系统侧报表</span><strong>{{ systemReportReady ? '应收账单对账报表_20260802.xlsx' : '尚未上传' }}</strong></div>
+          <el-button :icon="Upload" @click="uploadSystemReport">上传</el-button>
+        </div>
+        <div class="compare-time-option">
+          <span>履约时间</span>
+          <el-select v-model="comparisonTimeField"><el-option label="出库时间" value="出库时间" /><el-option label="结单时间" value="结单时间" /></el-select>
+        </div>
+      </div>
+      <section class="module-panel">
+        <el-alert v-if="comparisonReady" title="结果仅按同名费项字段展示两侧原始金额，不校验币种、不换算金额，也不判定一致或差异。" type="info" :closable="false" />
+        <DataTableFrame
+          :total="(comparisonReady ? filtered : []).length"
+          :page-size="20"
+          auto-content-width
+          :auto-width-rows="comparisonReady ? filtered : []"
+        >
+          <template #actions>
+            <el-button type="primary" :icon="RefreshRight" :disabled="!financeReportReady || !systemReportReady" @click="runComparison">开始比对</el-button>
+            <el-button :icon="Download" :disabled="!comparisonReady" @click="action('导出比对结果')">导出</el-button>
+          </template>
+          <el-table :data="comparisonReady ? filtered : []" class="clean-table"><el-table-column prop="order" label="业务订单号" fixed /><el-table-column :prop="comparisonTimeProp" :label="comparisonTimeField" /><el-table-column label="财务侧报表"><template #default="scope"><el-checkbox :model-value="scope.row.finance" disabled /></template></el-table-column><el-table-column label="系统侧报表"><template #default="scope"><el-checkbox :model-value="scope.row.system" disabled /></template></el-table-column><el-table-column prop="financeFees" label="财务侧费项数" /><el-table-column prop="systemFees" label="系统侧费项数" /><template v-for="fee in comparisonFeeNames" :key="fee"><el-table-column :label="`${fee}（财务侧）`" :auto-width-key="row => formatComparisonAmount(row.financeAmounts?.[fee], row.currency)" align="right"><template #default="scope">{{ formatComparisonAmount(scope.row.financeAmounts?.[fee], scope.row.currency) }}</template></el-table-column><el-table-column :label="`${fee}（系统侧）`" :auto-width-key="row => formatComparisonAmount(row.systemAmounts?.[fee], row.currency)" align="right"><template #default="scope">{{ formatComparisonAmount(scope.row.systemAmounts?.[fee], scope.row.currency) }}</template></el-table-column></template></el-table>
+        </DataTableFrame>
+      </section>
     </template>
 
     <template v-else>

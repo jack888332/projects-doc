@@ -58,10 +58,13 @@
 .snapshot-compare > div { min-width: 0; border: 1px solid #dfe4eb; border-radius: 6px; overflow: hidden; }
 .snapshot-compare h4 { margin: 0; padding: var(--space-3) var(--space-3); color: #3b485e; background: #f3f5f8; font-size: var(--font-size-sm); }
 .snapshot-compare pre { min-height: 220px; margin: 0; padding: var(--space-3); overflow: auto; color: #344158; background: #fbfcfd; font-size: var(--font-size-sm); line-height: var(--line-height-base); }
-.compare-source-bar { margin-bottom: var(--space-3); display: grid; grid-template-columns: 1fr 1fr auto; align-items: stretch; gap: 10px; }
+.compare-source-bar { margin-bottom: var(--space-3); display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) 180px; align-items: stretch; gap: 10px; }
 .compare-source-bar > div { min-height: 64px; padding: var(--space-3) var(--space-3); display: flex; flex-direction: column; gap: 7px; border: 1px solid #dfe4eb; border-radius: 6px; background: #fff; }
-.compare-source-bar .compare-source-actions { min-height: 0; padding: 0; display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: var(--space-2); border: 0; background: transparent; }
+.compare-source-bar .compare-report-card { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.compare-report-copy { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.compare-report-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .compare-source-bar span { color: #8590a2; font-size: var(--secondary-font-size); }.compare-source-bar strong { color: #334057; font-size: var(--content-font-size); }
+.compare-source-bar .compare-time-option .el-select { width: 100%; }
 .environment-banner { min-height: 58px; margin-bottom: var(--space-3); padding: var(--space-3) var(--space-4); display: flex; align-items: center; gap: 13px; border: 1px solid #e5b9bf; border-radius: 6px; color: #7f3840; background: #fff3f4; }
 .environment-banner strong { padding: var(--space-1) var(--space-2); border-radius: 4px; color: #fff; background: #c34e56; font-size: var(--content-font-size); }.environment-banner span { font-size: var(--content-font-size); }
 .migration-panel { padding: var(--space-4); }.migration-panel h3 { margin: 0 0 var(--space-3); color: #354157; font-size: var(--section-title-font-size); }.migration-panel h3:not(:first-child) { margin-top: var(--space-6); }

@@ -17,13 +17,41 @@ const props = defineProps({
   stickyPagination: { type: Boolean, default: true },
   columnSort: { type: Boolean, default: true },
   columnDataSort: { type: Boolean, default: true },
+  autoContentWidth: { type: Boolean, default: false },
+  autoWidthRows: { type: Array, default: () => [] },
+  autoWidthMax: { type: Number, default: 260 },
+  autoWidthDenseThreshold: { type: Number, default: 10 },
+  autoWidthDenseMax: { type: Number, default: 180 },
+  autoWidthSampleSize: { type: Number, default: 100 },
   summary: { type: String, default: '' },
 })
 
 const emit = defineEmits(['update:pageSize', 'update:currentPage', 'column-order-change'])
 const frameRef = ref(null)
+const autoWidthColumnCount = ref(0)
+const autoWidthColumnIds = new Set()
+
+function registerAutoWidthColumn(columnId) {
+  autoWidthColumnIds.add(columnId)
+  autoWidthColumnCount.value = autoWidthColumnIds.size
+}
+
+function unregisterAutoWidthColumn(columnId) {
+  autoWidthColumnIds.delete(columnId)
+  autoWidthColumnCount.value = autoWidthColumnIds.size
+}
 
 provide('prototypeTableColumnDataSort', computed(() => props.columnDataSort))
+provide('prototypeTableAutoWidth', computed(() => ({
+  enabled: props.autoContentWidth,
+  rows: props.autoWidthRows,
+  maxWidth: autoWidthColumnCount.value >= props.autoWidthDenseThreshold
+    ? Math.min(props.autoWidthMax, props.autoWidthDenseMax)
+    : props.autoWidthMax,
+  sampleSize: props.autoWidthSampleSize,
+  registerColumn: registerAutoWidthColumn,
+  unregisterColumn: unregisterAutoWidthColumn,
+})))
 </script>
 
 <template>

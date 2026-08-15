@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
-import { Delete, Download, EditPen, Plus, RefreshRight, Setting, Upload, View } from '@element-plus/icons-vue'
+import { Check, Delete, Download, EditPen, Minus, Plus, RefreshRight, Setting, Upload, View } from '@element-plus/icons-vue'
 import MetricGrid from '../../shared/components/MetricGrid.vue'
 import DownloadButton from '../../shared/components/DownloadButton.vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
@@ -203,7 +203,46 @@ function formatComparisonAmount(value, currency) { return value === null || valu
             <el-button type="primary" :icon="RefreshRight" :disabled="!financeReportReady || !systemReportReady" @click="runComparison">开始比对</el-button>
             <el-button :icon="Download" :disabled="!comparisonReady" @click="action('导出比对结果')">导出</el-button>
           </template>
-          <el-table :data="comparisonReady ? filtered : []" class="clean-table"><el-table-column prop="order" label="业务订单号" fixed /><el-table-column :prop="comparisonTimeProp" :label="comparisonTimeField" /><el-table-column label="财务侧报表"><template #default="scope"><el-checkbox :model-value="scope.row.finance" disabled /></template></el-table-column><el-table-column label="系统侧报表"><template #default="scope"><el-checkbox :model-value="scope.row.system" disabled /></template></el-table-column><el-table-column prop="financeFees" label="财务侧费项数" /><el-table-column prop="systemFees" label="系统侧费项数" /><template v-for="fee in comparisonFeeNames" :key="fee"><el-table-column :label="`${fee}（财务侧）`" :auto-width-key="row => formatComparisonAmount(row.financeAmounts?.[fee], row.currency)" align="right"><template #default="scope">{{ formatComparisonAmount(scope.row.financeAmounts?.[fee], scope.row.currency) }}</template></el-table-column><el-table-column :label="`${fee}（系统侧）`" :auto-width-key="row => formatComparisonAmount(row.systemAmounts?.[fee], row.currency)" align="right"><template #default="scope">{{ formatComparisonAmount(scope.row.systemAmounts?.[fee], scope.row.currency) }}</template></el-table-column></template></el-table>
+        <el-table :data="comparisonReady ? filtered : []" class="clean-table">
+          <el-table-column prop="order" label="业务订单号" fixed />
+          <el-table-column :prop="comparisonTimeProp" :label="comparisonTimeField" />
+          <el-table-column label="财务侧报表" align="center">
+            <template #default="scope">
+              <el-icon
+                class="comparison-presence-icon"
+                :class="{ 'is-present': scope.row.finance }"
+                :aria-label="scope.row.finance ? '已包含' : '未包含'"
+                :title="scope.row.finance ? '已包含' : '未包含'"
+              >
+                <Check v-if="scope.row.finance" />
+                <Minus v-else />
+              </el-icon>
+            </template>
+          </el-table-column>
+          <el-table-column label="系统侧报表" align="center">
+            <template #default="scope">
+              <el-icon
+                class="comparison-presence-icon"
+                :class="{ 'is-present': scope.row.system }"
+                :aria-label="scope.row.system ? '已包含' : '未包含'"
+                :title="scope.row.system ? '已包含' : '未包含'"
+              >
+                <Check v-if="scope.row.system" />
+                <Minus v-else />
+              </el-icon>
+            </template>
+          </el-table-column>
+          <el-table-column prop="financeFees" label="财务侧费项数" />
+          <el-table-column prop="systemFees" label="系统侧费项数" />
+          <template v-for="fee in comparisonFeeNames" :key="fee">
+            <el-table-column :label="`${fee}（财务侧）`" :auto-width-key="row => formatComparisonAmount(row.financeAmounts?.[fee], row.currency)" align="right">
+              <template #default="scope">{{ formatComparisonAmount(scope.row.financeAmounts?.[fee], scope.row.currency) }}</template>
+            </el-table-column>
+            <el-table-column :label="`${fee}（系统侧）`" :auto-width-key="row => formatComparisonAmount(row.systemAmounts?.[fee], row.currency)" align="right">
+              <template #default="scope">{{ formatComparisonAmount(scope.row.systemAmounts?.[fee], scope.row.currency) }}</template>
+            </el-table-column>
+          </template>
+        </el-table>
         </DataTableFrame>
       </section>
     </template>
@@ -224,3 +263,17 @@ function formatComparisonAmount(value, currency) { return value === null || valu
     </template>
   </div>
 </template>
+
+<style scoped>
+.comparison-presence-icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  font-size: 16px;
+  color: var(--el-text-color-placeholder);
+}
+
+.comparison-presence-icon.is-present {
+  color: var(--el-color-success);
+}
+</style>

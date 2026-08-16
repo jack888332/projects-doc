@@ -1,9 +1,13 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { BILLING_PATHS, COST_PATHS } from '../domain/constants.ts'
+import { BILLING_PATHS, BUSINESS_PATHS, COST_PATHS } from '../domain/constants.ts'
 
 const routeMeta = (domain, key, title, back = '') => ({
   domain,
-  ...(domain === 'billing' ? { billingMenu: key } : { costView: key }),
+  ...(domain === 'billing'
+    ? { billingMenu: key }
+    : domain === 'cost'
+      ? { costView: key }
+      : { businessMenu: key }),
   title,
   ...(back ? { back } : {}),
 })
@@ -49,6 +53,7 @@ export const router = createRouter({
     { path: COST_PATHS.rules, component: () => import('../cost/views/AllocationRuleView.vue'), meta: routeMeta('cost', 'rules', '分摊规则') },
     { path: COST_PATHS.profit, component: () => import('../cost/views/ProfitView.vue'), meta: routeMeta('cost', 'profit', '利润分析') },
     { path: COST_PATHS.fees, component: () => import('../cost/views/FeeIndexView.vue'), meta: routeMeta('cost', 'fees', '成本费项索引') },
+    { path: BUSINESS_PATHS.routeQuotes, component: () => import('../business/views/RouteQuotationView.vue'), meta: routeMeta('business', 'routeQuotes', '线路报价') },
     { path: '/__dev/ui', component: () => import('../shared/views/UiGalleryView.vue'), meta: routeMeta('billing', '', '组件陈列') },
     { path: '/:pathMatch(.*)*', redirect: BILLING_PATHS.receivableSummary },
   ],

@@ -9,7 +9,7 @@ import {
   Grid, List, Lock, Money, OfficeBuilding, Operation, Refresh, Search, Setting,
   Tickets, Upload, User,
 } from '@element-plus/icons-vue'
-import { BILLING_PATHS, COST_PATHS } from './domain/constants.ts'
+import { BILLING_PATHS, BUSINESS_PATHS, COST_PATHS } from './domain/constants.ts'
 import { exportPrototypeData, importPrototypeData, resetPrototypeData } from './data/prototypeDataService.js'
 
 const route = useRoute()
@@ -55,10 +55,21 @@ const costNavigation = [
   ] },
 ]
 
+const businessNavigation = [
+  { group: '', items: [{ key: 'routeQuotes', label: '线路报价', path: BUSINESS_PATHS.routeQuotes, icon: Operation }] },
+]
+
+const domainConfigs = {
+  billing: { navigation: billingNavigation, title: '账单系统', activeMeta: 'billingMenu' },
+  cost: { navigation: costNavigation, title: '成本中心', activeMeta: 'costView' },
+  business: { navigation: businessNavigation, title: '业务系统', activeMeta: 'businessMenu' },
+}
+
 const domain = computed(() => route.meta.domain || 'billing')
-const navigation = computed(() => domain.value === 'billing' ? billingNavigation : costNavigation)
-const sideTitle = computed(() => domain.value === 'billing' ? '账单系统' : '成本中心')
-const activeKey = computed(() => domain.value === 'billing' ? route.meta.billingMenu : route.meta.costView)
+const domainConfig = computed(() => domainConfigs[domain.value] || domainConfigs.billing)
+const navigation = computed(() => domainConfig.value.navigation)
+const sideTitle = computed(() => domainConfig.value.title)
+const activeKey = computed(() => route.meta[domainConfig.value.activeMeta])
 const backTarget = computed(() => route.meta.back || '')
 
 function navigate(path) {
@@ -103,10 +114,11 @@ async function resetData() {
   <div class="app-shell">
     <header class="topbar">
       <div class="brand"><div class="brand-mark">BMS</div><span>测试供应链</span></div>
-      <nav class="top-menu" aria-label="顶部菜单">
-        <button :class="{ active: domain === 'billing' }" @click="navigate(BILLING_PATHS.receivableSummary)"><el-icon><Tickets /></el-icon><span>账单系统</span></button>
-        <button :class="{ active: domain === 'cost' }" @click="navigate(COST_PATHS.overview)"><el-icon><DataAnalysis /></el-icon><span>成本中心</span></button>
-      </nav>
+<nav class="top-menu" aria-label="顶部菜单">
+  <button :class="{ active: domain === 'billing' }" @click="navigate(BILLING_PATHS.receivableSummary)"><el-icon><Tickets /></el-icon><span>账单系统</span></button>
+  <button :class="{ active: domain === 'cost' }" @click="navigate(COST_PATHS.overview)"><el-icon><DataAnalysis /></el-icon><span>成本中心</span></button>
+  <button :class="{ active: domain === 'business' }" @click="navigate(BUSINESS_PATHS.routeQuotes)"><el-icon><Operation /></el-icon><span>业务系统</span></button>
+</nav>
       <div class="top-actions">
         <button class="icon-btn topbar-icon" title="供应商管理" @click="navigate(COST_PATHS.suppliers)"><el-icon><OfficeBuilding /></el-icon></button>
         <button class="icon-btn topbar-icon" title="模拟数据管理" @click="dataToolsVisible = true"><el-icon><Upload /></el-icon></button>
@@ -142,7 +154,7 @@ async function resetData() {
   </div>
 
   <el-dialog v-model="dataToolsVisible" title="模拟数据管理" class="module-dialog" align-center append-to-body destroy-on-close>
-    <div class="data-tools-note">账单系统与成本中心的演示数据统一保存在当前浏览器的 IndexedDB 中。</div>
+      <div class="data-tools-note">账单系统、成本中心与业务系统的演示数据统一保存在当前浏览器的 IndexedDB 中。</div>
     <div class="data-tools-grid">
       <button type="button" @click="downloadData"><el-icon><Download /></el-icon><span><strong>下载</strong><small>下载账单、任务、供应商、成本和分摊模拟数据</small></span></button>
       <button type="button" @click="fileInput?.click()"><el-icon><Upload /></el-icon><span><strong>导入模拟数据</strong><small>使用已导出的 JSON 覆盖当前浏览器数据</small></span></button>

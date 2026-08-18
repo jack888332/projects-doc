@@ -580,3 +580,10 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# > 查看清理数据
+# python cleanup_ar_bill_task.py  --task-id 163
+#
+# > 执行清理
+# python cleanup_ar_bill_task.py --task-id 163 --execute --confirm-task-no BMS-TASK-20260815160936-82-1786781376647-78

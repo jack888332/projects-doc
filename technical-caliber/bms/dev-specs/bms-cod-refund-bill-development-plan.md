@@ -418,7 +418,7 @@ WHERE (
 1. 从 `refund_bill_config` 读取当前有效版本。
 2. 基于 `refund_mode`、账期、生效周期、客户维度，生成 `bill_generate_task`。
 3. 拉取可归集来源数据。
-4. 按配置确定货款结算币种与客户收款账户。
+4. 按配置确定货款结算币种与客户收款账户；返款费项原始币种优先取源单 `dest_country_currency_code`，缺失时回退 `currency_code` / `currency`；详情快照、导出原币回显及回款管理原币也统一按同一优先级。
 5. 生成 `ar_bill` 主记录，写 `bill_type = COD_REFUND`。
 6. 生成 `ar_bill_currency_summary`。
 7. 生成或挂接 `fee_detail`。

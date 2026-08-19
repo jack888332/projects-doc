@@ -116,7 +116,7 @@
 
 本次不新增返款专属费用表，直接复用 `fee_detail`，并约定：
 
-1. `fee_currency` 继续表示原始币种。
+1. `fee_currency` 继续表示原始币种；`COD_REFUND` 场景下优先取源单 `dest_country_currency_code`，缺失时回退 `currency_code` / `currency`；详情快照、导出原币回显及回款管理原币也统一按同一优先级。
 2. `bill_currency` 继续表示当前账单结算币种。
 3. 在 `COD_REFUND` 场景下，`bill_currency` 即“货款结算币种”。
 4. 不再单独拆“货款结算币种表”。

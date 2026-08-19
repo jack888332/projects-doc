@@ -130,6 +130,19 @@ bms/biz/src/main/java/com/szt/supplychain/bms/biz/task/BillGenerateTaskExecuteJo
 1. 当前仓库中的 `bill_generate_conf.properties` 配置 `task.scan.limit=10`。
 2. 因此单次执行 Job 默认最多扫描 10 条待执行任务。
 
+### 3.4 返款账单手工生成账期选择
+
+返款账单配置页的“生成账单”入口与应收账单保持同一交互：先选择月份，再从该月份的标准账期列表中选择具体账期。
+
+返款标准账期按配置计算：
+
+1. `WEEK`：每周账期以周一为周锚点，起始日取 `billing_period_start_days` 的第一个值；未配置时默认周一。
+2. `HALF_WEEK`：`billing_period_start_days` 配置每周两个起始日，例如 `2,5` 表示周二至周四、周五至次周一两个账期。
+3. 手工生成提交的 `periodStartDate`、`periodEndDate` 会与配置解析出的标准账期校验；`RETRY`、`REGENERATE` 不参与该校验。
+4. 调度任务对尚未生效的返款配置跳过任务创建，与应收账单调度行为保持一致。
+
+该规则只影响后续新建的生成任务，历史已生成的返款账单及其账期不会被改写。
+
 ## 4. MEMBER_AR 任务运行流程
 
 当前主实现位于：

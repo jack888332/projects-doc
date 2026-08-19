@@ -135,7 +135,82 @@ public class ArBillQueryReqDTO {
 }
 ```
 
-### 3.3 Controller 风格
+### 3.3 业务异常规范
+
+后端业务校验或业务处理失败时，统一抛出 `com.szt.framework.core.exceptions.BusinessException`，由全局异常处理转换为统一响应；禁止用 `IllegalArgumentException` 表达业务规则错误。
+
+完整示例（Service 实现类）：
+
+```java
+package com.szt.supplychain.bms.biz.service.impl;
+
+import com.szt.framework.core.exceptions.BusinessException;
+import com.szt.supplychain.bms.model.dto.BillConfigSaveReqDTO;
+import org.springframework.stereotype.Service;
+
+/**
+ * 账单配置业务实现示例。
+ */
+@Service
+public class BillConfigServiceImpl {
+
+    /**
+     * 校验默认账单配置。
+     *
+     * @param reqDTO 保存账单配置的请求
+     * @throws BusinessException 默认账单配置为空时抛出
+     */
+    private void validateDefaultConfig(BillConfigSaveReqDTO reqDTO) {
+        // 默认账单配置缺失时直接中断，避免后续按空配置生成账单。
+        if (reqDTO == null || reqDTO.getDefaultConfig() == null) {
+            throw new BusinessException("500", "默认账单配置不能为空");
+        }
+    }
+}
+```
+
+### 3.4 代码注释规范
+
+#### 3.4.1 JavaDoc 文档注释
+
+类、接口、方法、字段和 DTO 辅助方法使用标准多行 JavaDoc，见 3.2 节；方法注释必须包含用途、`@param`（如有入参）和 `@return`（如有返回值）。
+
+#### 3.4.2 核心业务逻辑行内注释
+
+核心业务逻辑必须使用 `//` 行内注释说明关键行/关键分支的处理目的，注释要求简单明了：
+
+- 注释写在被解释代码行的上方，说明"这行代码做了什么、为什么这样做"
+- 一句话讲清目的，禁止复述代码本身（如 `// 获取列表`、`// 设置状态`）
+- 禁止使用 `// 第一步`、`// 第二步` 等无业务含义的步骤编号
+- 注释必须随代码同步更新，代码逻辑改变时注释未更新视为未完成
+- `getter/setter`、日志输出等无需逐行注释
+
+```java
+@Override
+@Transactional(rollbackFor = Exception.class)
+public Boolean confirm(ArBillActionReqDTO reqDTO) {
+    // 校验入参，避免空账单编号进入后续流程。
+    if (reqDTO == null || !hasText(reqDTO.getBillNo())) {
+        throw new BusinessException("500", "账单编号不能为空");
+    }
+
+    // 先加行锁查询账单，防止并发重复确认。
+    ArBill bill = arBillMapper.selectByBillNoForUpdate(reqDTO.getBillNo());
+    if (bill == null) {
+        throw new BusinessException("404", "账单不存在：" + reqDTO.getBillNo());
+    }
+
+    // 仅已生成状态的账单允许确认，避免状态回退。
+    if (!"GENERATED".equals(bill.getBillStatus())) {
+        throw new BusinessException("500", "当前状态不允许确认：" + bill.getBillStatus());
+    }
+
+    // 更新账单状态并记录操作人，完成确认。
+    return arBillMapper.updateStatusByBillNo(bill.getBillNo(), "CONFIRMED", reqDTO.getOperator()) > 0;
+}
+```
+
+### 3.5 Controller 风格
 
 ```java
 /**
@@ -171,7 +246,7 @@ public class ArBillController implements ArBillRemoteService {
 - 每个 API 方法上方必须有完整 JavaDoc，至少说明接口用途、`@param` 入参含义和 `@return` 返回内容；无返回值接口也必须说明接口用途和入参含义
 - 写操作必须加 `@PostMapping`（POST），读操作可加 `@GetMapping`（GET）
 
-### 3.4 Service 风格
+### 3.6 Service 风格
 
 ```java
 /**
@@ -207,11 +282,11 @@ public class ArBillServiceImpl implements ArBillService {
 - Service 接口的每个方法必须有 JavaDoc
 - 空值防御：入参为 null 时创建默认值对象，`ArBillQueryReqDTO safeQuery = query == null ? new ArBillQueryReqDTO() : query;`
 
-### 3.5 Mapper 风格（Mapper 接口 + XML）
+### 3.7 Mapper 风格（Mapper 接口 + XML）
 
 BMS 项目 Mapper 层采用 **Mapper 接口 + XML** 的规范写法，SQL 全部写在 XML 中，Mapper 接口只做方法声明。
 
-#### 3.5.1 为什么不用 SqlProvider / 注解 SQL
+#### 3.7.1 为什么不用 SqlProvider / 注解 SQL
 
 | 维度 | SqlProvider / 注解 | Mapper + XML |
 |------|--------------------|--------------|
@@ -222,7 +297,7 @@ BMS 项目 Mapper 层采用 **Mapper 接口 + XML** 的规范写法，SQL 全部
 | 调试 | SQL 不便直接复制到 Navicat 执行 | XML 中 SQL 可直接复制执行 |
 | 团队协作 | Java 和 SQL 混编，merge 冲突多 | Java 接口和 XML 分离，减少冲突 |
 
-#### 3.5.2 规范写法示例
+#### 3.7.2 规范写法示例
 
 **Mapper 接口** — 只声明方法，不含任何 SQL；每个方法必须使用标准多行 JavaDoc，说明用途、`@param` 参数含义与 `@return` 返回内容：
 
@@ -446,7 +521,7 @@ public interface ArBillMapper {
 </mapper>
 ```
 
-#### 3.5.3 XML Mapper 关键规范
+#### 3.7.3 XML Mapper 关键规范
 
 1. **namespace 必须与 Mapper 接口全限定名一致**
    ```xml
@@ -483,7 +558,7 @@ public interface ArBillMapper {
 
 7. **XML 文件放在 `dao/src/main/resources/sqlmap/`**，application.yml 中配置 mapper-locations
 
-#### 3.5.4 极少数简单静态查询可用注解
+#### 3.7.4 极少数简单静态查询可用注解
 
 只有**极其简单的单表单行查询**（无动态条件，SQL 不超过 3 行）才允许用 `@Select` 注解直接写在 Mapper 接口中：
 
@@ -1110,11 +1185,11 @@ public class ArBillQueryReqDTO {
 ```java
 private void validateSaveCustomerDimension(ArBillSaveDTO saveDTO) {
     if (saveDTO == null) {
-        throw new IllegalArgumentException("账单保存请求不能为空");
+        throw new BusinessException("500", "账单保存请求不能为空");
     }
     if (saveDTO.getScId() == null || saveDTO.getShopId() == null || saveDTO.getUserId() == null
             || !hasText(saveDTO.getMemberCode())) {
-        throw new IllegalArgumentException("账单保存必须包含 scId/shopId/userId/memberCode，禁止使用默认供应链");
+        throw new BusinessException("500", "账单保存必须包含 scId/shopId/userId/memberCode，禁止使用默认供应链");
     }
 }
 ```
@@ -1894,20 +1969,20 @@ public Boolean confirm(ArBillActionReqDTO reqDTO) {
 
 #### 6.5.2 参数校验
 
-在 Service 层入口做参数校验：
+在 Service 层入口做参数校验，业务校验失败统一抛出 `BusinessException`（import `com.szt.framework.core.exceptions.BusinessException`，完整示例见 3.3 节）：
 
 ```java
 @Override
 @Transactional(rollbackFor = Exception.class)
 public Boolean manualFee(ArBillManualFeeSaveReqDTO reqDTO) {
     if (reqDTO == null || !hasText(reqDTO.getBillNo())) {
-        throw new IllegalArgumentException("账单编号不能为空");
+        throw new BusinessException("500", "账单编号不能为空");
     }
     if (!hasText(reqDTO.getFeeCode()) || !hasText(reqDTO.getFeeName())) {
-        throw new IllegalArgumentException("费项编码和费项名称不能为空");
+        throw new BusinessException("500", "费项编码和费项名称不能为空");
     }
     if (!hasText(reqDTO.getReason())) {
-        throw new IllegalArgumentException("补录原因不能为空");
+        throw new BusinessException("500", "补录原因不能为空");
     }
     // ...
 }
@@ -1921,7 +1996,7 @@ public Boolean manualFee(ArBillManualFeeSaveReqDTO reqDTO) {
 private ArBill requireBillForUpdate(String billNo) {
     ArBill bill = arBillMapper.selectByBillNoForUpdate(billNo);
     if (bill == null) {
-        throw new IllegalArgumentException("账单不存在：" + billNo);
+        throw new BusinessException("500", "账单不存在：" + billNo);
     }
     return bill;
 }
@@ -1958,7 +2033,7 @@ private void validatePaymentStatus(List<ArBill> bills) {
     for (ArBill bill : bills) {
         String status = bill.getBillStatus();
         if (!"CONFIRMED".equals(status) && !"PART_PAID".equals(status)) {
-            throw new IllegalArgumentException("账单未复核，不能登记收款：" + bill.getBillNo());
+            throw new BusinessException("500", "账单未复核，不能登记收款：" + bill.getBillNo());
         }
     }
 }
@@ -2299,6 +2374,33 @@ aidocs/bms/design/
 | 报表导出 | `uml/secondary/订单费用报表财务字段.md` |
 | 全局/跨模块 | `PRD.md`, `uml/primary/业财一体流程图.md` |
 
+### 7.7 大需求先出落地方案再编码
+
+当判断本次需求较大时，必须先充分考虑当前业务场景，结合现有代码输出需求落地方案、调整计划与疑问点，不能直接进入编码。
+
+**大需求判定**（满足任意一条即视为大需求）：
+
+- 新增业务模块或跨模块改造，前后端同时调整
+- 涉及多张表结构变更、数据迁移或存量数据口径调整
+- 涉及金额、汇率、状态机、核销、账期等核心业务口径
+- 存在无法直接确定的业务口径，需要产品、财务或外部系统确认
+- 改动面广、回归风险高
+
+**必选动作**：
+
+1. 充分梳理当前业务场景：需求/PRD、`aidocs/bms/design/` 设计文档、`aidocs/technical-caliber/bms/dev-specs/` 已有方案、现有代码和数据库表结构。
+2. 在 `aidocs/technical-caliber/bms/dev-specs/` 目录新建方案文档，文件名为 `yyyy-MM-dd-bms-{模块}-{需求名}需求落地方案及调整计划.md`，日期取当天，例如 `2026-08-19-bms-xxx需求落地方案及调整计划.md`。
+3. 方案必须包含以下内容：
+   - **需求背景与目标边界**：说明本次要解决什么、不做什么
+   - **业务场景与口径**：梳理涉及的供应链、店铺、财务、仓储等业务场景
+   - **现状分析**：基于现有代码、表结构、接口和设计文档，列出现状与目标差距
+   - **落地方案**：明确后端、前端、数据库、接口等具体改动点
+   - **调整计划**：分阶段任务、依赖关系、验证与验收方式
+   - **疑问点**：列出无法直接确认的业务口径，给出候选方案和推荐默认值，等待确认
+4. 落地方案与疑问点确认前，不得直接进入大规模编码；简单、小范围需求可不强制。
+
+**完成判定**：大需求只有落地方案文档已创建、现状分析基于真实代码与库表、疑问点有明确确认口径后，才允许进入编码阶段。
+
 ---
 
 ## 8 检查清单
@@ -2331,3 +2433,6 @@ aidocs/bms/design/
 | 22 | 无 SQL 函数作用在 WHERE 列上 | ☐ |
 | 23 | 业务流程变更已同步到 `aidocs/bms/design/` 对应文档 | ☐ |
 | 24 | 涉及库表结构变更时，已将完整最新表结构同步到 `aidocs/technical-caliber/sql/ar_bill.sql` | ☐ |
+| 25 | 业务校验失败统一抛出 `BusinessException(code, message)`，禁止 `IllegalArgumentException` | ☐ |
+| 26 | 核心业务逻辑关键行/分支有简明 `//` 行内注释，无步骤编号式注释 | ☐ |
+| 27 | 大需求已在 `aidocs/technical-caliber/bms/dev-specs/` 输出日期开头的落地方案，含调整计划与疑问点 | ☐ |

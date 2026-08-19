@@ -22,6 +22,7 @@ description: "BMS供应链结算系统全栈开发工程师。Invoke when develo
 - 实现分页查询、数据隔离、事务控制等 BMS 常见模式
 - Review BMS 代码是否符合规范
 - 讨论 BMS 技术方案或架构选型
+- 判断本次需求较大，需要先输出落地方案、调整计划和疑问点
 
 ---
 
@@ -58,6 +59,8 @@ bms/
 ---
 
 ## 四、开发全流程（新增模块模板）
+
+若判断本次需求较大，必须先完成 8.5 节的大需求落地方案流程，再进入以下编码步骤。
 
 以应收账单（ArBill）为参考范例，新增模块按以下步骤执行：
 
@@ -623,13 +626,26 @@ mybatis:
   mapper-locations: classpath:sqlmap/*-mapper.xml
 ```
 
-### 5.2 文档注释规范
+### 5.2 注释规范（JavaDoc + 核心逻辑行内注释）
 
 - 实体类、请求 DTO、响应 DTO 的每个字段必须使用标准多行 JavaDoc，禁止 `/** 注释 */` 单行写法。
 - DTO 辅助方法、Mapper 方法、Service 私有方法必须使用标准多行 JavaDoc；方法注释须包含用途、`@param` 参数含义与 `@return` 返回内容（无返回值方法除外）。
 - Feign Client 和 Controller 的每个 API 方法必须使用标准多行 JavaDoc；无返回值接口也必须说明接口用途和入参含义。
-- 核心业务逻辑必须使用行内注释说明处理目的和关键分支，避免只写无意义的步骤编号。
 - 状态、币种等常量必须逐项使用标准多行 JavaDoc 说明业务含义和适用状态。
+- 核心业务逻辑的关键行/关键分支必须使用 `//` 行内注释说明处理目的，注释必须简单明了：一句话讲清"做了什么、为什么这样做"，禁止复述代码本身。
+- 禁止 `// 第一步`、`// 第二步` 等无业务含义的步骤编号。
+- 注释随代码同步更新，代码逻辑改变时注释未更新视为未完成。
+- `getter/setter`、日志输出等无需逐行注释。
+
+```java
+// 加行锁查询账单，防止并发重复确认。
+ArBill bill = arBillMapper.selectByBillNoForUpdate(billNo);
+
+// 仅已生成状态的账单允许确认，避免状态回退。
+if (!"GENERATED".equals(bill.getBillStatus())) {
+    throw new BusinessException("500", "当前状态不允许确认：" + bill.getBillStatus());
+}
+```
 
 ### 5.3 数据隔离规范
 
@@ -733,7 +749,44 @@ public Boolean confirm(ArBillActionReqDTO reqDTO) { ... }
 public Boolean confirm(ArBillActionReqDTO reqDTO) { ... }
 ```
 
-### 5.6 并发控制（行锁）
+### 5.6 业务异常规范
+
+业务校验或业务处理失败时，统一抛出 `com.szt.framework.core.exceptions.BusinessException`，禁止用 `IllegalArgumentException` 表达业务规则错误。
+
+```java
+package com.szt.supplychain.bms.biz.service.impl;
+
+import com.szt.framework.core.exceptions.BusinessException;
+import com.szt.supplychain.bms.model.dto.BillConfigSaveReqDTO;
+import org.springframework.stereotype.Service;
+
+/**
+ * 账单配置业务实现示例。
+ */
+@Service
+public class BillConfigServiceImpl {
+
+    /**
+     * 校验默认账单配置。
+     *
+     * @param reqDTO 保存账单配置的请求
+     * @throws BusinessException 默认账单配置为空时抛出
+     */
+    private void validateDefaultConfig(BillConfigSaveReqDTO reqDTO) {
+        // 默认账单配置缺失时直接中断，避免后续按空配置生成账单。
+        if (reqDTO == null || reqDTO.getDefaultConfig() == null) {
+            throw new BusinessException("500", "默认账单配置不能为空");
+        }
+    }
+}
+```
+
+**要点**：
+- 必须 `import com.szt.framework.core.exceptions.BusinessException;`
+- 构造函数传 `(错误码, 错误信息)`，错误码与全局异常处理约定一致，常用 `400`/`404`/`500`
+- 业务规则错误禁止用 `IllegalArgumentException` 代替
+
+### 5.7 并发控制（行锁）
 
 涉及金额更新的写操作，必须先 `SELECT ... FOR UPDATE` 加行锁：
 
@@ -747,13 +800,13 @@ public Boolean confirm(ArBillActionReqDTO reqDTO) { ... }
 private ArBill requireBillForUpdate(String billNo) {
     ArBill bill = arBillMapper.selectByBillNoForUpdate(billNo);
     if (bill == null) {
-        throw new IllegalArgumentException("账单不存在：" + billNo);
+        throw new BusinessException("404", "账单不存在：" + billNo);
     }
     return bill;
 }
 ```
 
-### 5.7 金额规范
+### 5.8 金额规范
 
 - **Java**: `BigDecimal`，禁止 `double`/`float`
 - **数据库**: `DECIMAL(18,4)`
@@ -761,7 +814,7 @@ private ArBill requireBillForUpdate(String billNo) {
 - **空值**: `amount == null ? BigDecimal.ZERO : amount`
 - **正值**: `amount.compareTo(BigDecimal.ZERO) < 0 ? amount.negate() : amount`
 
-### 5.8 API URL 规范
+### 5.9 API URL 规范
 
 - URL 全小写 kebab-case: `/api/bms/ar-bill`, `/api/bms/fee-detail`
 - 分页查询: POST `/page`
@@ -771,7 +824,7 @@ private ArBill requireBillForUpdate(String billNo) {
 - Controller 实现 Feign 契约接口: `implements XxxRemoteService`
 - 注入用 `@Resource`，不用 `@Autowired`
 
-### 5.9 命名规范速查
+### 5.10 命名规范速查
 
 | 类别 | 规则 | 示例 |
 |------|------|------|
@@ -788,7 +841,7 @@ private ArBill requireBillForUpdate(String billNo) {
 | 表名 | 全小写下划线，业务前缀 | `ar_bill`, `fee_detail` |
 | 字段名 | 全小写下划线 | `bill_no`, `sc_id`, `created_at` |
 
-### 5.10 数据库结构归档规范（强制）
+### 5.11 数据库结构归档规范（强制）
 
 `aidocs/technical-caliber/sql/ar_bill.sql` 是 BMS 数据库表结构的统一归档文件。
 
@@ -902,6 +955,25 @@ aidocs/bms/design/
 | 报表导出 | `aidocs/bms/design/uml/secondary/订单费用报表财务字段.md` |
 | 全局/跨模块 | `aidocs/bms/design/PRD.md`, `aidocs/bms/design/uml/primary/业财一体流程图.md` |
 
+### 8.5 大需求先出落地方案再编码
+
+判断本次需求较大时，必须先充分考虑当前业务场景，结合现有代码输出需求落地方案、调整计划与疑问点，再进入编码。
+
+**大需求判定**（满足任意一条即视为大需求）：
+
+- 新增业务模块或跨模块改造，前后端同时调整
+- 涉及多张表结构变更、数据迁移或存量数据口径调整
+- 涉及金额、汇率、状态机、核销、账期等核心业务口径
+- 存在需要产品、财务或外部系统确认的业务口径
+- 改动面广、回归风险高
+
+**必选动作**：
+
+1. 先梳理当前业务场景：需求/PRD、`aidocs/bms/design/` 设计文档、`aidocs/technical-caliber/bms/dev-specs/` 已有方案、现有代码和数据库表结构。
+2. 在 `aidocs/technical-caliber/bms/dev-specs/` 新建方案，文件名为 `yyyy-MM-dd-bms-{模块}-{需求名}需求落地方案及调整计划.md`，日期取当天（如 `2026-08-19-bms-xxx需求落地方案及调整计划.md`）。
+3. 方案至少包含：需求背景与目标边界、业务场景与口径、现状分析（基于现有代码/表结构）、落地方案（后端/前端/DB/接口）、调整计划、疑问点（候选方案与推荐默认值）。
+4. 落地方案与疑问点确认前，不得直接进入大规模编码；简单、小范围需求可不强制。
+
 ---
 
 ## 九、代码审查清单
@@ -935,8 +1007,10 @@ aidocs/bms/design/
 | 23 | 业务流程变更已同步到 `aidocs/bms/design/` 对应文档 | ☐ |
 | 24 | 涉及库表结构变更时，已将完整最新表结构同步到 `aidocs/technical-caliber/sql/ar_bill.sql` | ☐ |
 | 25 | Mapper、Service 私有方法、Feign API、Controller API 均有标准多行 JavaDoc | ☐ |
-| 26 | 核心业务逻辑具有目的和关键分支说明，状态/币种常量均有业务注释 | ☐ |
+| 26 | 核心业务逻辑关键行/分支有简明 `//` 行内注释，状态/币种常量均有业务注释 | ☐ |
 | 27 | XML 文件名符合 `Xxx-mapper.xml`，且 `mapper-locations` 为 `classpath:sqlmap/*-mapper.xml` | ☐ |
+| 28 | 业务校验失败统一抛出 `BusinessException(code, message)`，禁止 `IllegalArgumentException` | ☐ |
+| 29 | 大需求已在 `aidocs/technical-caliber/bms/dev-specs/` 输出日期开头的落地方案，含调整计划与疑问点 | ☐ |
 
 ---
 

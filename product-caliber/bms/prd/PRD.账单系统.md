@@ -4104,8 +4104,7 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
     <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.collection</code></td><td>历史实付返款</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>历史订单费用报表导入（停止新增）</td><td>只保留存量原记录；不再展示，也不作为返款账单币种、汇率或金额计算依据</td></tr>
     <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.recovery_money</code></td><td>实收回款</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td><td>原始口径为目的国币种；有回款汇率时，导入结果为财务本位币</td></tr>
     <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable_collection_amount</code></td><td>代收货款手续费（包裹导入值）</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
-    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.payment_collect where type = '1'</code></td><td>历史返款汇率</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>历史订单费用报表导入（停止新增）</td><td>只保留存量原记录；返款账单改为锁定货款原始币种兑货款结算币种的返款汇率</td></tr>
-    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.payment_collect where type = '2'</code></td><td>回款汇率</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种兑财务本位币</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.payment_collect</code></td><td>回款汇率</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种兑财务本位币</td></tr>
     <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.resend_fee</code></td><td>重出费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
     <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable_freight</code></td><td>运费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
     <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable_delivery_fee</code></td><td>派送费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
@@ -4150,12 +4149,12 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 1. `是否为机算费项`为`是`，表示当前存在明确的系统计算或汇总过程；为`否`，表示当前没有明确的系统计算过程，数据来自历史兼容字段、人工登记、后置录入或外部导入；为`可能`，表示同名费项在不同业务场景下可能属于机算费项，也可能由人工登记或外部导入产生。
 2. `最早形成阶段`为`--`，表示当前没有统一、明确的形成阶段；`下单核价`早于`业务订单完成核重`，后者发生在尾程包裹完成核重并回填费用之后。
 3. 订单主表和订单扩展表中存在名称相同或相近的费项字段。
-4. 表中订单费项报表字段按包裹级来源`sale_order_package_fee`列示；`sale_order_fee_detail`保存由包裹明细形成的业务订单级汇总，不在表中重复展开。`collection`、`recovery_money`和`payment_collect`属于返款、回款或汇率核对事实，不是普通应收费项；`payment_collect`在`type = '1'`时保存历史返款汇率，在`type = '2'`时保存当前继续导入的回款汇率。
+4. 表中订单费项报表字段按包裹级来源`sale_order_package_fee`列示；`sale_order_fee_detail`保存由包裹明细形成的业务订单级汇总，不在表中重复展开。`collection`、`recovery_money`和`payment_collect`属于返款、回款或汇率核对事实，不是普通应收费项；`payment_collect`当前保存订单费用报表导入的回款汇率，历史返款汇率仅作为存量原记录保留，不再依赖`sale_order_package_fee.type`区分返款汇率和回款汇率。
 5. 附加事项通过`fee_item_type`区分费项；上表所列附加费按`附加费用报表导入`口径挂靠尾程包裹。两种导入入口的差异见<a href="#section-19-2-3-5">19.2.3.5 同一张附加事项表，为什么要区分两种导入？</a>。
 6. `代收货款`和`应返货款`属于代收类资金，用于返款账单、回款管理或对账；`cod_price`和`实收回款`属于非费项核对事实。费项类型和账单用途见<a href="#section-9-9-3-2">9.9.3.2 费项索引怎样定义费项类型？</a>。
 7. `录入币种`表示优先采用来源数据中随金额录入的币种；录入币种为空时，使用来源订单所属店铺的店铺币种兜底。店铺币种通常配置为人民币，但必须以实际店铺配置为准。完整规则见<a href="#section-9-5-3">9.5.3 系统从哪里取金额和币种？</a>。
 8. 目的国币种优先读取`ofp_ofdb1.sale_order_header.dest_country_currency_code`，为空时再按运抵国匹配运抵国配置。该规则只确定 BMS 原始币种，不改变费项类型和账单归属：到付附加费仍不进入客户应收账单，只有`收取方式`为`账期支付`的附加费才进入应收归集范围。
-9. 订单费用报表导入的普通费项金额都必须确定原始币种；其中`仓租费`和`航空费`固定为人民币，其它普通费项金额采用目的国币种。后续订单费用报表只导入`实收回款`和`回款汇率`，不再导入`实付返款`和`返款汇率`。当前回款汇率表示`目的国币种 → 财务本位币`；返款账单所用返款汇率由货款原始币种和货款结算币种确定，见<a href="#section-15-7-1">15.7.1 返款账单换算总则</a>。
+9. 订单费用报表导入的普通费项金额都必须确定原始币种；其中`仓租费`和`航空费`固定为人民币，其它普通费项金额采用目的国币种。后续订单费用报表只导入`实收回款`和`回款汇率`，不再导入`实付返款`和`返款汇率`。系统不再依赖`ofp_ofdb1.sale_order_package_fee.type`区分返款汇率和回款汇率，`payment_collect`当前导入值统一按回款汇率处理。当前回款汇率表示`目的国币种 → 财务本位币`；返款账单所用返款汇率由货款原始币种和货款结算币种确定，见<a href="#section-15-7-1">15.7.1 返款账单换算总则</a>。
 10. 表中币种是`费项原始币种`，不是客户账单的`费项结算币种`。进入账单后的换算按<a href="#section-15">15. 金额汇兑</a>执行；系统不得因账单结算币种不同而改写来源数据的原始币种。
 
 <div id="section-19-2-3-5"></div>
@@ -4186,8 +4185,7 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 | `ofp_ofdb1.sale_order_package_fee.collection` | 历史包裹侧实付返款 | 停止新增导入；存量只保留原记录，不再展示，也不参与返款账单计算或核销。 |
 | `ofp_ofdb1.sale_order_package_fee.recovery_money` | 包裹侧导入的实收回款 | 当前版本直接作为`实收回款`来源；回款返款模式下，用于判断是否已回款并核对回款金额。 |
 | `ofp_ofdb1.sale_order_package_fee.receivable_collection_amount` | 包裹侧导入的代收货款手续费 | 直接挂靠对应尾程包裹，是导入费项而非机算结果；与业务订单级机算手续费同时存在时，按各自挂靠层级分别归集。 |
-| `ofp_ofdb1.sale_order_package_fee.payment_collect where type = '1'` | 历史包裹侧返款汇率 | 停止新增导入；存量只保留原记录，不再展示，也不得替代返款账单锁定的返款汇率。 |
-| `ofp_ofdb1.sale_order_package_fee.payment_collect where type = '2'` | 包裹侧导入的回款汇率 | 来源口径为`目的国币种 → 财务本位币`；当前版本直接作为回款汇率来源，账单生成时随任务或账单快照固化，不由系统按金额关系自动生成或覆盖。 |
+| `ofp_ofdb1.sale_order_package_fee.payment_collect` | 包裹侧导入的回款汇率 | 来源口径为`目的国币种 → 财务本位币`；当前版本直接作为回款汇率来源，账单生成时随任务或账单快照固化，不由系统按金额关系自动生成或覆盖。 |
 
 字段使用规则如下：
 
@@ -4195,7 +4193,7 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 2. 当订单侧 `cod_price` 大于 `collection_price` 时，差额只能表示到付总额中存在非货款本金部分；不得在缺少费项明细时自动把差额认定为某一种手续费。
 3. 当历史字段的中文名与实际数据表现不一致时，以可追溯的业务事实和包裹侧导入结果为准，不得按字段名直接生成扣减金额。
 4. 同时存在业务订单级机算手续费和尾程包裹级导入手续费时，不做额外冲突判断、覆盖或合并；两者按各自挂靠层级分别归集，并分别保留形成方式、来源字段和挂靠对象。
-5. `实收回款`和`回款汇率`继续作为包裹级回款事实导入，不属于客户应付费用，不得直接进入应收账单核销金额。历史`实付返款`和`返款汇率`只保留存量原记录，不参与返款账单的结算币种、返款汇率、金额计算或核销。
+5. `实收回款`和`回款汇率`继续作为包裹级回款事实导入，不属于客户应付费用，不得直接进入应收账单核销金额。历史`实付返款`和`返款汇率`只保留存量原记录，不参与返款账单的结算币种、返款汇率、金额计算或核销。系统不再依赖`ofp_ofdb1.sale_order_package_fee.type`区分返款汇率和回款汇率。
 6. 返款账单详情须保留订单号、尾程运单号、当前采用的来源字段、来源金额、来源币种和最终账单计算金额，便于财务区分包裹级回款事实、订单级机算金额与账单计算结果；不展示历史实付返款和历史返款汇率。
 
 已有数据核对表明，订单侧字段名不能独立决定业务含义。例如订单`1051651926`中，`cod_price = 608`、`collection_price = 505`，而`cod_amount = 505`。该结果只能证明到付总额与代收货款本金存在差额，并且`cod_amount`不能按字段中文名直接作为`505`的手续费扣减；差额和手续费归属仍须回到包裹侧导入事实及费项明细判断。

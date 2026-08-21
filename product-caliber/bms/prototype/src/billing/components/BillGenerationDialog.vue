@@ -22,10 +22,10 @@ const candidateFeeRows = useDemoDataset('billingGenerationCandidateFees', [
   { id: 'GF-RF-002', billType: 'RF', selected: true, fee: '代收服务费', businessNo: 'SO-260721-004326', sourceAt: '2026-08-02 08:56', currency: 'CNY', amount: -42, reason: '随包裹归集' },
 ])
 const replacementOptions = useDemoDataset('billingReplacementOptions', [
-  { billType: 'AR', value: 'ARB-OG0370-Scheme-1782960772-v11', label: 'V11 · 7天账期 · 新版费项币种规则', state: '待生效', effect: '2026-08-03 至长期' },
-  { billType: 'AR', value: 'ARB-OG0370-Scheme-1782960772-v12', label: 'V12 · 周账期 · 台湾线路分支', state: '已生效', effect: '2026-08-01 至长期' },
-  { billType: 'RF', value: 'RFB-OG0370-Scheme-1782960772-v5', label: 'V5 · 周账期 · 回款返款', state: '待生效', effect: '2026-08-03 至长期' },
-  { billType: 'RF', value: 'RFB-OG0370-Scheme-1782960772-v6', label: 'V6 · 半周账期 · 签收返款', state: '已生效', effect: '2026-08-01 至长期' },
+  { billType: 'AR', value: 'ARB-SCHEME-20260701-02-v11', label: 'V11 · 7天账期 · 新版费项币种规则', state: '待生效', effect: '2026-08-03 至长期' },
+  { billType: 'AR', value: 'ARB-SCHEME-20260701-02-v12', label: 'V12 · 周账期 · 台湾线路分支', state: '已生效', effect: '2026-08-01 至长期' },
+  { billType: 'RF', value: 'RFB-SCHEME-20260701-02-v5', label: 'V5 · 周账期 · 回款返款', state: '待生效', effect: '2026-08-03 至长期' },
+  { billType: 'RF', value: 'RFB-SCHEME-20260701-02-v6', label: 'V6 · 半周账期 · 签收返款', state: '已生效', effect: '2026-08-01 至长期' },
 ])
 const replacementPreviewRows = useDemoDataset('billingReplacementPreview', [
   { billType: 'AR', side: 'OLD', billNo: 'ARB-OG0370-20260707-81FF', group: '默认业务板块 / 台湾', config: 'V10', currency: 'CNY', amount: 3096.09, feeCount: 14, state: '待审核 · 已收口' },
@@ -37,7 +37,7 @@ const replacementPreviewRows = useDemoDataset('billingReplacementPreview', [
 
 const money = (value) => Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const billType = computed(() => props.isReceivable ? 'AR' : 'RF')
-const currentConfigLabel = computed(() => props.bill.configNo || `${props.isReceivable ? 'ARB' : 'RFB'}-${props.bill.customerNo}-Scheme`)
+const currentConfigLabel = computed(() => props.bill.configNo || `${props.isReceivable ? 'ARB' : 'RFB'}-SCHEME`)
 const currentConfigVersion = computed(() => props.bill.configVersion || (props.isReceivable ? 'V10' : 'V4'))
 const currentResultVersion = computed(() => props.bill.resultVersion || 'RV-20260801-0018')
 const candidateFees = computed(() => candidateFeeRows.value.filter((row) => row.billType === billType.value))

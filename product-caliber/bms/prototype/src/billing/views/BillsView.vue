@@ -18,7 +18,7 @@ const props = defineProps({ billType: { type: String, required: true } })
 const isReceivable = computed(() => props.billType === 'AR')
 const title = computed(() => isReceivable.value ? '应收账单' : '返款账单')
 const pageSchema = computed(() => createBillListSchema(isReceivable.value))
-const initialQuery = { billNo: '', customer: '', shop: '', country: '', periodType: '', period: [] }
+const initialQuery = { billNo: '', customer: '', shop: '', group: '', taskNo: '', configNo: '', country: '', periodType: '', period: [] }
 const { query, appliedQuery, applyQuery, resetQuery: resetStagedQuery } = useStagedQuery(initialQuery)
 const activeStatus = ref('待审核')
 const selectedRows = ref([])
@@ -31,7 +31,7 @@ const exportFormatOptions = [
   { label: '拆分式', value: 'SPLIT' },
   { label: '合并式', value: 'MERGED' },
 ]
-const expectedSheetCount = computed(() => exportPurpose.value === 'INTERNAL' && exportFormat.value === 'MERGED' ? 1 : selectedRows.value.length)
+const expectedSheetCount = computed(() => exportPurpose.value === 'INTERNAL' && exportFormat.value === 'MERGED' ? 1 : scopeBillCount.value)
 
 const bills = useDemoDataset('billingBills', billingBillFixtures, 4)
 
@@ -44,9 +44,20 @@ const filteredBills = computed(() => typeBills.value.filter((item) => {
     || (activeStatus.value === '逾期未结清' ? item.status === '待结清' && item.overdueDays > 0 : item.status === activeStatus.value)
   return statusMatch && (!appliedQuery.billNo || item.billNo.includes(appliedQuery.billNo))
     && (!appliedQuery.customer || `${item.customer}${item.customerNo}`.includes(appliedQuery.customer))
-    && (!appliedQuery.shop || item.shop.includes(appliedQuery.shop)) && (!appliedQuery.country || item.country === appliedQuery.country)
+    && (!appliedQuery.shop || item.shop.includes(appliedQuery.shop))
+    && (!appliedQuery.group || item.group === appliedQuery.group)
+    && (!appliedQuery.taskNo || item.taskNo === appliedQuery.taskNo)
+    && (!appliedQuery.configNo || item.configNo === appliedQuery.configNo)
+    && (!appliedQuery.country || item.country === appliedQuery.country)
     && (!appliedQuery.periodType || item.periodType === appliedQuery.periodType)
 }))
+const hasBatchScope = computed(() => Boolean(appliedQuery.taskNo || appliedQuery.configNo))
+const batchScopeText = computed(() => {
+  if (appliedQuery.taskNo) return `任务编号 / ${appliedQuery.taskNo}`
+  if (appliedQuery.configNo) return `配置编号 / ${appliedQuery.configNo}`
+  return ''
+})
+const scopeBillCount = computed(() => hasBatchScope.value ? filteredBills.value.length : selectedRows.value.length)
 const countStatus = (status) => status === '逾期未结清'
   ? typeBills.value.filter((item) => item.status === '待结清' && item.overdueDays > 0).length
   : typeBills.value.filter((item) => item.status === status).length
@@ -74,7 +85,8 @@ function openExport() {
 function confirmExport() {
   exportVisible.value = false
   const formatText = exportPurpose.value === 'INTERNAL' ? `，采用${exportFormat.value === 'SPLIT' ? '拆分式' : '合并式'}` : ''
-  ElMessage.success(`已创建 ${selectedRows.value.length} 个账单的下载任务${formatText}`)
+  const scopeText = hasBatchScope.value ? `（${batchScopeText.value}，共 ${scopeBillCount.value} 个客户账单批量下载）` : ''
+  ElMessage.success(`已创建 ${scopeBillCount.value} 个账单的下载任务${formatText}${scopeText}`)
 }
 async function handleBillAction(name) {
   const bill = selectedBill.value
@@ -113,7 +125,7 @@ async function handleBillAction(name) {
 
     <section class="module-panel">
       <DataTableFrame :total="filteredBills.length" :selected-count="selectedRows.length" selection-summary>
-      <template #actions><el-button :icon="Download" :disabled="!selectedRows.length" @click="openExport">导出</el-button></template>
+      <template #actions><el-button :icon="Download" :disabled="!hasBatchScope && !selectedRows.length" @click="openExport">{{ hasBatchScope ? '批量下载' : '导出' }}</el-button></template>
       <el-table :data="filteredBills" class="clean-table" row-key="billNo" border @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="44" fixed />
         <el-table-column prop="billNo" label="账单编号" width="205" fixed />
@@ -123,7 +135,7 @@ async function handleBillAction(name) {
         <el-table-column v-if="!isReceivable" prop="refundMode" label="返款模式" width="100" />
         <el-table-column :label="isReceivable ? '费项结算币种金额' : '货款结算币种金额'" width="250"><template #default="scope"><div class="amount-lines"><span>{{ isReceivable ? '应收' : '原始货款' }} <b>{{ money(isReceivable ? scope.row.amount : scope.row.original) }} {{ scope.row.currency }}</b></span><span>{{ isReceivable ? '已核销' : '扣除费项' }} {{ money(isReceivable ? scope.row.paid : scope.row.deduction) }} {{ scope.row.currency }}</span><span>{{ isReceivable ? '未核销' : '待返货款' }} <b>{{ money(scope.row.amount - scope.row.paid) }} {{ scope.row.currency }}</b></span></div></template></el-table-column>
         <el-table-column prop="periodType" label="账期类型" width="90" /><el-table-column prop="periodStart" label="账期起始日" width="112" /><el-table-column prop="periodEnd" label="账期结束日" width="112" />
-        <el-table-column v-if="isReceivable" prop="sector" label="业务板块" width="125" /><el-table-column prop="country" :label="isReceivable ? '运抵国' : '目的国'" width="100" /><el-table-column prop="customer" label="客户名称" width="160" show-overflow-tooltip /><el-table-column prop="shop" label="店铺" width="155" show-overflow-tooltip /><el-table-column prop="sentAt" label="账单发出日" width="112" />
+        <el-table-column v-if="isReceivable" prop="sector" label="业务板块" width="125" /><el-table-column prop="country" :label="isReceivable ? '运抵国' : '目的国'" width="100" /><el-table-column prop="customer" label="客户名称" width="160" show-overflow-tooltip /><el-table-column prop="shop" label="店铺" width="155" show-overflow-tooltip /><el-table-column prop="group" label="客户组" width="130" show-overflow-tooltip /><el-table-column prop="taskNo" label="任务编号" width="200" show-overflow-tooltip /><el-table-column prop="configNo" label="配置编号" width="240" show-overflow-tooltip /><el-table-column prop="sentAt" label="账单发出日" width="112" />
         <el-table-column v-if="isReceivable" prop="dueAt" label="信用期结束日" width="120" /><el-table-column v-if="isReceivable" prop="overdueDays" label="逾期天数" width="90" /><el-table-column prop="notice" label="通知状态" width="95" />
         <TableActionColumn><template #default="scope"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="openDetail(scope.row)" /><HoverActionMenu v-if="!['已结清','已作废'].includes(scope.row.status) && !scope.row.processingState"><el-dropdown-item :icon="RefreshRight" @click="openDetail(scope.row); handleBillAction('账单重算')">账单重算</el-dropdown-item></HoverActionMenu></div></template></TableActionColumn>
       </el-table>
@@ -138,7 +150,8 @@ async function handleBillAction(name) {
     <el-dialog v-model="exportVisible" title="下载账单" class="module-dialog" align-center append-to-body destroy-on-close>
       <el-form label-width="110px">
         <el-form-item label="账单类型"><strong>{{ title }}</strong></el-form-item>
-        <el-form-item label="账单数量"><strong>{{ selectedRows.length }} 个</strong></el-form-item>
+        <el-form-item v-if="hasBatchScope" label="导出范围"><strong>{{ batchScopeText }}</strong></el-form-item>
+        <el-form-item label="账单数量"><strong>{{ scopeBillCount }} 个{{ hasBatchScope ? '客户账单' : '' }}</strong></el-form-item>
         <el-form-item label="导出用途"><el-radio-group v-model="exportPurpose" :disabled="!isReceivable"><el-radio value="CUSTOMER">导出给客户</el-radio><el-radio v-if="isReceivable" value="INTERNAL">导出给内部</el-radio></el-radio-group></el-form-item>
         <el-form-item v-if="isReceivable && exportPurpose === 'INTERNAL'" label="内部导出格式">
           <SegmentedControl v-model="exportFormat" :options="exportFormatOptions" aria-label="内部导出格式" />
@@ -146,10 +159,10 @@ async function handleBillAction(name) {
         <el-form-item v-if="isReceivable && exportPurpose === 'INTERNAL'" label="预计 Sheet"><strong>{{ expectedSheetCount }} 个</strong></el-form-item>
         <el-alert v-if="isReceivable && exportPurpose === 'INTERNAL' && exportFormat === 'SPLIT'" title="每张账单生成一个 Sheet；账单基本信息写入表头首个单元格的批注。" type="info" :closable="false" />
         <el-alert v-else-if="isReceivable && exportPurpose === 'INTERNAL'" title="全部账单明细进入同一个 Sheet；账单区块使用交替底色，区块首行首格附账单基本信息批注。" type="info" :closable="false" />
-        <el-alert v-else title="客户导出按客户拆分文件，并使用当前生效的客户导出配置。" type="info" :closable="false" />
+        <el-alert v-else :title="hasBatchScope ? '当前筛选结果中的各客户账单分别生成对账文件，并打包为一个压缩包下载。' : '客户导出按客户拆分文件，并使用当前生效的客户导出配置。'" type="info" :closable="false" />
         <el-text v-if="isReceivable && exportPurpose === 'INTERNAL'" type="info" size="small">费项列固定优先展示运费、派送费，其余费项按费项索引顺序排列。</el-text>
       </el-form>
-      <template #footer><el-button @click="exportVisible=false">取消</el-button><el-button type="primary" @click="confirmExport">下载</el-button></template>
+      <template #footer><el-button @click="exportVisible=false">取消</el-button><el-button type="primary" @click="confirmExport">{{ hasBatchScope ? '批量下载' : '下载' }}</el-button></template>
     </el-dialog>
   </div>
 </template>

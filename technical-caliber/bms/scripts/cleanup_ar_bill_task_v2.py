@@ -365,6 +365,8 @@ def preview(cursor, task, bills, marks, bill_ids):
         ),
         "ar_bill_currency_summary": 0,
         "bill_exchange_rate": 0,
+        "refund_receipt_rate_snapshot": 0,
+        "refund_exchange_profit": 0,
         "bill_export_task": len(export_tasks),
         "bill_export_task_item": sum(row["target_item_count"] for row in export_tasks),
         "bill_export_notification": scalar(
@@ -390,6 +392,12 @@ def preview(cursor, task, bills, marks, bill_ids):
         )
         counts["bill_exchange_rate"] = scalar(
             cursor, f"SELECT COUNT(*) FROM bill_exchange_rate WHERE bill_id IN ({ids_sql})", ids_args
+        )
+        counts["refund_receipt_rate_snapshot"] = scalar(
+            cursor, f"SELECT COUNT(*) FROM refund_receipt_rate_snapshot WHERE bill_id IN ({ids_sql})", ids_args
+        )
+        counts["refund_exchange_profit"] = scalar(
+            cursor, f"SELECT COUNT(*) FROM refund_exchange_profit WHERE bill_id IN ({ids_sql})", ids_args
         )
         counts["external_fee_links_to_clear"] = scalar(
             cursor,
@@ -524,7 +532,12 @@ def execute_cleanup(cursor, task, marks, bill_ids):
 
         snapshot_where = f"bill_id IN ({ids_sql}) OR " + snapshot_where
         snapshot_args = ids_args + snapshot_args
-        for table in ("ar_bill_currency_summary", "bill_exchange_rate"):
+        for table in (
+            "ar_bill_currency_summary",
+            "bill_exchange_rate",
+            "refund_receipt_rate_snapshot",
+            "refund_exchange_profit",
+        ):
             cursor.execute(f"DELETE FROM {table} WHERE bill_id IN ({ids_sql})", ids_args)
             result[table] = cursor.rowcount
 

@@ -7,7 +7,6 @@ import ConditionFilter from '../../shared/components/ConditionFilter.vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 import ImportDialog from '../../shared/components/ImportDialog.vue'
-import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
 import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
 import { billingBaseRateFixtures, billingRateFixtures } from '../../data/fixtures/billingRates.ts'
@@ -93,8 +92,6 @@ function openNewRate() {
     base: rateBase({ direction: 'USD -> CNY', base: '--' }),
     result: null,
     status: '启用',
-    operator: '财务管理员',
-    updatedAt: new Date().toISOString().slice(0, 10),
   }
   editorVisible.value = true
 }
@@ -214,9 +211,6 @@ function viewRate(row) {
             </el-table-column>
             <el-table-column label="状态" width="90">
               <template #default="scope"><StatusTag :label="scope.row.status" /></template>
-            </el-table-column>
-            <el-table-column label="最近操作" width="170">
-              <template #default="scope"><StackedCell :primary="scope.row.operator" :secondary="scope.row.updatedAt" /></template>
             </el-table-column>
             <TableActionColumn compact>
               <template #default="scope">

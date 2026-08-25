@@ -1,8 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { Download, RefreshRight, View } from '@element-plus/icons-vue'
-import BillDetailPanel from '../components/BillDetailPanel.vue'
 import ConditionFilter from '../../shared/components/ConditionFilter.vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
 import MetricGrid from '../../shared/components/MetricGrid.vue'
@@ -13,8 +13,10 @@ import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
 import { createBillListSchema } from '../schemas/billListSchema.ts'
 import { billingBillFixtures } from '../../data/fixtures/billingBills.ts'
 import { useDemoDataset } from '../data/useDemoDataset.js'
+import { BILLING_PATHS } from '../../domain/constants.ts'
 
 const props = defineProps({ billType: { type: String, required: true } })
+const router = useRouter()
 const isReceivable = computed(() => props.billType === 'AR')
 const title = computed(() => isReceivable.value ? '应收账单' : '返款账单')
 const pageSchema = computed(() => createBillListSchema(isReceivable.value))
@@ -22,8 +24,6 @@ const initialQuery = { billNo: '', customer: '', shop: '', group: '', taskNo: ''
 const { query, appliedQuery, applyQuery, resetQuery: resetStagedQuery } = useStagedQuery(initialQuery)
 const activeStatus = ref('待审核')
 const selectedRows = ref([])
-const detailVisible = ref(false)
-const selectedBill = ref(null)
 const exportVisible = ref(false)
 const exportPurpose = ref('CUSTOMER')
 const exportFormat = ref('SPLIT')
@@ -33,7 +33,7 @@ const exportFormatOptions = [
 ]
 const expectedSheetCount = computed(() => exportPurpose.value === 'INTERNAL' && exportFormat.value === 'MERGED' ? 1 : scopeBillCount.value)
 
-const bills = useDemoDataset('billingBills', billingBillFixtures, 4)
+const bills = useDemoDataset('billingBills', billingBillFixtures, 6)
 
 const statuses = computed(() => isReceivable.value
   ? ['待审核', '待结清', '逾期未结清', '已结清', '已作废', '全部']
@@ -75,7 +75,10 @@ const summary = computed(() => isReceivable.value ? [
 
 function money(value) { return Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 function resetQuery() { resetStagedQuery(); activeStatus.value = '待审核' }
-function openDetail(row) { selectedBill.value = row; detailVisible.value = true }
+function openDetail(row) {
+  const parentPath = isReceivable.value ? BILLING_PATHS.receivable : BILLING_PATHS.refund
+  router.push(`${parentPath}/${encodeURIComponent(row.billNo)}`)
+}
 function action(name) { ElMessage.success(`${name}已提交`) }
 function openExport() {
   exportPurpose.value = isReceivable.value ? 'CUSTOMER' : 'CUSTOMER'
@@ -87,19 +90,6 @@ function confirmExport() {
   const formatText = exportPurpose.value === 'INTERNAL' ? `，采用${exportFormat.value === 'SPLIT' ? '拆分式' : '合并式'}` : ''
   const scopeText = hasBatchScope.value ? `（${batchScopeText.value}，共 ${scopeBillCount.value} 个客户账单批量下载）` : ''
   ElMessage.success(`已创建 ${scopeBillCount.value} 个账单的下载任务${formatText}${scopeText}`)
-}
-async function handleBillAction(name) {
-  const bill = selectedBill.value
-  if (!bill) return
-  if (name === '创建账单生成任务') {
-    bill.processingState = '账单生成待处理'; bill.activeTask = 'BMS-20260802-00082'
-  } else if (name === '审核通过') {
-    if (bill.closeStatus !== '已收口') return ElMessage.warning('账期未收口，不能审核通过')
-    bill.status = '待结清'; bill.issued = true; bill.notice = '已通知'; bill.sentAt = bill.sentAt === '-' ? '2026/08/02' : bill.sentAt
-  } else if (name === '退回待审核') {
-    bill.status = '待审核'
-  }
-  ElMessage.success(`${name}已提交`)
 }
 </script>
 
@@ -137,15 +127,10 @@ async function handleBillAction(name) {
         <el-table-column prop="periodType" label="账期类型" width="90" /><el-table-column prop="periodStart" label="账期起始日" width="112" /><el-table-column prop="periodEnd" label="账期结束日" width="112" />
         <el-table-column v-if="isReceivable" prop="sector" label="业务板块" width="125" /><el-table-column prop="country" :label="isReceivable ? '运抵国' : '目的国'" width="100" /><el-table-column prop="customer" label="客户名称" width="160" show-overflow-tooltip /><el-table-column prop="shop" label="店铺" width="155" show-overflow-tooltip /><el-table-column prop="group" label="客户组" width="130" show-overflow-tooltip /><el-table-column prop="taskNo" label="任务编号" width="200" show-overflow-tooltip /><el-table-column prop="configNo" label="配置编号" width="240" show-overflow-tooltip /><el-table-column prop="sentAt" label="账单发出日" width="112" />
         <el-table-column v-if="isReceivable" prop="dueAt" label="信用期结束日" width="120" /><el-table-column v-if="isReceivable" prop="overdueDays" label="逾期天数" width="90" /><el-table-column prop="notice" label="通知状态" width="95" />
-        <TableActionColumn><template #default="scope"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="openDetail(scope.row)" /><HoverActionMenu v-if="!['已结清','已作废'].includes(scope.row.status) && !scope.row.processingState"><el-dropdown-item :icon="RefreshRight" @click="openDetail(scope.row); handleBillAction('账单重算')">账单重算</el-dropdown-item></HoverActionMenu></div></template></TableActionColumn>
+        <TableActionColumn><template #default="scope"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="openDetail(scope.row)" /><HoverActionMenu v-if="!['已结清','已作废'].includes(scope.row.status) && !scope.row.processingState"><el-dropdown-item :icon="RefreshRight" @click="action('账单重算')">账单重算</el-dropdown-item></HoverActionMenu></div></template></TableActionColumn>
       </el-table>
       </DataTableFrame>
     </section>
-
-    <el-dialog v-model="detailVisible" class="module-dialog module-dialog-wide" align-center append-to-body destroy-on-close :close-on-click-modal="false">
-      <template #header><div class="drawer-title"><span>账单详情</span><small>{{ title }} · {{ selectedBill?.billNo }}</small></div></template>
-      <BillDetailPanel v-if="selectedBill" :bill="selectedBill" :is-receivable="isReceivable" @action="handleBillAction" />
-    </el-dialog>
 
     <el-dialog v-model="exportVisible" title="下载账单" class="module-dialog" align-center append-to-body destroy-on-close>
       <el-form label-width="110px">

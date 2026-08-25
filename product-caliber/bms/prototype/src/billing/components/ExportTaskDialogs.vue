@@ -16,7 +16,7 @@ const taskItems = computed(() => props.items.filter((item) => item.taskNo === pr
   <el-dialog :model-value="detailVisible" title="导出任务详情" class="module-dialog module-dialog-large" align-center append-to-body destroy-on-close @update:model-value="emit('update:detailVisible', $event)">
     <template v-if="task">
       <dl class="detail-grid"><div><dt>任务编号</dt><dd>{{ task.no }}</dd></div><div><dt>任务状态</dt><dd>{{ task.status }}</dd></div><div><dt>账单类型 / 用途</dt><dd>{{ task.billType }} / {{ task.purpose }}</dd></div><div><dt>导出范围</dt><dd>{{ task.scope || '列表勾选' }}</dd></div><div><dt>内部导出格式</dt><dd>{{ task.format }}</dd></div><div><dt>处理进度</dt><dd>{{ task.processed }} / {{ task.bills }}（{{ task.progress }}%）</dd></div></dl>
-      <DataTableFrame :total="taskItems.length" :page-size="20" :toolbar="false"><el-table :data="taskItems" border><el-table-column prop="billNo" label="账单编号" width="230" /><el-table-column prop="result" label="导出结果" width="100" /><el-table-column prop="output" label="Sheet / 文件" width="180" /><el-table-column prop="reason" label="失败原因" min-width="220" /></el-table></DataTableFrame>
+    <DataTableFrame :total="taskItems.length" :page-size="20" :sticky-toolbar="false" :sticky-pagination="false"><el-table :data="taskItems" border class="clean-table"><el-table-column prop="billNo" label="账单编号" width="230" /><el-table-column prop="result" label="导出结果" width="100" /><el-table-column prop="output" label="Sheet / 文件" width="180" /><el-table-column prop="reason" label="失败原因" min-width="220" /></el-table></DataTableFrame>
     </template>
   </el-dialog>
 

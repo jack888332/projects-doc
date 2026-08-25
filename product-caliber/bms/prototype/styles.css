@@ -451,10 +451,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
 .bill-detail-page .detail-grid { grid-template-columns: repeat(2, minmax(280px, 1fr)); }
 .bill-detail-metrics { grid-template-columns: repeat(4, minmax(140px, 1fr)); }
 .bill-detail-content { overflow: hidden; }
-.bill-detail-tabs { min-height: 46px; padding: 0 var(--space-3); display: flex; align-items: stretch; gap: 24px; border-bottom: 1px solid var(--border); }
-.bill-detail-tabs button { min-width: 96px; padding: 0 var(--space-1); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font-weight: var(--font-weight-medium); }
-.bill-detail-tabs button:hover { color: var(--primary); }
-.bill-detail-tabs button.active { border-bottom-color: var(--primary); color: var(--primary); font-weight: var(--font-weight-semibold); }
 .bill-detail-tab-content { padding: var(--space-3); }
 .bill-detail-tab-content .bill-detail-metrics { margin-bottom: var(--space-3); }
 .bill-detail-section-head { min-height: 39px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--border); }

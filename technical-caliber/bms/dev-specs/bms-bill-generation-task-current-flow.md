@@ -203,8 +203,8 @@ sc_id
 其中：
 
 1. `order_source_sql` 保存主订单宽表查询快照。
-2. `additional_source_sql` 初始会保存理赔来源 SQL 快照。
-3. 增量附加费来源 SQL 会在执行时继续追加到 `additional_source_sql`。
+2. `additional_source_sql` 会保存应收附加费独立采集 SQL、理赔来源 SQL 和记账单附加费 SQL 快照。
+3. 应收附加费独立采集 SQL 不再包含本期订单 ID 集合，固定按 `a.create_time` 窗口扫描。
 
 ### 4.3 领取任务
 
@@ -319,8 +319,6 @@ bill_config_id
 创建或匹配 ar_bill
   -> 写 main_order 订单快照
   -> 按订单宽表拆主费用 fee_detail
-  -> 查询并写普通附加费 fee_detail
-  -> 为附加费写来源轨迹并回写源表
   -> 为产生费用的主订单写来源轨迹并回写源表
   -> 查询并写理赔 fee_detail
   -> 为理赔写来源轨迹并回写源表
@@ -337,18 +335,30 @@ bill_config_id
 4. `fee_type = NON_FEE` 只参与来源扫描和抓取留痕，不写入应收账单 `fee_detail`；来源写 `bms_billed_flag = 1`，未进入账单时 `bms_bill_no` 保持为空。
 5. 只有非费项规则时，任务会完成来源抓取标记，但不会创建空应收账单。
 
-### 4.9 普通附加费与理赔的当前过滤条件
+应收附加费已从 `executeBillGroup()` 中拆出，由独立的 `executeAdditionalFeeGroups()` 按附加费创建时间建账或追加，不再随主订单分组查询。
 
-普通附加费当前核心条件：
+### 4.9 应收附加费与理赔的当前过滤条件
+
+应收附加费独立采集核心条件：
 
 ```text
+fee_pay_method = account_period_payment
 fee_amount 非空且不为 0
 fee_pay_status in (waiting_pay, waiting_settlement)
 bms_billed_flag = 0
-bms_after_bill_added_flag = 0
+bms_bill_no 为空
+create_time 在任务账期内
 ```
 
-归集自 `sale_order_additional_matter` 的费项默认挂靠 `LAST_PACKAGE`（尾程包裹）；费项主档明确配置为非历史默认值 `ORDER` 的其他挂靠对象时，以主档配置为准。
+说明：
+
+1. 不再以本期订单 ID 集合作为附加费候选过滤条件。
+2. `bms_after_bill_added_flag` 放开 `0/1`，统一按 `a.create_time` 采集。
+3. 来源轨迹按 `a.bms_after_bill_added_flag` 分别记录 `ADDITIONAL_FEE` / `ADDITIONAL_INCREMENT`。
+4. 附加费关联订单不在本期订单集合时，补查 `sale_order_header` / `sale_order_header_extend`，补写当前账单的 `main_order` 快照，订单自身 `bms_billed_flag` 保持 `0`。
+5. 订单头缺失时跳过该费用并输出日志。
+6. 建账前先过滤可处理行，分组内全部跳过时不创建空账单。
+7. 归集自 `sale_order_additional_matter` 的费项统一挂靠 `ORDER`，通过 `business_order_no`、`last_mile_waybill_no`、`first_mile_waybill_no` 和 `bill_order_waybill_snapshot` 保留订单与尾程包裹的关联信息。
 
 理赔当前核心条件：
 
@@ -438,22 +448,36 @@ bms_bill_no 为空
 
 ## 6. 新增附加费如何补充到账单
 
-### 6.1 普通附加费
+### 6.1 应收附加费独立采集
 
-普通附加费是在主订单分组生成时顺带查询的，不是单独任务。
-
-主要条件：
+应收附加费由独立链路按 `a.create_time` 采集，不再依赖主订单分组：
 
 ```text
-bms_billed_flag = 0
-bms_after_bill_added_flag = 0
-fee_amount 非空且不为 0
-fee_pay_status in (waiting_pay, waiting_settlement)
+assignAdditionalFeesToConfigGroup()
+  -> 按 a.create_time 独立扫描附加费
+  -> 覆盖 bms_after_bill_added_flag = 0/1
+  -> 按 bill_source_collect_mark(MARKED) 防重
+  -> 按客户、目的国、仓库归属默认/分支配置
+  -> executeAdditionalFeeGroups()
+      -> 缺失订单补查并写 main_order
+      -> 创建或追加应收账单
+      -> 写 fee_detail（attached_object = ORDER）
+      -> 打标 ADDITIONAL_FEE / ADDITIONAL_INCREMENT
+```
+
+订单不在本期订单集合时的补充条件：
+
+```text
+a.sale_order_id 不在本期主订单候选集合
+-> 按订单ID补查 sale_order_header / sale_order_header_extend
+-> 复用订单宽表 h_* 字段组装 buildMainOrder()
+-> insertMainOrder() 写入当前账单的 main_order 快照
+-> 订单自身 bms_billed_flag 保持 0，不调用 markOrderSource()
 ```
 
 ### 6.2 出账后新增附加费
 
-出账后新增附加费走独立的“增量附加费”链路，核心条件为：
+出账后新增附加费不再单独扫描，与普通附加费统一走独立采集链路，核心条件为：
 
 ```text
 bms_after_bill_added_flag = 1
@@ -461,6 +485,7 @@ bms_billed_flag = 0
 bms_bill_no 为空
 fee_amount 非空且不为 0
 fee_pay_status in (waiting_pay, waiting_settlement)
+create_time 在任务账期内
 ```
 
 来源轨迹中的 `collect_type` 记录为：
@@ -474,6 +499,7 @@ ADDITIONAL_INCREMENT
 1. 先查原账期对应账单。
 2. 原账期账单可追加时，直接追加到原账单。
 3. 原账期账单不可追加时，查询同配置、同业务板块、同目的国的最近一张可追加账单。
+4. 仅存在附加费、没有本期主订单时，允许直接创建应收账单。
 4. 仍找不到可追加账单时，任务失败。
 5. 成功后重建汇总并刷新目标账单金额。
 
@@ -676,9 +702,10 @@ POST /api/bms/ar-bill/regenerate-order
 | 任务领取与分流 | `BillGenerateServiceImpl.executeTask()` |
 | 会员应收主编排 | `BillGenerateServiceImpl.executeTaskInternal()` |
 | 订单归属到默认/分支配置 | `BillGenerateServiceImpl.assignOrdersToConfigGroup()` |
-| 增量附加费归属到默认/分支配置 | `BillGenerateServiceImpl.assignIncrementalAdditionalToConfigGroup()` |
+| 应收附加费归属到默认/分支配置 | `BillGenerateServiceImpl.assignAdditionalFeesToConfigGroup()` |
 | 单账单分组生成 | `BillGenerateServiceImpl.executeBillGroup()` |
-| 增量附加费归集 | `BillGenerateServiceImpl.executeIncrementalAdditionalGroup()` |
+| 应收附加费独立归集 | `BillGenerateServiceImpl.executeAdditionalFeeGroups()` |
+| 应收附加费缺失订单补挂 | `BillGenerateServiceImpl.supplementMissingOrderRows()` |
 | 来源打标补偿 | `BillGenerateServiceImpl.markSourceWithCompensation()` |
 | 源表打标回退 | `BillGenerateServiceImpl.unmarkSourceByBillNo()` |
 | 重跑失败恢复源表标记 | `BillGenerateServiceImpl.restoreSourceMarks()` |

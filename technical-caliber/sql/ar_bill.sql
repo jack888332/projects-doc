@@ -99,6 +99,14 @@ CREATE TABLE `ar_bill_currency_summary` (
   `bill_type` varchar(32) NOT NULL DEFAULT 'MEMBER_AR' COMMENT '账单类型：MEMBER_AR/COD_REFUND/COST_AP',
   `currency` varchar(16) NOT NULL COMMENT '收费币种',
   `fin_currency` varchar(16) DEFAULT NULL COMMENT '财务本位币',
+  `original_currency` varchar(16) DEFAULT NULL COMMENT '货款原始币种',
+  `cod_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '到付金额',
+  `additional_fee_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '到付附加费总额',
+  `payable_amount_original` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '应付返款（货款原始币种）',
+  `deduction_amount_original` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '指定扣减费项合计（货款原始币种）',
+  `payable_quasi_amount_original` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '实付返款（准）（货款原始币种）',
+  `refund_exchange_rate` decimal(18,8) NOT NULL DEFAULT '1.00000000' COMMENT '返款汇率快照',
+  `refund_exchange_rate_level` varchar(32) DEFAULT NULL COMMENT '返款汇率命中层级',
   `principal_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '返款本金',
   `deduction_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '直接扣减金额',
   `pending_deduction_amount` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '待补扣金额',
@@ -325,6 +333,7 @@ CREATE TABLE `bill_exchange_rate` (
   `derivation_type` varchar(16) DEFAULT NULL COMMENT '推导类型：DIRECT/REVERSE/CNY_CROSS/NONE',
   `derivation_expression` varchar(500) DEFAULT NULL COMMENT '汇率推导表达式',
   `fallback_reason` varchar(500) DEFAULT NULL COMMENT '按1兜底原因',
+  `rate_business_type` varchar(32) NOT NULL DEFAULT 'NORMAL_FEE_RATE' COMMENT '汇率业务类型：REFUND_RATE返款汇率，RECEIPT_RATE回款汇率，NORMAL_FEE_RATE普通费项汇率',
   `edit_reason` varchar(500) DEFAULT NULL COMMENT '人工编辑原因',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
@@ -337,6 +346,70 @@ CREATE TABLE `bill_exchange_rate` (
   KEY `idx_bill_rate_base_rate` (`base_rate_id`),
   KEY `idx_bill_rate_secondary_base` (`secondary_base_rate_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=64 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='账单汇率';
+
+-- ----------------------------
+-- Table structure for refund_receipt_rate_snapshot
+-- ----------------------------
+DROP TABLE IF EXISTS `refund_receipt_rate_snapshot`;
+CREATE TABLE `refund_receipt_rate_snapshot` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `sc_id` bigint(20) NOT NULL COMMENT '供应链/组织ID',
+  `shop_id` bigint(20) NOT NULL COMMENT '店铺ID',
+  `user_id` bigint(20) NOT NULL COMMENT '用户ID',
+  `bill_id` bigint(20) unsigned NOT NULL COMMENT '返款账单ID',
+  `bill_no` varchar(64) NOT NULL COMMENT '返款账单编号',
+  `tail_way_bill_no` varchar(64) NOT NULL COMMENT '尾程运单号',
+  `business_order_no` varchar(64) NOT NULL COMMENT '业务订单号',
+  `recovery_money` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '实收回款',
+  `receipt_exchange_rate` decimal(18,8) NOT NULL COMMENT '回款汇率',
+  `receipt_rate_pair` varchar(40) NOT NULL COMMENT '回款汇率货币对，如 TWD->CNY',
+  `shop_currency` varchar(16) NOT NULL COMMENT '店铺币种',
+  `source_type` varchar(16) NOT NULL DEFAULT 'SYSTEM' COMMENT '来源：SYSTEM系统，MANUAL人工',
+  `type` int(11) DEFAULT NULL COMMENT '来源包裹费行type原值',
+  `snapshot_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '快照时间',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_receipt_rate_bill_waybill` (`bill_no`,`tail_way_bill_no`),
+  KEY `idx_receipt_rate_bill` (`bill_id`),
+  KEY `idx_receipt_rate_order` (`business_order_no`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='返款账单包裹级回款汇率快照';
+
+-- ----------------------------
+-- Table structure for refund_exchange_profit
+-- ----------------------------
+DROP TABLE IF EXISTS `refund_exchange_profit`;
+CREATE TABLE `refund_exchange_profit` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `sc_id` bigint(20) NOT NULL COMMENT '供应链/组织ID',
+  `shop_id` bigint(20) NOT NULL COMMENT '店铺ID',
+  `user_id` bigint(20) NOT NULL COMMENT '用户ID',
+  `bill_id` bigint(20) unsigned NOT NULL COMMENT '返款账单ID',
+  `bill_no` varchar(64) NOT NULL COMMENT '返款账单编号',
+  `business_order_no` varchar(64) NOT NULL COMMENT '业务订单号',
+  `tail_way_bill_no` varchar(64) DEFAULT NULL COMMENT '尾程运单号',
+  `source_currency` varchar(16) NOT NULL COMMENT '货款原始币种',
+  `settlement_currency` varchar(16) NOT NULL COMMENT '货款结算币种',
+  `compare_left_currency` varchar(16) NOT NULL COMMENT '比较货币对左侧币种',
+  `compare_right_currency` varchar(16) NOT NULL COMMENT '比较货币对右侧币种',
+  `base_amount_original` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '实付返款（准）原始币种金额',
+  `base_amount_compare_left` decimal(18,4) NOT NULL DEFAULT '0.0000' COMMENT '换算到比较货币对左侧币种后的金额',
+  `receipt_exchange_rate` decimal(18,8) DEFAULT NULL COMMENT '回款汇率',
+  `receipt_rate_pair` varchar(40) DEFAULT NULL COMMENT '回款汇率货币对',
+  `refund_exchange_rate` decimal(18,8) NOT NULL COMMENT '返款汇率',
+  `refund_rate_pair` varchar(40) NOT NULL COMMENT '返款汇率货币对',
+  `normalized_receipt_rate` decimal(18,8) DEFAULT NULL COMMENT '标准化回款汇率',
+  `normalized_refund_rate` decimal(18,8) DEFAULT NULL COMMENT '标准化返款汇率',
+  `profit_amount` decimal(18,4) DEFAULT NULL COMMENT '汇兑损益金额',
+  `profit_currency` varchar(16) DEFAULT NULL COMMENT '汇兑损益币种',
+  `missing_flag` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否缺失必要数据：0否，1是',
+  `missing_reasons` varchar(500) DEFAULT NULL COMMENT '缺失项说明',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_exchange_profit_bill_order` (`bill_no`,`business_order_no`),
+  KEY `idx_exchange_profit_bill` (`bill_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='返款账单汇兑损益快照';
 
 -- ----------------------------
 -- Table structure for bill_fee_currency_template

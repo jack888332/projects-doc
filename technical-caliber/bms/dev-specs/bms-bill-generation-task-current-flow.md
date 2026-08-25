@@ -33,7 +33,7 @@ COD_REFUND
 本文主分析对象仍然是当前最成熟、也是“源数据变更补账”问题最核心的 `MEMBER_AR` 链路；但当前代码中 `COD_REFUND` 已经补上两条和应收链路直接相关的规则：
 
 1. `代收货款` 作为返款本金判断项，金额必须大于 `0`，否则本期不再拉取其他返款扣减费项。
-2. 其他返款扣减费项按本期返款账单 `startDate` 往前回看一个同长度周期进行关联。
+2. 其他返款扣减费项按本期返款账单采集到的回款订单，通过 `sale_order_header.id = sale_order_additional_matter.sale_order_id` 采集关联附加费；不按附加费 `create_time` 开窗。
 3. `MEMBER_AR` 在完成本期正常计费扫描后，还会反扫 `fee_detail`，把已被 `COD_REFUND` 占用的返款扣减费项做 `related_*` 弱关联，避免重复计费。
 
 ### 2.2 MEMBER_AR 当前主模式

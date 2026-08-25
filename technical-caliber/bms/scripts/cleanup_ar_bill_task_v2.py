@@ -9,6 +9,9 @@ v2 相对 v1 的调整：
    当前任务时破坏跨类型占用；只有无任何剩余 MARKED 轨迹时才恢复未打标。
 3. 保留源表标记的来源会把 bms_bill_no 刷新为仍占用轨迹的最近单号，保证
    源表展示与实际占用一致。
+4. 同一账单可能被多个增量生成任务写入（生成代码按 配置+账期+拆单维度 复用
+   已有 GENERATED/DRAFT 账单），因此 v2 增加 --include-related-tasks：
+   默认遇到共享账单仍拦截，只有显式把相关任务纳入同一次清理时才整单原子回滚。
 """
 
 import argparse
@@ -66,19 +69,28 @@ def parse_args():
     parser.add_argument("--execute", action="store_true", help="确认执行清理；省略时只预览")
     parser.add_argument(
         "--confirm-task-no",
-        help="执行清理时必须填写完整 task_no，防止误删其他任务",
+        help="执行清理时必须填写完整主任务 task_no，防止误删其他任务",
     )
+    parser.add_argument(
+        "--include-related-tasks",
+        action="store_true",
+        help="同一账单还被其他生成任务写入时，把相关任务一并纳入本次清理；省略时保持拦截",
+    )
+    parser.add_argument("--host", help="覆盖数据库地址（默认读 env.md）")
+    parser.add_argument("--port", type=int, help="覆盖数据库端口（默认读 env.md）")
+    parser.add_argument("--user", help="覆盖数据库账号（默认读 env.md）")
+    parser.add_argument("--password", help="覆盖数据库密码（默认读 env.md）")
     return parser.parse_args()
 
 
-def read_connection(env_path, timeout=3000):
+def read_connection(env_path, timeout=3000, overrides=None):
     text = env_path.read_text(encoding="utf-8")
     jdbc = re.search(r"jdbc:mysql://([^:/\s]+):(\d+)", text)
     user = re.search(r"账号[：:]\s*([^\s`]+)", text)
     password = re.search(r"密码[：:]\s*([^\s`]+)", text)
     if not jdbc or not user or not password:
         raise ValueError("无法从 env.md 解析数据库地址、账号或密码")
-    return {
+    conn = {
         "host": jdbc.group(1),
         "port": int(jdbc.group(2)),
         "user": user.group(1),
@@ -91,6 +103,10 @@ def read_connection(env_path, timeout=3000):
         "read_timeout": timeout,
         "write_timeout": timeout,
     }
+    for key in ("host", "port", "user", "password"):
+        if overrides and overrides.get(key) is not None:
+            conn[key] = overrides[key]
+    return conn
 
 
 def fetch_one(cursor, sql, params=()):
@@ -114,6 +130,20 @@ def in_clause(values):
     return ",".join(["%s"] * len(values)), tuple(values)
 
 
+def load_tasks_by_ids(cursor, task_ids):
+    if not task_ids:
+        return []
+    ids_sql, ids_args = in_clause(sorted(task_ids))
+    return fetch_all(
+        cursor,
+        "SELECT id, task_no, bill_type, task_status, data_pull_type, bill_config_id, "
+        "sc_id, shop_id, user_id, member_code, "
+        "billing_period_start_date, billing_period_end_date, created_at, order_source_sql "
+        "FROM bill_generate_task WHERE id IN (" + ids_sql + ")",
+        ids_args,
+    )
+
+
 def load_export_tasks(cursor, bill_ids):
     if not bill_ids:
         return []
@@ -129,7 +159,58 @@ def load_export_tasks(cursor, bill_ids):
     )
 
 
-def load_scope(cursor, task_id, lock=False):
+def expand_shared_scope(cursor, tasks, bills):
+    """把与目标账单/任务互有数据写入的其他任务及账单一并纳入清理范围。"""
+    changed = True
+    while changed:
+        changed = False
+        task_ids = {t["id"] for t in tasks}
+        bill_ids = {b["id"] for b in bills}
+        for table in ("fee_detail", "main_order", "bill_source_collect_mark"):
+            if not bill_ids:
+                break
+            ids_sql, ids_args = in_clause(bill_ids)
+            rows = fetch_all(
+                cursor,
+                f"SELECT DISTINCT generate_task_id FROM {table} "
+                f"WHERE bill_id IN ({ids_sql}) AND generate_task_id IS NOT NULL",
+                ids_args,
+            )
+            new_task_ids = {r["generate_task_id"] for r in rows} - task_ids
+            if new_task_ids:
+                tasks.extend(load_tasks_by_ids(cursor, new_task_ids))
+                changed = True
+        task_ids = {t["id"] for t in tasks}
+        for table in ("fee_detail", "main_order", "bill_source_collect_mark"):
+            if not task_ids:
+                break
+            ids_sql, ids_args = in_clause(task_ids)
+            rows = fetch_all(
+                cursor,
+                f"SELECT DISTINCT bill_id FROM {table} "
+                f"WHERE generate_task_id IN ({ids_sql}) AND bill_id IS NOT NULL",
+                ids_args,
+            )
+            new_bill_ids = {r["bill_id"] for r in rows} - bill_ids
+            if new_bill_ids:
+                bill_sql, bill_args = in_clause(new_bill_ids)
+                new_bills = fetch_all(
+                    cursor,
+                    "SELECT DISTINCT b.id, b.bill_no, b.bill_status, b.generate_task_id, "
+                    "b.paid_amount, b.paid_amount_fin "
+                    "FROM ar_bill b WHERE b.id IN (" + bill_sql + ")",
+                    bill_args,
+                )
+                bills.extend(new_bills)
+                changed = True
+    seen_task_ids = set()
+    seen_bill_ids = set()
+    tasks = [t for t in tasks if not (t["id"] in seen_task_ids or seen_task_ids.add(t["id"]))]
+    bills = [b for b in bills if not (b["id"] in seen_bill_ids or seen_bill_ids.add(b["id"]))]
+    return tasks, sorted(bills, key=lambda b: b["id"])
+
+
+def load_scope(cursor, task_id, lock=False, include_related=False):
     lock_sql = " FOR UPDATE" if lock else ""
     task = fetch_one(
         cursor,
@@ -157,6 +238,9 @@ def load_scope(cursor, task_id, lock=False):
         "ORDER BY b.id",
         (task_id, task_id, task_id, task_id),
     )
+    tasks = [task]
+    if include_related:
+        tasks, bills = expand_shared_scope(cursor, tasks, bills)
     bill_ids = [row["id"] for row in bills]
     bill_nos = [row["bill_no"] for row in bills]
     bill_id_sql, bill_id_args = in_clause(bill_ids)
@@ -168,32 +252,43 @@ def load_scope(cursor, task_id, lock=False):
             bill_id_args,
         )
 
+    task_ids = [t["id"] for t in tasks]
+    task_id_sql, task_id_args = in_clause(task_ids)
+    mark_where = f"generate_task_id IN ({task_id_sql})"
+    if bill_ids:
+        mark_where += f" OR bill_id IN ({bill_id_sql})"
     marks = fetch_all(
         cursor,
         "SELECT id, source_system, source_database, source_table, source_id, bill_no, "
         "bill_type, collect_type, mark_status "
-        "FROM bill_source_collect_mark WHERE generate_task_id = %s "
-        + (f"OR bill_id IN ({bill_id_sql}) " if bill_ids else "")
-        + "ORDER BY id",
-        (task_id,) + bill_id_args,
+        f"FROM bill_source_collect_mark WHERE {mark_where} ORDER BY id",
+        task_id_args + bill_id_args,
     )
-    return task, bills, marks, bill_ids, bill_nos
+    return task, tasks, bills, marks, bill_ids, bill_nos
 
 
-def validate_scope(cursor, task, bills, marks, bill_ids, bill_nos):
+def validate_scope(cursor, tasks, bills, marks, bill_ids, bill_nos, include_related=False):
     errors = []
-    task_id = task["id"]
-    if task["task_status"] not in ALLOWED_TASK_STATUSES:
-        errors.append(
-            f"任务状态 {task['task_status']} 不允许清理；请先确保执行器不再处理该任务"
-        )
+    primary = tasks[0]
+    task_ids = {t["id"] for t in tasks}
+    tid_sql, tid_args = in_clause(sorted(task_ids))
+    bill_type = primary["bill_type"]
+    for t in tasks:
+        if t["task_status"] not in ALLOWED_TASK_STATUSES:
+            errors.append(
+                f"任务 {t['id']} 状态 {t['task_status']} 不允许清理；请先确保执行器不再处理该任务"
+            )
+        if t["bill_type"] != bill_type:
+            errors.append(
+                f"任务 {t['id']} 的账单类型 {t['bill_type']} 与主任务 {bill_type} 不一致，不能一并清理"
+            )
 
     for bill in bills:
-        if bill["generate_task_id"] != task_id:
+        if bill["generate_task_id"] not in task_ids:
             errors.append(
-                f"账单 {bill['bill_no']} 属于任务 {bill['generate_task_id']}，当前任务只是增量写入，无法安全整单回滚"
+                f"账单 {bill['bill_no']} 属于任务 {bill['generate_task_id']}，未纳入本次清理任务集合，无法安全整单回滚"
             )
-        if bill["bill_status"] not in ALLOWED_BILL_STATUSES[task["bill_type"]]:
+        if bill["bill_status"] not in ALLOWED_BILL_STATUSES[bill_type]:
             errors.append(f"账单 {bill['bill_no']} 状态为 {bill['bill_status']}，不允许调试清理")
         if (bill["paid_amount"] or 0) != 0 or (bill["paid_amount_fin"] or 0) != 0:
             errors.append(f"账单 {bill['bill_no']} 已产生核销/返款金额")
@@ -203,9 +298,9 @@ def validate_scope(cursor, task, bills, marks, bill_ids, bill_nos):
         errors.append("存在尚未支持回退标记的来源表：" + ", ".join(unknown_tables))
 
     for mark in marks:
-        if mark.get("bill_type") and mark["bill_type"] != task["bill_type"]:
+        if mark.get("bill_type") and mark["bill_type"] != bill_type:
             errors.append(
-                f"轨迹 {mark['id']} 的账单类型 {mark['bill_type']} 与任务 {task['bill_type']} 不一致，不能清理"
+                f"轨迹 {mark['id']} 的账单类型 {mark['bill_type']} 与任务 {bill_type} 不一致，不能清理"
             )
         source_db = mark.get("source_database") or SOURCE_DB
         if source_db not in ALLOWED_SOURCE_DATABASES:
@@ -213,22 +308,59 @@ def validate_scope(cursor, task, bills, marks, bill_ids, bill_nos):
 
     if bill_ids:
         ids_sql, ids_args = in_clause(bill_ids)
-        foreign_fees = scalar(
+        foreign_fee_rows = fetch_all(
             cursor,
-            f"SELECT COUNT(*) FROM fee_detail WHERE bill_id IN ({ids_sql}) "
-            "AND NOT (generate_task_id <=> %s)",
-            ids_args + (task_id,),
+            f"SELECT generate_task_id, COUNT(*) cnt FROM fee_detail "
+            f"WHERE bill_id IN ({ids_sql}) "
+            f"AND (generate_task_id IS NULL OR generate_task_id NOT IN ({tid_sql})) "
+            "GROUP BY generate_task_id",
+            ids_args + tid_args,
         )
-        foreign_orders = scalar(
+        foreign_order_rows = fetch_all(
             cursor,
-            f"SELECT COUNT(*) FROM main_order WHERE bill_id IN ({ids_sql}) "
-            "AND NOT (generate_task_id <=> %s)",
-            ids_args + (task_id,),
+            f"SELECT generate_task_id, COUNT(*) cnt FROM main_order "
+            f"WHERE bill_id IN ({ids_sql}) "
+            f"AND (generate_task_id IS NULL OR generate_task_id NOT IN ({tid_sql})) "
+            "GROUP BY generate_task_id",
+            ids_args + tid_args,
         )
-        if foreign_fees:
-            errors.append(f"目标账单含 {foreign_fees} 条非本任务费用（可能是手工费用或其他任务增量）")
-        if foreign_orders:
-            errors.append(f"目标账单含 {foreign_orders} 条非本任务订单快照")
+        manual_fees = sum(r["cnt"] for r in foreign_fee_rows if r["generate_task_id"] is None)
+        manual_orders = sum(r["cnt"] for r in foreign_order_rows if r["generate_task_id"] is None)
+        other_fee_rows = [r for r in foreign_fee_rows if r["generate_task_id"] is not None]
+        other_order_rows = [r for r in foreign_order_rows if r["generate_task_id"] is not None]
+        if not include_related:
+            for row in other_fee_rows:
+                errors.append(
+                    f"目标账单含 {row['cnt']} 条费用属于其他任务 {row['generate_task_id']}，"
+                    "需加 --include-related-tasks 一并清理"
+                )
+            for row in other_order_rows:
+                errors.append(
+                    f"目标账单含 {row['cnt']} 条订单快照属于其他任务 {row['generate_task_id']}，"
+                    "需加 --include-related-tasks 一并清理"
+                )
+        else:
+            for row in other_fee_rows + other_order_rows:
+                errors.append(
+                    f"目标账单含 {row['cnt']} 条数据属于未纳入的任务 {row['generate_task_id']}，"
+                    "无法安全整单回滚"
+                )
+        if manual_fees:
+            errors.append(
+                f"目标账单含 {manual_fees} 条无任务归属费用（手工费用），脚本不会自动删除，需先人工处理"
+            )
+        if manual_orders:
+            errors.append(
+                f"目标账单含 {manual_orders} 条无任务归属订单快照，脚本不会自动删除，需先人工处理"
+            )
+        external = scalar(
+            cursor,
+            f"SELECT COUNT(*) FROM fee_detail WHERE related_bill_id IN ({ids_sql}) "
+            f"AND (generate_task_id IS NULL OR generate_task_id NOT IN ({tid_sql}))",
+            ids_args + tid_args,
+        )
+        if external:
+            errors.append(f"存在 {external} 条外部费用挂靠到目标账单，需先解除关联")
 
         downstream_checks = {
             "核销明细": (f"SELECT COUNT(*) FROM payment_writeoff_detail WHERE bill_id IN ({ids_sql})", ids_args),
@@ -260,15 +392,19 @@ def validate_scope(cursor, task, bills, marks, bill_ids, bill_nos):
             if count:
                 errors.append(f"存在 {count} 条{name}，必须先按业务流程撤销")
 
-    task_fee_ids = fetch_all(cursor, "SELECT id FROM fee_detail WHERE generate_task_id = %s", (task_id,))
+    task_fee_ids = fetch_all(
+        cursor,
+        f"SELECT id FROM fee_detail WHERE generate_task_id IN ({tid_sql})",
+        tid_args,
+    )
     if task_fee_ids:
         fee_ids = [row["id"] for row in task_fee_ids]
         fee_sql, fee_args = in_clause(fee_ids)
         derived = scalar(
             cursor,
             f"SELECT COUNT(*) FROM fee_detail WHERE original_fee_id IN ({fee_sql}) "
-            "AND NOT (generate_task_id <=> %s)",
-            fee_args + (task_id,),
+            f"AND (generate_task_id IS NULL OR generate_task_id NOT IN ({tid_sql}))",
+            fee_args + tid_args,
         )
         if derived:
             errors.append(f"本任务费用已派生出 {derived} 条红冲/调账费用")
@@ -345,26 +481,34 @@ def plan_source_restore(cursor, marks):
     return [item for item in plan_by_key.values() if item["id_column"] is not None]
 
 
-def preview(cursor, task, bills, marks, bill_ids):
-    task_id = task["id"]
+def preview(cursor, tasks, bills, marks, bill_ids):
+    primary = tasks[0]
+    task_ids = [t["id"] for t in tasks]
+    tid_sql, tid_args = in_clause(task_ids)
     export_tasks = load_export_tasks(cursor, bill_ids)
     export_task_ids = [row["id"] for row in export_tasks]
     export_ids_sql, export_ids_args = in_clause(export_task_ids)
     restore_plan = plan_source_restore(cursor, marks)
     counts = {
         "ar_bill": len(bills),
-        "fee_detail": scalar(cursor, "SELECT COUNT(*) FROM fee_detail WHERE generate_task_id = %s", (task_id,)),
-        "main_order": scalar(cursor, "SELECT COUNT(*) FROM main_order WHERE generate_task_id = %s", (task_id,)),
+        "fee_detail": scalar(
+            cursor, f"SELECT COUNT(*) FROM fee_detail WHERE generate_task_id IN ({tid_sql})", tid_args
+        ),
+        "main_order": scalar(
+            cursor, f"SELECT COUNT(*) FROM main_order WHERE generate_task_id IN ({tid_sql})", tid_args
+        ),
         "bill_source_collect_mark": len(marks),
         "bill_order_waybill_snapshot": scalar(
             cursor,
             "SELECT COUNT(*) FROM bill_order_waybill_snapshot s "
             "WHERE EXISTS (SELECT 1 FROM main_order m "
-            "WHERE m.id = s.main_order_id AND m.generate_task_id = %s)",
-            (task_id,),
+            f"WHERE m.id = s.main_order_id AND m.generate_task_id IN ({tid_sql}))",
+            tid_args,
         ),
         "ar_bill_currency_summary": 0,
         "bill_exchange_rate": 0,
+        "refund_receipt_rate_snapshot": 0,
+        "refund_exchange_profit": 0,
         "bill_export_task": len(export_tasks),
         "bill_export_task_item": sum(row["target_item_count"] for row in export_tasks),
         "bill_export_notification": scalar(
@@ -382,8 +526,8 @@ def preview(cursor, task, bills, marks, bill_ids):
             cursor,
             f"SELECT COUNT(*) FROM bill_order_waybill_snapshot s WHERE s.bill_id IN ({ids_sql}) "
             "OR EXISTS (SELECT 1 FROM main_order m "
-            "WHERE m.id = s.main_order_id AND m.generate_task_id = %s)",
-            ids_args + (task_id,),
+            f"WHERE m.id = s.main_order_id AND m.generate_task_id IN ({tid_sql}))",
+            ids_args + tid_args,
         )
         counts["ar_bill_currency_summary"] = scalar(
             cursor, f"SELECT COUNT(*) FROM ar_bill_currency_summary WHERE bill_id IN ({ids_sql})", ids_args
@@ -391,14 +535,24 @@ def preview(cursor, task, bills, marks, bill_ids):
         counts["bill_exchange_rate"] = scalar(
             cursor, f"SELECT COUNT(*) FROM bill_exchange_rate WHERE bill_id IN ({ids_sql})", ids_args
         )
+        counts["refund_receipt_rate_snapshot"] = scalar(
+            cursor, f"SELECT COUNT(*) FROM refund_receipt_rate_snapshot WHERE bill_id IN ({ids_sql})", ids_args
+        )
+        counts["refund_exchange_profit"] = scalar(
+            cursor, f"SELECT COUNT(*) FROM refund_exchange_profit WHERE bill_id IN ({ids_sql})", ids_args
+        )
         counts["external_fee_links_to_clear"] = scalar(
             cursor,
             f"SELECT COUNT(*) FROM fee_detail WHERE related_bill_id IN ({ids_sql}) "
-            "AND NOT (generate_task_id <=> %s)",
-            ids_args + (task_id,),
+            f"AND (generate_task_id IS NULL OR generate_task_id NOT IN ({tid_sql}))",
+            ids_args + tid_args,
         )
 
-    print(f"task: id={task_id}, no={task['task_no']}, status={task['task_status']}, pull={task['data_pull_type']}")
+    print(f"task: id={primary['id']}, no={primary['task_no']}, status={primary['task_status']}, "
+          f"pull={primary['data_pull_type']}")
+    for related in tasks[1:]:
+        print(f"related task: id={related['id']}, no={related['task_no']}, "
+              f"status={related['task_status']}, pull={related['data_pull_type']}")
     if bills:
         for bill in bills:
             print(f"bill: id={bill['id']}, no={bill['bill_no']}, status={bill['bill_status']}")
@@ -420,8 +574,9 @@ def preview(cursor, task, bills, marks, bill_ids):
             print(line)
 
 
-def execute_cleanup(cursor, task, marks, bill_ids):
-    task_id = task["id"]
+def execute_cleanup(cursor, tasks, marks, bill_ids):
+    task_ids = [t["id"] for t in tasks]
+    tid_sql, tid_args = in_clause(task_ids)
     result = {}
     restore_plan = plan_source_restore(cursor, marks)
 
@@ -505,9 +660,9 @@ def execute_cleanup(cursor, task, marks, bill_ids):
 
     snapshot_where = (
         "EXISTS (SELECT 1 FROM main_order m "
-        "WHERE m.id = bill_order_waybill_snapshot.main_order_id AND m.generate_task_id = %s)"
+        f"WHERE m.id = bill_order_waybill_snapshot.main_order_id AND m.generate_task_id IN ({tid_sql}))"
     )
-    snapshot_args = (task_id,)
+    snapshot_args = tid_args
     if bill_ids:
         ids_sql, ids_args = in_clause(bill_ids)
         cursor.execute(
@@ -517,23 +672,29 @@ def execute_cleanup(cursor, task, marks, bill_ids):
             "related_exchange_rate_level_to_bill = NULL, related_fin_currency = NULL, "
             "related_amount_fin_currency = NULL, related_exchange_rate_to_fin = NULL, "
             "related_exchange_rate_level_to_fin = NULL "
-            f"WHERE related_bill_id IN ({ids_sql}) AND NOT (generate_task_id <=> %s)",
-            ids_args + (task_id,),
+            f"WHERE related_bill_id IN ({ids_sql}) "
+            f"AND (generate_task_id IS NULL OR generate_task_id NOT IN ({tid_sql}))",
+            ids_args + tid_args,
         )
         result["fee_detail.external_links"] = cursor.rowcount
 
         snapshot_where = f"bill_id IN ({ids_sql}) OR " + snapshot_where
         snapshot_args = ids_args + snapshot_args
-        for table in ("ar_bill_currency_summary", "bill_exchange_rate"):
+        for table in (
+            "ar_bill_currency_summary",
+            "bill_exchange_rate",
+            "refund_receipt_rate_snapshot",
+            "refund_exchange_profit",
+        ):
             cursor.execute(f"DELETE FROM {table} WHERE bill_id IN ({ids_sql})", ids_args)
             result[table] = cursor.rowcount
 
     cursor.execute(f"DELETE FROM bill_order_waybill_snapshot WHERE {snapshot_where}", snapshot_args)
     result["bill_order_waybill_snapshot"] = cursor.rowcount
 
-    cursor.execute("DELETE FROM fee_detail WHERE generate_task_id = %s", (task_id,))
+    cursor.execute(f"DELETE FROM fee_detail WHERE generate_task_id IN ({tid_sql})", tid_args)
     result["fee_detail"] = cursor.rowcount
-    cursor.execute("DELETE FROM main_order WHERE generate_task_id = %s", (task_id,))
+    cursor.execute(f"DELETE FROM main_order WHERE generate_task_id IN ({tid_sql})", tid_args)
     result["main_order"] = cursor.rowcount
 
     mark_ids = [m["id"] for m in marks]
@@ -542,10 +703,14 @@ def execute_cleanup(cursor, task, marks, bill_ids):
         cursor.execute(f"DELETE FROM bill_source_collect_mark WHERE id IN ({mark_sql})", mark_args)
         result["bill_source_collect_mark"] = cursor.rowcount
 
-    cursor.execute("DELETE FROM ar_bill WHERE generate_task_id = %s", (task_id,))
-    result["ar_bill"] = cursor.rowcount
-    cursor.execute("DELETE FROM bill_generate_task WHERE id = %s", (task_id,))
-    if cursor.rowcount != 1:
+    if bill_ids:
+        bill_sql, bill_args = in_clause(bill_ids)
+        cursor.execute(f"DELETE FROM ar_bill WHERE id IN ({bill_sql})", bill_args)
+        result["ar_bill"] = cursor.rowcount
+    else:
+        result["ar_bill"] = 0
+    cursor.execute(f"DELETE FROM bill_generate_task WHERE id IN ({tid_sql})", tid_args)
+    if cursor.rowcount != len(task_ids):
         raise RuntimeError("删除任务记录失败，事务已回滚")
     result["bill_generate_task"] = cursor.rowcount
     return result
@@ -553,7 +718,13 @@ def execute_cleanup(cursor, task, marks, bill_ids):
 
 def main():
     args = parse_args()
-    connection = pymysql.connect(**read_connection(args.env.resolve(), args.timeout))
+    overrides = {
+        "host": args.host,
+        "port": args.port,
+        "user": args.user,
+        "password": args.password,
+    }
+    connection = pymysql.connect(**read_connection(args.env.resolve(), args.timeout, overrides))
     try:
         with connection.cursor() as cursor:
             try:
@@ -563,9 +734,13 @@ def main():
                 )
             except pymysql.MySQLError:
                 pass
-            task, bills, marks, bill_ids, bill_nos = load_scope(cursor, args.task_id, args.execute)
-            errors = validate_scope(cursor, task, bills, marks, bill_ids, bill_nos)
-            preview(cursor, task, bills, marks, bill_ids)
+            task, tasks, bills, marks, bill_ids, bill_nos = load_scope(
+                cursor, args.task_id, args.execute, args.include_related_tasks
+            )
+            errors = validate_scope(
+                cursor, tasks, bills, marks, bill_ids, bill_nos, args.include_related_tasks
+            )
+            preview(cursor, tasks, bills, marks, bill_ids)
             if errors:
                 print("\n安全检查未通过：", file=sys.stderr)
                 for error in errors:
@@ -575,14 +750,15 @@ def main():
             if not args.execute:
                 connection.rollback()
                 print("\n当前为只读预览。确认无误后增加："
-                      f" --execute --confirm-task-no {task['task_no']}")
+                      f" --execute --confirm-task-no {task['task_no']}"
+                      + (" --include-related-tasks" if args.include_related_tasks else ""))
                 return 0
             if args.confirm_task_no != task["task_no"]:
                 connection.rollback()
                 print("--confirm-task-no 与数据库中的完整任务号不一致，未执行清理", file=sys.stderr)
                 return 2
 
-            result = execute_cleanup(cursor, task, marks, bill_ids)
+            result = execute_cleanup(cursor, tasks, marks, bill_ids)
             connection.commit()
             print("\n清理完成：")
             for name, count in result.items():
@@ -615,3 +791,9 @@ if __name__ == "__main__":
 #
 # > 执行清理
 # python cleanup_ar_bill_task_v2.py --task-id 163 --execute --confirm-task-no BMS-TASK-20260815160936-82-1786781376647-78
+#
+# > 同一账单被多个增量任务写入时，先只读查看相关任务范围
+# python cleanup_ar_bill_task_v2.py --task-id 163 --include-related-tasks
+#
+# > 确认相关任务后整单原子清理（会连同共享账单上的其他任务数据一起删除）
+# python cleanup_ar_bill_task_v2.py --task-id 163 --include-related-tasks --execute --confirm-task-no BMS-TASK-20260815160936-82-1786781376647-78

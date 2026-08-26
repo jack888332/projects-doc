@@ -357,7 +357,7 @@ bill_source_collect_mark(MARKED) 防重
 4. 附加费关联订单不在本期订单集合时，补查 `sale_order_header` / `sale_order_header_extend`，补写当前账单的 `main_order` 快照，订单自身 `bms_billed_flag` 保持 `0`。
 5. 订单头缺失时跳过该费用并输出日志。
 6. 建账前先过滤可处理行，分组内全部跳过时不创建空账单。
-7. 归集自 `sale_order_additional_matter` 的费项统一挂靠 `ORDER`，通过 `business_order_no`、`last_mile_waybill_no`、`first_mile_waybill_no` 和 `bill_order_waybill_snapshot` 保留订单与尾程包裹的关联信息。
+7. 归集自 `sale_order_additional_matter` 的费项：有 `bill_waybill_no` 时挂靠 `LAST_PACKAGE` 且尾程号取具体单号，无则挂靠 `ORDER`；通过 `business_order_no`、`last_mile_waybill_no`、`first_mile_waybill_no` 和 `bill_order_waybill_snapshot` 保留订单与尾程包裹的关联信息。
 8. 防重完全依赖 `bill_source_collect_mark(MARKED)`，源 SQL 不再使用 `bms_billed_flag` / `bms_bill_no` 过滤；分页按 `a.id` 游标推进，先过滤 MARKED 轨迹再补查尾程包裹，避免已打标历史数据造成深翻页和多余 CXMS 查询。
 
 理赔当前核心条件：
@@ -461,7 +461,7 @@ assignAdditionalFeesToConfigGroup()
   -> executeAdditionalFeeGroups()
       -> 缺失订单补查并写 main_order
       -> 创建或追加应收账单
-      -> 写 fee_detail（attached_object = ORDER）
+      -> 写 fee_detail（有 bill_waybill_no 挂 LAST_PACKAGE，无则挂 ORDER）
       -> 打标 ADDITIONAL_FEE / ADDITIONAL_INCREMENT
 ```
 

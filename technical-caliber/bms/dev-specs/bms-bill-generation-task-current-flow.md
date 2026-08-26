@@ -345,9 +345,8 @@ bill_config_id
 fee_pay_method = account_period_payment
 fee_amount 非空且不为 0
 fee_pay_status in (waiting_pay, waiting_settlement)
-bms_billed_flag = 0
-bms_bill_no 为空
 create_time 在任务账期内
+bill_source_collect_mark(MARKED) 防重
 ```
 
 说明：
@@ -359,6 +358,7 @@ create_time 在任务账期内
 5. 订单头缺失时跳过该费用并输出日志。
 6. 建账前先过滤可处理行，分组内全部跳过时不创建空账单。
 7. 归集自 `sale_order_additional_matter` 的费项统一挂靠 `ORDER`，通过 `business_order_no`、`last_mile_waybill_no`、`first_mile_waybill_no` 和 `bill_order_waybill_snapshot` 保留订单与尾程包裹的关联信息。
+8. 防重完全依赖 `bill_source_collect_mark(MARKED)`，源 SQL 不再使用 `bms_billed_flag` / `bms_bill_no` 过滤；分页按 `a.id` 游标推进，先过滤 MARKED 轨迹再补查尾程包裹，避免已打标历史数据造成深翻页和多余 CXMS 查询。
 
 理赔当前核心条件：
 
@@ -481,11 +481,10 @@ a.sale_order_id 不在本期主订单候选集合
 
 ```text
 bms_after_bill_added_flag = 1
-bms_billed_flag = 0
-bms_bill_no 为空
 fee_amount 非空且不为 0
 fee_pay_status in (waiting_pay, waiting_settlement)
 create_time 在任务账期内
+bill_source_collect_mark(MARKED) 防重
 ```
 
 来源轨迹中的 `collect_type` 记录为：

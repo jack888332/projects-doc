@@ -12,6 +12,8 @@ v2 相对 v1 的调整：
 4. 同一账单可能被多个增量生成任务写入（生成代码按 配置+账期+拆单维度 复用
    已有 GENERATED/DRAFT 账单），因此 v2 增加 --include-related-tasks：
    默认遇到共享账单仍拦截，只有显式把相关任务纳入同一次清理时才整单原子回滚。
+5. 增加 --clear-external-links：清理前自动解除其他账单/手工费用对目标账单的
+   related_* 弱关联，避免“外部费用挂靠到目标账单”安全拦截；仍先只读预览确认。
 """
 
 import argparse
@@ -75,6 +77,11 @@ def parse_args():
         "--include-related-tasks",
         action="store_true",
         help="同一账单还被其他生成任务写入时，把相关任务一并纳入本次清理；省略时保持拦截",
+    )
+    parser.add_argument(
+        "--clear-external-links",
+        action="store_true",
+        help="解除其他账单/手工费用对目标账单的 related_* 弱关联后再清理；省略时保持拦截",
     )
     parser.add_argument("--host", help="覆盖数据库地址（默认读 env.md）")
     parser.add_argument("--port", type=int, help="覆盖数据库端口（默认读 env.md）")
@@ -267,7 +274,8 @@ def load_scope(cursor, task_id, lock=False, include_related=False):
     return task, tasks, bills, marks, bill_ids, bill_nos
 
 
-def validate_scope(cursor, tasks, bills, marks, bill_ids, bill_nos, include_related=False):
+def validate_scope(cursor, tasks, bills, marks, bill_ids, bill_nos, include_related=False,
+                   clear_external_links=False):
     errors = []
     primary = tasks[0]
     task_ids = {t["id"] for t in tasks}
@@ -359,7 +367,7 @@ def validate_scope(cursor, tasks, bills, marks, bill_ids, bill_nos, include_rela
             f"AND (generate_task_id IS NULL OR generate_task_id NOT IN ({tid_sql}))",
             ids_args + tid_args,
         )
-        if external:
+        if external and not clear_external_links:
             errors.append(f"存在 {external} 条外部费用挂靠到目标账单，需先解除关联")
 
         downstream_checks = {
@@ -481,7 +489,7 @@ def plan_source_restore(cursor, marks):
     return [item for item in plan_by_key.values() if item["id_column"] is not None]
 
 
-def preview(cursor, tasks, bills, marks, bill_ids):
+def preview(cursor, tasks, bills, marks, bill_ids, clear_external_links=False):
     primary = tasks[0]
     task_ids = [t["id"] for t in tasks]
     tid_sql, tid_args = in_clause(task_ids)
@@ -561,6 +569,8 @@ def preview(cursor, tasks, bills, marks, bill_ids):
     print("待处理数据：")
     for table, count in counts.items():
         print(f"  {table}: {count}")
+    if clear_external_links and counts["external_fee_links_to_clear"]:
+        print(f"将解除 {counts['external_fee_links_to_clear']} 条外部费用对目标账单的关联（--clear-external-links）")
     if restore_plan:
         print("来源打标恢复计划：")
         for index, item in enumerate(restore_plan):
@@ -738,9 +748,10 @@ def main():
                 cursor, args.task_id, args.execute, args.include_related_tasks
             )
             errors = validate_scope(
-                cursor, tasks, bills, marks, bill_ids, bill_nos, args.include_related_tasks
+                cursor, tasks, bills, marks, bill_ids, bill_nos,
+                args.include_related_tasks, args.clear_external_links
             )
-            preview(cursor, tasks, bills, marks, bill_ids)
+            preview(cursor, tasks, bills, marks, bill_ids, args.clear_external_links)
             if errors:
                 print("\n安全检查未通过：", file=sys.stderr)
                 for error in errors:
@@ -751,7 +762,8 @@ def main():
                 connection.rollback()
                 print("\n当前为只读预览。确认无误后增加："
                       f" --execute --confirm-task-no {task['task_no']}"
-                      + (" --include-related-tasks" if args.include_related_tasks else ""))
+                      + (" --include-related-tasks" if args.include_related_tasks else "")
+                      + (" --clear-external-links" if args.clear_external_links else ""))
                 return 0
             if args.confirm_task_no != task["task_no"]:
                 connection.rollback()
@@ -797,3 +809,9 @@ if __name__ == "__main__":
 #
 # > 确认相关任务后整单原子清理（会连同共享账单上的其他任务数据一起删除）
 # python cleanup_ar_bill_task_v2.py --task-id 163 --include-related-tasks --execute --confirm-task-no BMS-TASK-20260815160936-82-1786781376647-78
+#
+# > 目标账单被其他账单/手工费用的 related_* 弱关联时，先预览确认解除范围
+# python cleanup_ar_bill_task_v2.py --task-id 404 --include-related-tasks --clear-external-links
+#
+# > 确认后在同一事务内解除关联并清理
+# python cleanup_ar_bill_task_v2.py --task-id 404 --include-related-tasks --clear-external-links --execute --confirm-task-no RCB-TASK-20260826020002-39-1787680802281-49

@@ -2,7 +2,8 @@ export type TaskStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED'
 export type TaskType = 'FEE_POOL' | 'BILL_GENERATE' | 'BILL_RECALCULATE'
 export type GenerationMode = '' | 'PENDING' | 'FIRST' | 'SUPPLEMENT' | 'REPLACE'
 export type BillType = '' | 'AR' | 'RF'
-export type ConfigSource = 'MASTER' | 'CUSTOM' | 'SYSTEM'
+export type ConfigSource = 'CONFIG' | 'SYSTEM'
+export type SchemeType = '默认方案' | '分支方案' | '不适用'
 
 export interface BillingTaskFixture {
   id: number
@@ -22,13 +23,18 @@ export interface BillingTaskFixture {
   configVersion: string
   schemeKey: string
   schemeName: string
-  schemeType: string
+  schemeType: SchemeType
   customerReferenceNo: string
   customerName: string
   customerNo: string
   memberCode: string
+  memberCodes: string[]
   shop: string
+  shops: string[]
   customerGroup: string
+  customerGroups: string[]
+  customerRelations: Array<{ store:string; group:string; memberCode:string }>
+  sourceShopSnapshots: string[]
   periodStart: string
   periodEnd: string
   period: string
@@ -79,8 +85,13 @@ const baseTask: Omit<BillingTaskFixture, 'id' | 'taskNo' | 'periodStart' | 'peri
   customerName: '-',
   customerNo: '-',
   memberCode: '-',
+  memberCodes: [],
   shop: '-',
+  shops: [],
   customerGroup: '-',
+  customerGroups: [],
+  customerRelations: [],
+  sourceShopSnapshots: [],
   dataCutoff: '-',
   createdAt: '-',
   startedAt: '-',
@@ -108,36 +119,44 @@ const baseTask: Omit<BillingTaskFixture, 'id' | 'taskNo' | 'periodStart' | 'peri
 }
 
 function task(input: Pick<BillingTaskFixture, 'id' | 'taskNo' | 'periodStart' | 'periodEnd'> & Partial<BillingTaskFixture>): BillingTaskFixture {
+  const merged = { ...baseTask, ...input }
   return {
-    ...baseTask,
-    ...input,
+    ...merged,
+    memberCodes:input.memberCodes || (merged.memberCode === '-' ? [] : [merged.memberCode]),
+    shops:input.shops || (merged.shop === '-' ? [] : [merged.shop]),
+    customerGroups:input.customerGroups || (merged.customerGroup === '-' ? [] : [merged.customerGroup]),
+    customerRelations:input.customerRelations || (merged.shop === '-' && merged.customerGroup === '-' && merged.memberCode === '-' ? [] : [{ store:merged.shop, group:merged.customerGroup, memberCode:merged.memberCode }]),
+    sourceShopSnapshots:input.sourceShopSnapshots || (merged.status === 'SUCCESS' && merged.shop !== '-' ? [merged.shop] : []),
     period: `${input.periodStart} 至 ${input.periodEnd}`,
   }
 }
 
-export const billingTaskSeedVersion = 20260827
+export const billingTaskSeedVersion = 20260829
 
 export const billingTaskFixtures: BillingTaskFixture[] = [
   task({
     id: 8, taskNo: 'BMS-20260816-00125', batchNo: 'BMSB-20260816-00012', batchCustomerCount: 2,
     batchTaskCount: 2, batchSkippedCount: 4, batchSkipSummary: '4 个方案范围尚无已结束账期，未创建任务',
-    generationMode: 'FIRST', billType: 'AR', configSource: 'MASTER', configNo: 'ARB-MASTER-20260801-01',
+    generationMode: 'FIRST', billType: 'AR', configSource: 'CONFIG', configNo: 'ARB-20260801-01',
     configVersion: 'V2', schemeKey: 'BRANCH-02', schemeName: '分支方案 2', schemeType: '分支方案',
     customerReferenceNo: 'AR-REF-OG0271-0002', customerName: '渣渣辉3号', customerNo: 'OG0271',
     memberCode: 'M-700127', shop: '星际货运(中转)', customerGroup: '台湾大客户组',
+    memberCodes: ['M-700127', 'M-700129'], shops: ['星际货运(中转)', '台湾集运店'], customerGroups: ['台湾大客户组', '美国电商组'],
+    customerRelations: [{ store:'星际货运(中转)', group:'台湾大客户组', memberCode:'M-700127' },{ store:'台湾集运店', group:'美国电商组', memberCode:'M-700129' }],
+    sourceShopSnapshots: ['STORE-XJZY / 星际货运(中转)'],
     periodStart: '2026-08-01', periodEnd: '2026-08-15', dataCutoff: '2026-08-16 09:30:00',
     createdAt: '2026-08-16 09:30:01', startedAt: '2026-08-16 09:30:08', finishedAt: '2026-08-16 09:31:39',
     duration: '1分31秒', operator: '谭清辉', sourceCount: 968, pooledFeeCount: 2914, billCount: 1,
     netChange: 186430.6, resultConclusion: '首次生成', resultVersion: 'RV-20260816-00091',
-    newBills: ['ARB-OG0271-20260801-hm01'],
-    scopeKey: 'OG0271|AR|BRANCH-02|2026-08-01/2026-08-15|ARB-MASTER-20260801-01@V2',
+    newBills: ['ARB-OG0271-20260801-550c'],
+    scopeKey: 'OG0271|AR|BRANCH-02|2026-08-01/2026-08-15|ARB-20260801-01@V2',
     lockKey: 'OG0271|AR|BRANCH-02|2026-08-01/2026-08-15|BILL_GENERATE',
     sourceSql: 'SELECT ... FROM sale_order_fee_detail WHERE customer_no = :customerNo AND fee_created_at <= :dataCutoff;',
   }),
   task({
     id: 9, taskNo: 'BMS-20260816-00126', status: 'FAILED', batchNo: 'BMSB-20260816-00012', batchCustomerCount: 2,
     batchTaskCount: 2, batchSkippedCount: 4, batchSkipSummary: '4 个方案范围尚无已结束账期，未创建任务',
-    generationMode: 'FIRST', billType: 'AR', configSource: 'MASTER', configNo: 'ARB-MASTER-20260801-01',
+    generationMode: 'FIRST', billType: 'AR', configSource: 'CONFIG', configNo: 'ARB-20260801-01',
     configVersion: 'V2', schemeKey: 'BRANCH-02', schemeName: '分支方案 2', schemeType: '分支方案',
     customerReferenceNo: 'AR-REF-OG0347-0002', customerName: '测试1', customerNo: 'OG0347',
     memberCode: 'M-204801', shop: '台湾集运店', customerGroup: '台湾大客户组',
@@ -145,14 +164,14 @@ export const billingTaskFixtures: BillingTaskFixture[] = [
     createdAt: '2026-08-16 09:30:01', startedAt: '2026-08-16 09:30:09', finishedAt: '2026-08-16 09:30:52',
     duration: '43秒', operator: '谭清辉', failedStage: 'BILL_CALCULATE', sourceCount: 412,
     pooledFeeCount: 1386, resultConclusion: '生成失败', resultVersion: '--',
-    scopeKey: 'OG0347|AR|BRANCH-02|2026-08-01/2026-08-15|ARB-MASTER-20260801-01@V2',
+    scopeKey: 'OG0347|AR|BRANCH-02|2026-08-01/2026-08-15|ARB-20260801-01@V2',
     lockKey: 'OG0347|AR|BRANCH-02|2026-08-01/2026-08-15|BILL_GENERATE',
     error: '2 条费项缺少结算币种，无法完成账单计算。', advice: '补齐费项币种后按本任务快照重新执行。',
     sourceSql: 'SELECT ... FROM sale_order_fee_detail WHERE customer_no = :customerNo AND fee_created_at <= :dataCutoff;',
   }),
   task({
     id: 1, taskNo: 'BMS-20260802-00081', status: 'FAILED', generationMode: 'SUPPLEMENT', triggerType: 'SCHEDULED',
-    billType: 'AR', configSource: 'CUSTOM', configNo: 'BC-OG4155-M-US', configVersion: 'V12',
+    billType: 'AR', configSource: 'CONFIG', configNo: 'BC-OG4155-M-US', configVersion: 'V12',
     schemeKey: 'BRANCH-US', schemeName: '美国业务方案', schemeType: '分支方案',
     customerReferenceNo: 'AR-REF-OG4155-0012', customerName: 'OceanGate Logistics', customerNo: 'OG4155',
     memberCode: 'M-700127', shop: '深圳集运店', customerGroup: '美国电商组', periodStart: '2026-08-01', periodEnd: '2026-08-01',
@@ -165,7 +184,7 @@ export const billingTaskFixtures: BillingTaskFixture[] = [
     sourceSql: 'SELECT ... FROM sale_order_fee_detail WHERE customer_no = :customerNo AND bms_reviewed = 0;',
   }),
   task({
-    id: 2, taskNo: 'BMS-20260802-00080', generationMode: 'FIRST', billType: 'AR', configSource: 'CUSTOM',
+    id: 2, taskNo: 'BMS-20260802-00080', generationMode: 'FIRST', billType: 'AR', configSource: 'CONFIG',
     configNo: 'BC-TK9012-D', configVersion: 'V8', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案',
     customerReferenceNo: 'AR-REF-TK9012-0008', customerName: 'TopKing Supply', customerNo: 'TK9012',
     memberCode: 'M-672019', shop: '义乌集运店', customerGroup: '华东同行组',
@@ -187,7 +206,7 @@ export const billingTaskFixtures: BillingTaskFixture[] = [
   }),
   task({
     id: 4, taskNo: 'BMS-20260802-00077', status: 'PENDING', taskType: 'BILL_RECALCULATE', generationMode: 'PENDING',
-    billType: 'AR', configSource: 'CUSTOM', configNo: 'BC-NW2048-W', configVersion: 'V9', schemeKey: 'DEFAULT',
+    billType: 'AR', configSource: 'CONFIG', configNo: 'BC-NW2048-W', configVersion: 'V9', schemeKey: 'DEFAULT',
     schemeName: '默认方案', schemeType: '默认方案', customerReferenceNo: 'AR-REF-NW2048-0009',
     customerName: 'NorthWind Cargo', customerNo: 'NW2048', memberCode: 'M-204801', shop: '上海集运店', customerGroup: '美国电商组',
     periodStart: '2026-07-21', periodEnd: '2026-07-27', createdAt: '2026-08-02 09:48:18', originalBills: ['ARB-NW2048-20260721-9c01'],
@@ -196,7 +215,7 @@ export const billingTaskFixtures: BillingTaskFixture[] = [
     lockKey: 'NW2048|AR|DEFAULT|2026-07-21/2026-07-27|BILL_RECALCULATE',
   }),
   task({
-    id: 5, taskNo: 'BMS-20260802-00072', generationMode: 'SUPPLEMENT', billType: 'AR', configSource: 'CUSTOM',
+    id: 5, taskNo: 'BMS-20260802-00072', generationMode: 'SUPPLEMENT', billType: 'AR', configSource: 'CONFIG',
     configNo: 'BC-HL2388-WEEK', configVersion: 'V6', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案',
     customerReferenceNo: 'AR-REF-HL2388-0006', customerName: 'Hualei Express', customerNo: 'HL2388',
     memberCode: 'M-238801', shop: '广州同行店', customerGroup: '华南同行组', periodStart: '2026-07-27',
@@ -207,7 +226,7 @@ export const billingTaskFixtures: BillingTaskFixture[] = [
     lockKey: 'HL2388|AR|DEFAULT|2026-07-27/2026-08-02|BILL_GENERATE',
   }),
   task({
-    id: 6, taskNo: 'BMS-20260801-00068', generationMode: 'REPLACE', billType: 'AR', configSource: 'CUSTOM',
+    id: 6, taskNo: 'BMS-20260801-00068', generationMode: 'REPLACE', billType: 'AR', configSource: 'CONFIG',
     configNo: 'BC-OG4155-M-UK', configVersion: 'V13', schemeKey: 'BRANCH-UK', schemeName: '英国业务方案',
     schemeType: '分支方案', customerReferenceNo: 'AR-REF-OG4155-0013', customerName: 'OceanGate Logistics',
     customerNo: 'OG4155', memberCode: 'M-700127', shop: '深圳集运店', customerGroup: '美国电商组',

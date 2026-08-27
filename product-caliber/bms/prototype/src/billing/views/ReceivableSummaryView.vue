@@ -186,7 +186,7 @@ function runQuery() {
     <el-dialog v-model="detailVisible" title="客户应收账单" class="module-dialog module-dialog-large" align-center append-to-body destroy-on-close>
       <div v-if="selectedSummary" class="drawer-summary"><div><StatusTag :label="summaryStatus(selectedSummary)" /><span>{{ selectedSummary.customer }}</span></div><strong>{{ money(selectedSummary.outstanding, selectedSummary.currency) }}</strong></div>
       <dl v-if="selectedSummary" class="inline-detail-grid">
-        <div><dt>客户编号</dt><dd>{{ selectedSummary.customerNo }}</dd></div><div><dt>会员编码</dt><dd>{{ selectedSummary.memberCode }}</dd></div><div><dt>店铺</dt><dd>{{ selectedSummary.shop }}</dd></div><div><dt>结算币种</dt><dd>{{ selectedSummary.currency }}</dd></div>
+        <div><dt>客户编号</dt><dd>{{ selectedSummary.customerNo }}</dd></div><div><dt>会员编码</dt><dd>{{ selectedSummary.memberCode }}</dd></div><div><dt>所属店铺</dt><dd>{{ selectedSummary.shop }}</dd></div><div><dt>结算币种</dt><dd>{{ selectedSummary.currency }}</dd></div>
         <div><dt>应收金额</dt><dd>{{ money(selectedSummary.receivable, selectedSummary.currency) }}</dd></div><div><dt>已收金额</dt><dd>{{ money(selectedSummary.received, selectedSummary.currency) }}</dd></div><div><dt>未结账单</dt><dd>{{ selectedSummary.outstandingBills }}</dd></div><div><dt>最早到期日</dt><dd>{{ selectedSummary.oldestDue }}</dd></div>
       </dl>
       <DataTableFrame v-if="selectedSummary" :total="2" :page-size="10">

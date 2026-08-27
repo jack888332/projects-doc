@@ -24,6 +24,10 @@ const statusMeta = {
   SUCCESS: { label:'执行成功', tone:'success' },
   FAILED: { label:'执行失败', tone:'danger' },
 }
+const configSourceMeta = {
+  CONFIG: '客户配置',
+  SYSTEM: '系统配置',
+}
 const status = row => statusMeta[row.status] || statusMeta.PENDING
 const activeRows = computed(() => rows.value.filter(row => !row.deletedAt))
 const deletedCount = computed(() => rows.value.length - activeRows.value.length)
@@ -55,8 +59,10 @@ function openDetail(row) {
       <el-table :data="rows" border row-key="taskNo">
         <el-table-column prop="taskNo" label="任务编号" width="180" />
         <el-table-column label="状态" width="98"><template #default="scope"><StatusTag :label="scope.row.deletedAt ? '已删除' : status(scope.row).label" :tone="scope.row.deletedAt ? 'neutral' : status(scope.row).tone" /></template></el-table-column>
-        <el-table-column label="客户" min-width="175"><template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="scope.row.customerNo" /></template></el-table-column>
-        <el-table-column label="方案名称 / 标识" min-width="150"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="scope.row.schemeKey" /></template></el-table-column>
+        <el-table-column label="客户" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="`${scope.row.customerNo} · ${scope.row.customerReferenceNo}`" /></template></el-table-column>
+        <el-table-column label="客户归属快照" min-width="210"><template #default="scope"><StackedCell :primary="(scope.row.shops || [scope.row.shop]).join('、')" :secondary="`${(scope.row.customerGroups || [scope.row.customerGroup]).join('、')} · ${(scope.row.memberCodes || [scope.row.memberCode]).join('、')}`" /></template></el-table-column>
+        <el-table-column label="账单配置" min-width="175"><template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="`${configSourceMeta[scope.row.configSource] || scope.row.configSource} · ${scope.row.configVersion}`" /></template></el-table-column>
+        <el-table-column label="方案名称 / 标识" min-width="165"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="`${scope.row.schemeKey} · ${scope.row.schemeType}`" /></template></el-table-column>
         <el-table-column prop="period" label="实际账期" width="190" />
         <TableActionColumn>
           <template #default="scope">

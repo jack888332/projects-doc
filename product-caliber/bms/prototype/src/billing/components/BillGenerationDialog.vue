@@ -31,7 +31,7 @@ const replacementPreviewRows = useDemoDataset('billingReplacementPreview', [
   { billType: 'AR', side: 'OLD', billNo: 'ARB-OG0370-20260707-81FF', group: '默认业务板块 / 台湾', config: 'V10', currency: 'CNY', amount: 3096.09, feeCount: 14, state: '待审核 · 已收口' },
   { billType: 'AR', side: 'NEW', billNo: '候选-01', group: '默认业务板块 / 台湾', config: 'V11', currency: 'CNY', amount: 2984.09, feeCount: 13, state: '候选账单' },
   { billType: 'AR', side: 'NEW', billNo: '候选-02', group: '增值业务板块 / 台湾', config: 'V11', currency: 'CNY', amount: 130, feeCount: 2, state: '候选账单' },
-  { billType: 'RF', side: 'OLD', billNo: 'PCB-OG0370-20260721', group: '台湾 / 周账期', config: 'V4', currency: 'CNY', amount: 88620, feeCount: 2, state: '待审核 · 未收口' },
+  { billType: 'RF', side: 'OLD', billNo: 'PCB-OG0370-20260721-0a19', group: '台湾 / 周账期', config: 'V4', currency: 'CNY', amount: 88620, feeCount: 2, state: '待审核 · 未收口' },
   { billType: 'RF', side: 'NEW', billNo: '候选-01', group: '台湾 / 周账期', config: 'V5', currency: 'CNY', amount: 87360, feeCount: 3, state: '候选账单' },
 ])
 

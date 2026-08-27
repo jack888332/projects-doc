@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import BillDetailPanel from '../components/BillDetailPanel.vue'
-import { billingBillFixtures } from '../../data/fixtures/billingBills.ts'
+import { billingBillFixtures, billingBillSeedVersion } from '../../data/fixtures/billingBills.ts'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 import { BILLING_PATHS } from '../../domain/constants.ts'
 
@@ -13,7 +13,7 @@ const props = defineProps({
 })
 
 const router = useRouter()
-const bills = useDemoDataset('billingBills', billingBillFixtures, 6)
+const bills = useDemoDataset('billingBills', billingBillFixtures, billingBillSeedVersion)
 const isReceivable = computed(() => props.billType === 'AR')
 const parentPath = computed(() => isReceivable.value ? BILLING_PATHS.receivable : BILLING_PATHS.refund)
 const bill = computed(() => bills.value.find((item) => item.type === props.billType && item.billNo === props.billNo))

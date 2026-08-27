@@ -35,7 +35,7 @@ const periodFromCycle = (cycle = '') => {
 let schemeSeed = 1
 const existingBranchNumbers = (props.config.schemeSnapshot?.branches || [])
   .map(scheme => Number(String(scheme.schemeKey || '').replace('BRANCH-', '')) || 0)
-let branchKeySeed = Math.max(0, ...existingBranchNumbers)
+let branchKeySeed = Math.max(Number(props.config.schemeSnapshot?.branchKeyCeiling) || 0, ...existingBranchNumbers)
 const nextBranchKey = () => `BRANCH-${String(++branchKeySeed).padStart(2, '0')}`
 const createScheme = (snapshot = {}, fallbackKey = '') => {
   const sourceCurrency = snapshot.sourceCurrency || props.config.currency || 'CNY'
@@ -66,7 +66,7 @@ const form = reactive({
 })
 const allFolded = computed(() => form.branches.length > 0 && form.branches.every(item => item.folded))
 const previewNo = computed(() => {
-  if (!props.config.no || ['新配置', '新母版'].includes(props.config.no)) return '保存后自动生成'
+  if (!props.config.no || props.config.no === '新配置') return '保存后自动生成'
   return props.config.no
 })
 
@@ -133,6 +133,7 @@ function snapshotScheme(scheme, branch = false) {
 }
 function getSchemeSnapshot() {
   return {
+    branchKeyCeiling: branchKeySeed,
     defaultScheme: snapshotScheme(form.defaultScheme),
     branches: form.branches.map(scheme => snapshotScheme(scheme, true)),
   }
@@ -147,7 +148,7 @@ defineExpose({ validate, getSchemeSnapshot })
         <div><strong>应收账单结算条款</strong><el-button link type="primary" @click="toggleAll">{{ allFolded ? '展开所有方案' : '折叠所有方案' }}</el-button></div>
         <el-switch :model-value="allFolded" @change="toggleAll" />
       </header>
-      <div class="config-no-bar"><span>配置编号</span><el-tooltip content="配置编号创建后不变，内容变更通过独立版本号形成新快照。"><b>{{ previewNo }}</b></el-tooltip><small>{{ ['新配置','新母版'].includes(config.no) ? '首次保存生成编号和 V1' : '保存后生成新版本，配置编号保持不变' }}</small></div>
+      <div class="config-no-bar"><span>配置编号</span><el-tooltip content="配置编号创建后不变，内容变更通过独立版本号形成新快照。"><b>{{ previewNo }}</b></el-tooltip><small>{{ config.no === '新配置' ? '首次保存生成编号和 V1' : '保存后生成新版本，配置编号保持不变' }}</small></div>
 
       <div class="scheme-section">
         <div class="scheme-title"><strong>默认方案</strong><span>不包含限制条件，默认直接生效</span></div>

@@ -1,207 +1,321 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { CopyDocument, EditPen, Plus, Promotion, Tickets, View } from '@element-plus/icons-vue'
 import ConditionFilter from '../../shared/components/ConditionFilter.vue'
 import MetricGrid from '../../shared/components/MetricGrid.vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
-import ReceivableConfigEditor from '../components/ReceivableConfigEditor.vue'
-import RefundConfigEditor from '../components/RefundConfigEditor.vue'
-import ConfigMasterAssignmentDialog from '../components/ConfigMasterAssignmentDialog.vue'
-import ConfigMasterGenerationDialog from '../components/ConfigMasterGenerationDialog.vue'
+import BillingConfigDetailDialog from '../components/BillingConfigDetailDialog.vue'
+import ConfigReferenceDialog from '../components/ConfigReferenceDialog.vue'
+import ConfigGenerationDialog from '../components/ConfigGenerationDialog.vue'
 import ConfigSchemeOverview from '../components/ConfigSchemeOverview.vue'
 import SegmentedControl from '../../shared/components/SegmentedControl.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
-import {
-  billingConfigMasterFixtures,
-  billingConfigSeedVersion,
-  billingCustomerConfigFixtures,
-} from '../../data/fixtures/billingConfigs.ts'
+import { billingConfigFixtures, billingConfigSeedVersion, billingConfigVersionFixtures, billingCustomerConfigFixtures } from '../../data/fixtures/billingConfigs.ts'
 import { billingTaskFixtures, billingTaskSeedVersion } from '../../data/fixtures/billingTasks.ts'
-import { createMasterBatchTaskRows } from '../../domain/masterGeneration.js'
+import { configReferenceStats, createConfigBatchTaskRows, isConfigReferenceActive } from '../../domain/configGeneration.js'
 import { useDemoDataset } from '../data/useDemoDataset.js'
+import { customerRelationSummary } from '../../domain/customerRelations.js'
 
 const activeType = ref('AR')
 const activeView = ref('customers')
 const detailVisible = ref(false)
-const assignmentVisible = ref(false)
+const referenceVisible = ref(false)
 const generationVisible = ref(false)
+const selectionVisible = ref(false)
+const detailMode = ref('edit')
 const selectedConfig = ref(null)
-const selectedMaster = ref(null)
+const targetConfig = ref(null)
+const selectedCustomer = ref(null)
+const focusCustomerCode = ref('')
+const generationCustomerCode = ref('')
 const editorRef = ref(null)
-const initialQuery = { customerText: '', store: '', group: '', sourceType: '', status: '' }
+const demoNow = '2026-08-27'
+const initialQuery = { keyword:'', store:'', group:'', usageType:'', status:'' }
 const { query, appliedQuery, applyQuery, resetQuery } = useStagedQuery(initialQuery)
 
-const customerConfigs = useDemoDataset('billingCustomerConfigs', billingCustomerConfigFixtures, billingConfigSeedVersion)
-const masters = useDemoDataset('billingConfigMasters', billingConfigMasterFixtures, billingConfigSeedVersion)
+const customerReferences = useDemoDataset('billingConfigReferencesV2', billingCustomerConfigFixtures, billingConfigSeedVersion)
+const configs = useDemoDataset('billingConfigsUnified', billingConfigFixtures, billingConfigSeedVersion)
+const configVersions = useDemoDataset('billingConfigVersionsUnified', billingConfigVersionFixtures, billingConfigSeedVersion)
 const taskRecords = useDemoDataset('billingTasks', billingTaskFixtures, billingTaskSeedVersion)
-
-const sourceTypes = [{ label:'自定义配置', value:'CUSTOM' }, { label:'共享配置母版', value:'MASTER' }, { label:'未配置', value:'NONE' }]
+const generationAudits = useDemoDataset('billingGenerationValidationAudits', [], 2026082701)
+const usageTypes = [{ label:'共享配置', value:'SHARED' }, { label:'独享配置', value:'EXCLUSIVE' }, { label:'未引用配置', value:'UNUSED' }]
 const periodLabels = { DAY_1:'1 自然天', DAY_7:'7 自然天', DAY_10:'10 自然天', DAY_15:'15 自然天', WEEK:'周账单', HALF_MONTH:'半月账单', MONTH:'月账单' }
 const periodLabel = value => periodLabels[value] || value || '-'
 const settlementCurrency = scheme => { const value = scheme?.feeRules?.find(rule => rule.fallback)?.settlementCurrency; return value === 'SOURCE_CURRENCY' ? '随原始币种' : value || '-' }
 const cloneSnapshot = snapshot => snapshot ? JSON.parse(JSON.stringify(snapshot)) : null
-const stores = computed(() => [...new Set(customerConfigs.value.map(row => row.store))])
-const groups = computed(() => [...new Set(customerConfigs.value.map(row => row.group))])
-const customerRows = computed(() => customerConfigs.value.filter(row => row.type === activeType.value
-  && (!appliedQuery.customerText || `${row.customerCode}${row.customerName}`.includes(appliedQuery.customerText))
-  && (!appliedQuery.store || row.store === appliedQuery.store)
-  && (!appliedQuery.group || row.group === appliedQuery.group)
-  && (!appliedQuery.sourceType || row.sourceType === appliedQuery.sourceType)
+const stores = computed(() => [...new Set(customerReferences.value.flatMap(row => customerRelationSummary(row).stores))])
+const groups = computed(() => [...new Set(customerReferences.value.flatMap(row => customerRelationSummary(row).groups))])
+const statsFor = config => configReferenceStats(config, customerReferences.value, demoNow)
+const activeReferencesFor = config => customerReferences.value.filter(row => row.configId === config.id && isConfigReferenceActive(row, demoNow))
+const versionRowsFor = (config) => {
+  const snapshots = configVersions.value.filter(row => row.configId === config.id)
+  if (!snapshots.some(row => row.version === config.version)) snapshots.push({ ...config, configId:config.id, snapshotId:`${config.id}@${config.version}` })
+  return snapshots
+    .sort((left, right) => Number(right.version.slice(1)) - Number(left.version.slice(1)))
+    .map((snapshot) => {
+      const byCustomer = new Map()
+      activeReferencesFor(config).filter(row => row.version === snapshot.version).forEach(row => byCustomer.set(row.customerCode, row))
+      return { ...snapshot, references:[...byCustomer.values()], isCurrent:snapshot.version === config.version }
+    })
+}
+const configRowsWithStats = computed(() => configs.value.filter(row => row.type === activeType.value).map(row => ({ ...row, referenceStats:statsFor(row) })))
+const currentReferences = computed(() => {
+  const rows = customerReferences.value.filter(row => row.type === activeType.value)
+  const grouped = new Map()
+  rows.forEach((row) => {
+    const values = grouped.get(row.customerCode) || []
+    values.push(row)
+    grouped.set(row.customerCode, values)
+  })
+  return [...grouped.values()].map((values) => {
+    const active = values.filter(row => isConfigReferenceActive(row, demoNow)).sort((a, b) => b.effectStart.localeCompare(a.effectStart))[0]
+    if (active) return active
+    const base = values.sort((a, b) => String(b.effectStart).localeCompare(String(a.effectStart)))[0]
+    return { ...base, id:`${base.type}-ROSTER-${base.customerCode}`, referenceNo:'-', configId:null, configName:'未配置', configNo:'-', version:'-', currency:'-', cycle:'-', sentRule:'-', mode:'-', schemeSnapshot:null, refundSnapshot:null, effectStart:'-', effectEnd:'-', status:'未配置' }
+  })
+})
+const customerRows = computed(() => currentReferences.value.filter(row =>
+  (!appliedQuery.keyword || `${row.customerCode}${row.customerName}${row.configNo}${row.configName}`.includes(appliedQuery.keyword))
+  && (!appliedQuery.store || customerRelationSummary(row).stores.includes(appliedQuery.store))
+  && (!appliedQuery.group || customerRelationSummary(row).groups.includes(appliedQuery.group))
   && (!appliedQuery.status || row.status === appliedQuery.status)))
-const masterRows = computed(() => masters.value.filter(row => row.type === activeType.value
-  && (!appliedQuery.customerText || `${row.no}${row.name}`.includes(appliedQuery.customerText))
+const configRows = computed(() => configRowsWithStats.value.filter(row =>
+  (!appliedQuery.keyword || `${row.no}${row.name}`.includes(appliedQuery.keyword))
+  && (!appliedQuery.usageType || row.referenceStats.usageType === appliedQuery.usageType)
   && (!appliedQuery.status || row.status === appliedQuery.status)))
-const rows = computed(() => activeView.value === 'customers' ? customerRows.value : masterRows.value)
-const referenceCount = master => customerConfigs.value.filter(row => row.type === master.type && row.masterId === master.id).length
+const rows = computed(() => activeView.value === 'customers' ? customerRows.value : configRows.value)
 const summary = computed(() => activeView.value === 'customers' ? [
   { label:'客户总数', value:customerRows.value.length, tone:'green' },
-  { label:'引用母版', value:customerRows.value.filter(row => row.sourceType === 'MASTER').length, tone:'blue' },
-  { label:'自定义配置', value:customerRows.value.filter(row => row.sourceType === 'CUSTOM').length, tone:'amber' },
-  { label:'未配置', value:customerRows.value.filter(row => row.sourceType === 'NONE').length, tone:'red' },
+  { label:'已引用配置', value:customerRows.value.filter(row => row.configId).length, tone:'blue' },
+  { label:'涉及配置', value:new Set(customerRows.value.map(row => row.configId).filter(Boolean)).size, tone:'amber' },
+  { label:'未配置', value:customerRows.value.filter(row => !row.configId).length, tone:'red' },
 ] : [
-  { label:'母版总数', value:masterRows.value.length, tone:'green' },
-  { label:'生效中', value:masterRows.value.filter(row => row.status === '启用').length, tone:'blue' },
-  { label:'当前引用客户', value:masterRows.value.reduce((sum, master) => sum + referenceCount(master), 0), tone:'amber' },
+  { label:'配置总数', value:configRows.value.length, tone:'green' },
+  { label:'共享配置', value:configRows.value.filter(row => row.referenceStats.usageType === 'SHARED').length, tone:'blue' },
+  { label:'独享配置', value:configRows.value.filter(row => row.referenceStats.usageType === 'EXCLUSIVE').length, tone:'amber' },
+  { label:'未引用配置', value:configRows.value.filter(row => row.referenceStats.usageType === 'UNUSED').length, tone:'red' },
 ])
 
 watch(activeType, () => { activeView.value = 'customers'; resetQuery() })
 watch(activeView, resetQuery)
-const sourceLabel = value => sourceTypes.find(item => item.value === value)?.label || value
-const rangeOptions = type => type === 'STORE' ? stores.value : type === 'GROUP' ? groups.value : customerConfigs.value.filter(row => row.type === activeType.value).map(row => `${row.customerCode} ${row.customerName}`)
-function refreshRangeText(config) { const label = config.rangeMode === 'STORE' ? '店铺' : config.rangeMode === 'GROUP' ? '客户组' : '指定客户'; config.rangeValues = []; config.rangeText = `${label}：待选择` }
-function syncRangeText(config) { const label = config.rangeMode === 'STORE' ? '店铺' : config.rangeMode === 'GROUP' ? '客户组' : '指定客户'; config.rangeText = `${label}：${config.rangeValues.join('、') || '待选择'}` }
-function openDetail(row) { selectedConfig.value = { ...row, rangeValues:[...(row.rangeValues || [])], editorKind:activeView.value === 'masters' ? 'MASTER' : 'CUSTOM' }; detailVisible.value = true }
+
+const usageTone = type => type === 'SHARED' ? 'info' : type === 'EXCLUSIVE' ? 'success' : 'warning'
+function referenceUsage(row) { const config = configs.value.find(item => item.id === row.configId); return config ? statsFor(config) : { usageType:'UNUSED', label:'未配置' } }
+const editingReferences = computed(() => selectedConfig.value
+  ? customerReferences.value.filter(row => row.configId === selectedConfig.value.id && isConfigReferenceActive(row, demoNow))
+  : [])
+const editingImpactText = computed(() => editingReferences.value
+  .map(row => `${row.customerName}（${row.customerCode}，${row.configNo} / ${row.version}）`)
+  .join('、'))
+function openDetail(config, mode = 'edit') { if (mode === 'edit' && config.status === '停用' && config.no !== '新配置') return ElMessage.warning('停用配置不能发布后续版本'); detailMode.value = mode; selectedConfig.value = { ...config, schemeSnapshot:cloneSnapshot(config.schemeSnapshot), refundSnapshot:cloneSnapshot(config.refundSnapshot), isNew:config.no === '新配置' }; detailVisible.value = true }
 function newConfig() {
-  const masterMode = activeView.value === 'masters'
-  openDetail(masterMode
-    ? { id:`${activeType.value}-M-${Date.now()}`, type:activeType.value, no:'新母版', name:'', version:'V1', rangeMode:'STORE', rangeValues:[], rangeText:'店铺：待选择', currency:'CNY', cycle:activeType.value === 'AR' ? '月账单' : '周账单', sentRule:'账期结束后 1 天', mode:'回款返款', effectStart:'2026-09-01', effectEnd:'长期', operator:'财务管理员', updatedAt:'2026-08-27 10:30', changeReason:'首次发布', status:'启用' }
-    : { id:`${activeType.value}-C-${Date.now()}`, type:activeType.value, customerCode:'', customerName:'', store:'', group:'', sourceType:'CUSTOM', sourceName:'客户自定义配置', sourceNo:'新配置', version:'V1', currency:'CNY', cycle:activeType.value === 'AR' ? '月账单' : '周账单', sentRule:'账期结束后 1 天', mode:'回款返款', effectStart:'2026-09-01', effectEnd:'长期', operator:'财务管理员', updatedAt:'2026-08-27 10:30', changeReason:'新建自定义配置', status:'启用' })
+  openDetail({ id:`${activeType.value}-CFG-${Date.now()}`, type:activeType.value, no:'新配置', name:'', version:'V1', currency:'CNY', cycle:activeType.value === 'AR' ? '月账单' : '周账单', sentRule:'账期结束后 1 天', mode:'回款返款', effectStart:'2026-09-01', effectEnd:'长期', operator:'财务管理员', updatedAt:'2026-08-27 10:30', changeReason:'首次发布', status:'启用', forkCustomerCode:'' })
 }
-function copyToCustom(row) { openDetail({ ...row, id:`${row.type}-C-${Date.now()}`, sourceType:'CUSTOM', sourceName:'客户自定义配置', sourceNo:'新配置', version:'V1', masterId:null, changeReason:'基于当前母版复制为自定义配置' }) }
-function viewMaster(row) { const master = masters.value.find(item => item.id === row.masterId); if (master) { activeView.value = 'masters'; openDetail(master) } }
+function configFromReference(reference) {
+  const current = configs.value.find(item => item.id === reference.configId)
+  if (!current) return null
+  const archived = configVersions.value.find(item => item.configId === reference.configId && item.version === reference.version)
+  return {
+    ...current,
+    ...archived,
+    name:reference.configName,
+    version:reference.version,
+    currency:reference.currency,
+    cycle:reference.cycle,
+    sentRule:reference.sentRule,
+    mode:reference.mode,
+    schemeSnapshot:cloneSnapshot(archived?.schemeSnapshot || reference.schemeSnapshot),
+    refundSnapshot:cloneSnapshot(archived?.refundSnapshot || reference.refundSnapshot),
+    effectStart:archived?.effectStart || reference.effectStart,
+    effectEnd:archived?.effectEnd || reference.effectEnd,
+    changeReason:`客户引用记录 ${reference.referenceNo}`,
+  }
+}
+function viewConfig(reference) { const snapshot = configFromReference(reference); if (snapshot) openDetail(snapshot, 'view') }
+function forkForCustomer(reference) {
+  const snapshot = configFromReference(reference)
+  if (!snapshot) return
+  openDetail({ ...snapshot, id:`${snapshot.type}-CFG-${Date.now()}`, no:'新配置', name:`${snapshot.name}-${reference.customerName}`, version:'V1', status:'启用', changeReason:`为 ${reference.customerCode} 另存独立配置`, forkCustomerCode:reference.customerCode, isNew:true })
+}
+function manageReferences(config, customerCode = '') { if (config.status === '停用') return ElMessage.warning('停用配置不能建立新的客户引用'); targetConfig.value = config; focusCustomerCode.value = customerCode; referenceVisible.value = true }
+function chooseForCustomer(reference) { selectedCustomer.value = reference; selectionVisible.value = true }
+function selectConfig(config) { if (config.status === '停用') return ElMessage.warning('请选择启用配置'); selectionVisible.value = false; manageReferences(config, selectedCustomer.value?.customerCode || '') }
+
 async function save() {
   const next = selectedConfig.value
-  if (next.editorKind === 'MASTER') {
-    if (!next.name.trim()) return ElMessage.warning('请输入母版名称')
-    if (!next.rangeValues.length) return ElMessage.warning('请设置可分配客户范围')
-    syncRangeText(next)
-  } else if (!next.customerCode) return ElMessage.warning('请选择一个明确客户')
+  if (!next.name?.trim()) return ElMessage.warning('请输入配置名称')
   if (!editorRef.value?.validate()) return
   if (next.type === 'AR') {
     const snapshot = editorRef.value?.getSchemeSnapshot?.()
     if (snapshot) Object.assign(next, { schemeSnapshot:snapshot, cycle:periodLabel(snapshot.defaultScheme.period), currency:settlementCurrency(snapshot.defaultScheme), sentRule:`账期结束后 ${snapshot.defaultScheme.sendAfterDays} 天` })
-  }
-  try { await ElMessageBox.confirm(next.editorKind === 'MASTER' ? '保存将发布一个新的母版内容版本，现有客户不会自动升级。' : '保存将创建客户自定义配置新版本，并只影响该客户。', '确认保存', { type:'warning' }) } catch { return }
-  if (next.editorKind === 'MASTER') {
-    if (next.no === '新母版') next.no = `${next.type === 'AR' ? 'ARB' : 'RFB'}-MASTER-${Date.now()}`
-    const index = masters.value.findIndex(item => item.id === next.id)
-    if (index >= 0) masters.value.splice(index, 1, { ...next, version:`V${Number(next.version.slice(1) || 0) + 1}` })
-    else masters.value.unshift({ ...next })
-    ElMessage.success('母版版本已发布，现有客户引用保持不变')
   } else {
-    const chosen = customerConfigs.value.find(item => item.type === next.type && item.customerCode === next.customerCode)
-    const isNew = next.sourceNo === '新配置'
-    if (isNew) next.sourceNo = `${next.type === 'AR' ? 'ARB' : 'RFB'}-CUSTOM-${next.customerCode}`
-    const version = isNew ? 'V1' : `V${Number(next.version.slice(1) || 0) + 1}`
-    const saved = { ...next, version, customerName:next.customerName || chosen?.customerName || '', store:next.store || chosen?.store || '', group:next.group || chosen?.group || '', sourceType:'CUSTOM', sourceName:'客户自定义配置', masterId:null }
-    if (chosen) customerConfigs.value.splice(customerConfigs.value.indexOf(chosen), 1, saved)
-    else customerConfigs.value.unshift(saved)
-    ElMessage.success('客户自定义配置已保存')
+    const snapshot = editorRef.value?.getRefundSnapshot?.()
+    if (snapshot) {
+      const fallbackCurrency = snapshot.currencyRules.find(rule => rule.fallback)?.settlementCurrency || '-'
+      Object.assign(next, {
+        refundSnapshot:snapshot,
+        mode:snapshot.refundMode === 'SIGNED' ? '签收返款' : '回款返款',
+        cycle:snapshot.billingPeriodType === 'HALF_WEEK' ? '半周账单' : '周账单',
+        currency:fallbackCurrency,
+        sentRule:`账期结束后 ${snapshot.sendAfterDays} 天`,
+        effectStart:snapshot.effectPeriod[0],
+        effectEnd:snapshot.effectPeriod[1] || '长期',
+        status:snapshot.enabled ? '启用' : '停用',
+      })
+    }
   }
+  const existing = configs.value.find(item => item.id === next.id)
+  const beforeStats = existing ? statsFor(existing) : { total:0, label:'未引用配置' }
+  const message = existing
+    ? `当前配置由 ${beforeStats.total} 个客户引用。发布新版本后，系统将展示这些客户，由你选择升级对象；未选择客户继续引用原准确版本。`
+    : '首次发布将形成未引用配置；可在发布后选择客户建立准确版本引用。'
+  try { await ElMessageBox.confirm(message, '确认发布配置版本', { type:beforeStats.total > 1 ? 'warning' : 'info' }) } catch { return }
+  if (next.no === '新配置') next.no = `${next.type === 'AR' ? 'ARB' : 'RFB'}-${Date.now()}`
+  const { forkCustomerCode = '', isNew: _isNew, ...persistable } = next
+  const saved = { ...persistable, version:existing ? `V${Number(existing.version.slice(1) || 0) + 1}` : 'V1', updatedAt:'2026-08-27 10:45', operator:'财务管理员' }
+  if (existing) configs.value.splice(configs.value.indexOf(existing), 1, saved)
+  else configs.value.unshift(saved)
+  configVersions.value.unshift({ ...saved, configId:saved.id, snapshotId:`${saved.id}@${saved.version}` })
   detailVisible.value = false
+  ElMessage.success(`${saved.no} / ${saved.version} 已发布，既有客户引用未自动变更`)
+  targetConfig.value = saved
+  focusCustomerCode.value = forkCustomerCode
+  if (beforeStats.total || forkCustomerCode) referenceVisible.value = true
 }
-function openAssignment(master) { selectedMaster.value = master; assignmentVisible.value = true }
-function inMasterRange(row, master) {
-  if (!master) return false
-  if (master.rangeMode === 'STORE') return master.rangeValues.includes(row.store)
-  if (master.rangeMode === 'GROUP') return master.rangeValues.includes(row.group)
-  return master.rangeValues.some(value => value.startsWith(`${row.customerCode} `) || value === row.customerCode)
-}
-function assignmentCandidates(master) { return customerConfigs.value.filter(row => row.type === master?.type && inMasterRange(row, master)).map(row => ({ id:row.id, code:row.customerCode, name:row.customerName, store:row.store, group:row.group, sourceType:row.sourceType, sourceName:row.sourceName, masterId:row.masterId, version:row.version, blocked:false })) }
-function assignCustomers(payload) {
-  payload.customers.forEach((candidate) => {
-    const row = customerConfigs.value.find(item => item.id === candidate.id)
-    Object.assign(row, { sourceType:'MASTER', sourceName:selectedMaster.value.name, sourceNo:selectedMaster.value.no, masterId:selectedMaster.value.id, version:selectedMaster.value.version, currency:selectedMaster.value.currency, cycle:selectedMaster.value.cycle, sentRule:selectedMaster.value.sentRule, schemeSnapshot:cloneSnapshot(selectedMaster.value.schemeSnapshot), mode:selectedMaster.value.mode, effectStart:payload.effectiveAt, effectEnd:'长期', status:'启用', operator:'财务管理员', updatedAt:'2026-08-27 10:45', changeReason:payload.reason || '分配共享配置母版' })
+
+function assignReferences(payload) {
+  payload.customers.forEach((candidate, index) => {
+    const customerHistory = customerReferences.value.filter(row => row.type === candidate.type && row.customerCode === candidate.customerCode)
+    const exactStart = customerHistory.find(row => row.configId && row.effectStart === payload.effectiveAt)
+    const activeAtSwitch = customerHistory
+      .filter(row => isConfigReferenceActive(row, payload.effectiveAt))
+      .sort((a, b) => b.effectStart.localeCompare(a.effectStart))[0]
+    const nextFuture = customerHistory
+      .filter(row => row.configId && dayjs(row.effectStart).isAfter(payload.effectiveAt, 'day'))
+      .sort((a, b) => a.effectStart.localeCompare(b.effectStart))[0]
+    const nextEnd = nextFuture ? dayjs(nextFuture.effectStart).subtract(1, 'day').format('YYYY-MM-DD') : null
+
+    if (!exactStart && activeAtSwitch && dayjs(activeAtSwitch.effectStart).isBefore(payload.effectiveAt, 'day')) {
+      activeAtSwitch.effectEnd = dayjs(payload.effectiveAt).subtract(1, 'day').format('YYYY-MM-DD')
+      activeAtSwitch.updatedAt = '2026-08-27 10:45'
+      activeAtSwitch.changeReason = payload.reason || '切换配置，结束原准确版本引用'
+    }
+
+    if (exactStart) Object.assign(exactStart, {
+      status:'已替换',
+      updatedAt:'2026-08-27 10:45',
+      changeReason:payload.reason || '同日起始的计划引用已被新引用替换',
+    })
+
+    const referenceValues = {
+      referenceNo:`${candidate.type}-REF-${candidate.customerCode}-${Date.now()}-${index + 1}`,
+      configId:targetConfig.value.id,
+      configName:targetConfig.value.name,
+      configNo:targetConfig.value.no,
+      version:targetConfig.value.version,
+      currency:targetConfig.value.currency,
+      cycle:targetConfig.value.cycle,
+      sentRule:targetConfig.value.sentRule,
+      schemeSnapshot:cloneSnapshot(targetConfig.value.schemeSnapshot),
+      refundSnapshot:cloneSnapshot(targetConfig.value.refundSnapshot),
+      mode:targetConfig.value.mode,
+      effectStart:payload.effectiveAt,
+      effectEnd:nextEnd || '长期',
+      status:'启用',
+      operator:'财务管理员',
+      updatedAt:'2026-08-27 10:45',
+      changeReason:payload.reason || '建立配置准确版本引用',
+    }
+    customerReferences.value.push({
+      ...candidate,
+      id:`${candidate.type}-R-${candidate.customerCode}-${Date.now()}-${index + 1}`,
+      ...referenceValues,
+    })
   })
-  ElMessage.success(`已为 ${payload.customers.length} 个客户建立母版引用${payload.force ? '，强制覆盖已留痕' : ''}`)
+  focusCustomerCode.value = ''
+  ElMessage.success(`已为 ${payload.customers.length} 个客户建立准确版本引用，原引用按生效日留存${payload.force ? '，强制替换已留痕' : ''}`)
 }
-function openMasterGeneration(master) { selectedMaster.value = master; generationVisible.value = true }
-function confirmMasterGeneration(payload) {
+function openGeneration(config, customerCode = '') { targetConfig.value = config; generationCustomerCode.value = customerCode; generationVisible.value = true }
+function confirmGeneration(payload) {
   if (!payload.scopes.length) {
-    ElMessage.warning('全部范围未通过校验，未创建批次或任务；本次校验结果已留痕')
-    return
+    const auditNo = `BMSV-${Date.now()}`
+    generationAudits.value.unshift({ auditNo, configNo:targetConfig.value.no, configVersion:targetConfig.value.version, candidateCustomerCount:payload.candidateCustomerCount, blockedCount:payload.blockedCount, unselectedCount:payload.unselectedCount, cutoff:payload.cutoff, reason:payload.reason, createdAt:'2026-08-27 16:45:00', operator:'财务管理员' })
+    return ElMessage.warning(`未创建批次或任务；校验审计 ${auditNo} 已保存`)
   }
-  const { batchNo, rows: createdTasks } = createMasterBatchTaskRows({
-    master: selectedMaster.value,
-    scopes: payload.scopes,
-    skippedCount: payload.skippedCount,
-    frozenCustomerCount: payload.frozenCustomerCount,
-    cutoff: payload.cutoff,
-    existingTasks: taskRecords.value,
-  })
+  const { batchNo, rows:createdTasks } = createConfigBatchTaskRows({ config:targetConfig.value, scopes:payload.scopes, skippedCount:payload.skippedCount, frozenCustomerCount:payload.frozenCustomerCount, cutoff:payload.cutoff, existingTasks:taskRecords.value })
   taskRecords.value.unshift(...createdTasks)
   ElMessage.success(`批次 ${batchNo} 已创建，生成 ${createdTasks.length} 条客户任务`)
 }
-function generate(row) { ElMessage.success(`已为 ${row.customerCode} 创建${row.type === 'AR' ? '应收' : '返款'}账单生成任务`) }
+function generate(reference) { const snapshot = configFromReference(reference); if (snapshot) openGeneration(snapshot, reference.customerCode) }
 </script>
 
 <template>
   <div class="module-page live-reference-page">
     <SegmentedControl v-model="activeType" :options="[{ label:'应收账单配置', value:'AR' }, { label:'返款账单配置', value:'RF' }]" aria-label="账单配置类型" />
-    <el-tabs v-model="activeView" class="module-tabs"><el-tab-pane label="客户配置" name="customers" /><el-tab-pane label="共享配置母版" name="masters" /></el-tabs>
+    <el-tabs v-model="activeView" class="module-tabs"><el-tab-pane label="客户引用" name="customers" /><el-tab-pane label="配置库" name="configs" /></el-tabs>
     <section class="condition-query-panel"><div class="condition-filter-bar">
-      <ConditionFilter v-model="query.customerText" :label="activeView === 'customers' ? '客户' : '母版'" type="text" />
-      <template v-if="activeView === 'customers'"><ConditionFilter v-model="query.store" label="所属店铺" :options="stores" /><ConditionFilter v-model="query.group" label="所属客户组" :options="groups" /><ConditionFilter v-model="query.sourceType" label="配置来源" :options="sourceTypes" /></template>
+      <ConditionFilter v-model="query.keyword" :label="activeView === 'customers' ? '客户' : '配置'" type="text" />
+      <template v-if="activeView === 'customers'"><ConditionFilter v-model="query.store" label="所属店铺" :options="stores" /><ConditionFilter v-model="query.group" label="所属客户组" :options="groups" /></template>
+      <ConditionFilter v-else v-model="query.usageType" label="引用标签" :options="usageTypes" />
       <ConditionFilter v-model="query.status" label="状态" :options="activeView === 'customers' ? ['启用','未配置'] : ['启用','停用']" />
       <div class="condition-filter-actions linked-query-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
     </div></section>
     <MetricGrid class="reference-kpis" :items="summary" :columns="summary.length" />
     <section class="module-panel">
       <DataTableFrame :total="rows.length" :selected-count="0">
-        <template #actions><el-button type="primary" :icon="Plus" @click="newConfig">{{ activeView === 'customers' ? '新建自定义配置' : '新建配置母版' }}</el-button></template>
+        <template #actions><el-button type="primary" :icon="Plus" @click="newConfig">新建配置</el-button></template>
         <el-table v-if="activeView === 'customers'" :data="rows" border row-key="id" class="clean-table">
-          <el-table-column type="expand"><template #default="scope">
-            <dl class="inline-detail-grid"><div><dt>配置来源</dt><dd>{{ sourceLabel(scope.row.sourceType) }}</dd></div><div><dt>准确版本</dt><dd>{{ scope.row.sourceNo }} / {{ scope.row.version }}</dd></div><div><dt>账期规则</dt><dd>{{ scope.row.cycle }}</dd></div><div><dt>生效周期</dt><dd>{{ scope.row.effectStart }} 至 {{ scope.row.effectEnd }}</dd></div></dl>
-            <ConfigSchemeOverview v-if="activeType === 'AR'" :snapshot="scope.row.schemeSnapshot" />
-          </template></el-table-column>
+          <el-table-column type="expand"><template #default="scope"><dl class="inline-detail-grid"><div><dt>客户引用记录</dt><dd>{{ scope.row.referenceNo }}</dd></div><div><dt>准确版本</dt><dd>{{ scope.row.configNo }} / {{ scope.row.version }}</dd></div><div><dt>账期规则</dt><dd>{{ scope.row.cycle }}</dd></div><div><dt>生效周期</dt><dd>{{ scope.row.effectStart }} 至 {{ scope.row.effectEnd }}</dd></div></dl><ConfigSchemeOverview v-if="activeType === 'AR'" :snapshot="scope.row.schemeSnapshot" /></template></el-table-column>
           <el-table-column label="客户" min-width="190"><template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="scope.row.customerCode" /></template></el-table-column>
-          <el-table-column prop="store" label="所属店铺" min-width="140" /><el-table-column prop="group" label="所属客户组" min-width="130" />
-          <el-table-column label="配置来源" width="125"><template #default="scope"><StatusTag :label="sourceLabel(scope.row.sourceType)" :tone="scope.row.sourceType === 'MASTER' ? 'info' : scope.row.sourceType === 'CUSTOM' ? 'success' : 'warning'" /></template></el-table-column>
-          <el-table-column label="采用配置" min-width="230"><template #default="scope"><StackedCell :primary="scope.row.sourceName" :secondary="scope.row.sourceNo === '-' ? '-' : `${scope.row.sourceNo} / ${scope.row.version}`" /></template></el-table-column>
-          <el-table-column v-if="activeType === 'AR'" label="方案概览" width="240"><template #default="scope"><ConfigSchemeOverview :snapshot="scope.row.schemeSnapshot" compact /></template></el-table-column><template v-else><el-table-column prop="currency" label="默认结算币种" width="125" /><el-table-column prop="cycle" label="账期类型" width="110" /></template><el-table-column label="生效周期" width="180"><template #default="scope">{{ scope.row.effectStart }} 至 {{ scope.row.effectEnd }}</template></el-table-column><el-table-column label="状态" width="85"><template #default="scope"><StatusTag :label="scope.row.status" :tone="scope.row.status === '未配置' ? 'warning' : ''" /></template></el-table-column>
-          <TableActionColumn><template #default="scope"><HoverActionMenu><el-dropdown-item v-if="scope.row.sourceType === 'CUSTOM'" :icon="EditPen" @click="openDetail(scope.row)">编辑自定义配置</el-dropdown-item><el-dropdown-item v-if="scope.row.sourceType === 'MASTER'" :icon="View" @click="viewMaster(scope.row)">查看母版</el-dropdown-item><el-dropdown-item v-if="scope.row.sourceType === 'MASTER'" :icon="CopyDocument" @click="copyToCustom(scope.row)">复制为自定义配置</el-dropdown-item><el-dropdown-item v-if="scope.row.sourceType !== 'NONE'" :icon="Promotion" @click="generate(scope.row)">生成账单</el-dropdown-item></HoverActionMenu></template></TableActionColumn>
+          <el-table-column label="所属店铺" min-width="150" show-overflow-tooltip><template #default="scope">{{ customerRelationSummary(scope.row).stores.join('、') || '-' }}</template></el-table-column><el-table-column label="所属客户组" min-width="150" show-overflow-tooltip><template #default="scope">{{ customerRelationSummary(scope.row).groups.join('、') || '-' }}</template></el-table-column><el-table-column label="关联会员" min-width="140" show-overflow-tooltip><template #default="scope">{{ customerRelationSummary(scope.row).memberCodes.join('、') || '-' }}</template></el-table-column>
+          <el-table-column label="引用状态" width="100"><template #default="scope"><StatusTag :label="scope.row.configId ? '已引用' : '未配置'" :tone="scope.row.configId ? 'success' : 'warning'" /></template></el-table-column>
+          <el-table-column label="采用配置" min-width="220"><template #default="scope"><StackedCell :primary="scope.row.configName" :secondary="scope.row.configNo === '-' ? '-' : `${scope.row.configNo} / ${scope.row.version}`" /></template></el-table-column>
+          <el-table-column label="引用标签" width="125"><template #default="scope"><StatusTag :label="referenceUsage(scope.row).label" :tone="usageTone(referenceUsage(scope.row).usageType)" /></template></el-table-column>
+          <el-table-column v-if="activeType === 'AR'" label="方案概览" width="240"><template #default="scope"><ConfigSchemeOverview :snapshot="scope.row.schemeSnapshot" compact /></template></el-table-column>
+          <template v-else><el-table-column prop="currency" label="默认结算币种" width="125" /><el-table-column prop="cycle" label="账期类型" width="110" /></template>
+          <el-table-column label="生效周期" width="180"><template #default="scope">{{ scope.row.effectStart }} 至 {{ scope.row.effectEnd }}</template></el-table-column><el-table-column label="状态" width="85"><template #default="scope"><StatusTag :label="scope.row.status" :tone="scope.row.status === '未配置' ? 'warning' : ''" /></template></el-table-column>
+          <TableActionColumn><template #default="scope"><HoverActionMenu><el-dropdown-item v-if="scope.row.configId" :icon="View" @click="viewConfig(scope.row)">查看配置</el-dropdown-item><el-dropdown-item v-if="scope.row.configId" :icon="CopyDocument" @click="forkForCustomer(scope.row)">另存为新配置</el-dropdown-item><el-dropdown-item :icon="Promotion" @click="chooseForCustomer(scope.row)">{{ scope.row.configId ? '更换配置' : '选择配置' }}</el-dropdown-item><el-dropdown-item v-if="scope.row.configId" :icon="Tickets" @click="generate(scope.row)">生成账单</el-dropdown-item></HoverActionMenu></template></TableActionColumn>
         </el-table>
         <el-table v-else :data="rows" border row-key="id" class="clean-table">
-          <el-table-column v-if="activeType === 'AR'" type="expand"><template #default="scope"><ConfigSchemeOverview :snapshot="scope.row.schemeSnapshot" /></template></el-table-column>
-          <el-table-column label="母版" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.name" :secondary="scope.row.no" /></template></el-table-column><el-table-column prop="version" label="当前版本" width="90" /><el-table-column prop="rangeText" label="可分配客户范围" min-width="260" :show-overflow-tooltip="true" /><el-table-column label="引用客户" width="100"><template #default="scope"><strong>{{ referenceCount(scope.row) }}</strong></template></el-table-column><el-table-column v-if="activeType === 'AR'" label="方案概览" width="240"><template #default="scope"><ConfigSchemeOverview :snapshot="scope.row.schemeSnapshot" compact /></template></el-table-column><template v-else><el-table-column prop="currency" label="默认结算币种" width="125" /><el-table-column prop="cycle" label="账期类型" width="110" /></template><el-table-column label="最近发布" width="165"><template #default="scope"><StackedCell :primary="scope.row.operator" :secondary="scope.row.updatedAt" /></template></el-table-column><el-table-column label="状态" width="85"><template #default="scope"><StatusTag :label="scope.row.status" /></template></el-table-column>
-          <TableActionColumn><template #default="scope"><HoverActionMenu><el-dropdown-item :icon="EditPen" @click="openDetail(scope.row)">发布新版本</el-dropdown-item><el-dropdown-item :icon="Promotion" @click="openAssignment(scope.row)">分配客户</el-dropdown-item><el-dropdown-item :icon="Tickets" @click="openMasterGeneration(scope.row)">批量生成账单</el-dropdown-item></HoverActionMenu></template></TableActionColumn>
+          <el-table-column type="expand"><template #default="scope"><div class="config-expand-content"><div class="version-reference-breakdown"><strong>准确版本记录</strong><div v-for="item in versionRowsFor(scope.row)" :key="item.snapshotId" class="version-reference-row"><b>{{ item.version }}</b><span>{{ item.references.length }} 个客户</span><small>{{ item.references.map(reference => reference.customerName).join('、') || '无当前有效引用' }}{{ item.isCurrent ? ' · 当前版本' : '' }}</small><div class="version-actions"><el-button link type="primary" @click="openDetail(item, 'view')">查看</el-button><el-button link type="primary" :disabled="scope.row.status === '停用'" @click="manageReferences(item)">管理引用</el-button><el-button link type="primary" @click="openGeneration(item)">批量生成</el-button></div></div></div><ConfigSchemeOverview v-if="activeType === 'AR'" :snapshot="scope.row.schemeSnapshot" /></div></template></el-table-column>
+          <el-table-column label="配置" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.name" :secondary="scope.row.no" /></template></el-table-column><el-table-column prop="version" label="当前版本" width="90" />
+          <el-table-column label="引用标签" width="145"><template #default="scope"><StatusTag :label="scope.row.referenceStats.label" :tone="usageTone(scope.row.referenceStats.usageType)" /></template></el-table-column>
+          <el-table-column label="全部有效引用" width="110"><template #default="scope"><strong>{{ scope.row.referenceStats.total }}</strong></template></el-table-column><el-table-column label="当前版本引用" width="110"><template #default="scope"><strong>{{ scope.row.referenceStats.exact }}</strong></template></el-table-column>
+          <el-table-column v-if="activeType === 'AR'" label="方案概览" width="240"><template #default="scope"><ConfigSchemeOverview :snapshot="scope.row.schemeSnapshot" compact /></template></el-table-column><template v-else><el-table-column prop="currency" label="默认结算币种" width="125" /><el-table-column prop="cycle" label="账期类型" width="110" /></template>
+          <el-table-column label="最近发布" width="165"><template #default="scope"><StackedCell :primary="scope.row.operator" :secondary="scope.row.updatedAt" /></template></el-table-column><el-table-column label="状态" width="85"><template #default="scope"><StatusTag :label="scope.row.status" /></template></el-table-column>
+          <TableActionColumn><template #default="scope"><HoverActionMenu><el-dropdown-item :icon="EditPen" :disabled="scope.row.status === '停用'" @click="openDetail(scope.row)">发布新版本</el-dropdown-item><el-dropdown-item :icon="Promotion" :disabled="scope.row.status === '停用'" @click="manageReferences(scope.row)">管理客户引用</el-dropdown-item><el-dropdown-item :icon="Tickets" @click="openGeneration(scope.row)">批量生成账单</el-dropdown-item></HoverActionMenu></template></TableActionColumn>
         </el-table>
       </DataTableFrame>
     </section>
-    <el-dialog v-model="detailVisible" class="module-dialog module-dialog-wide" align-center append-to-body destroy-on-close :close-on-click-modal="false">
-      <template #header><div class="drawer-title"><span>{{ selectedConfig?.editorKind === 'MASTER' ? (selectedConfig?.no === '新母版' ? '新建配置母版' : '发布母版新版本') : (selectedConfig?.sourceNo === '新配置' ? '新建客户自定义配置' : '编辑客户自定义配置') }}</span><small>{{ activeType === 'AR' ? '应收账单配置' : '返款账单配置' }}</small></div></template>
-      <template v-if="selectedConfig">
-        <div class="scope-info-bar"><div><span>配置来源：</span><strong>{{ selectedConfig.editorKind === 'MASTER' ? '共享配置母版' : '客户自定义配置' }}</strong></div><div><span>{{ selectedConfig.editorKind === 'MASTER' ? '母版' : '客户' }}：</span><strong>{{ selectedConfig.editorKind === 'MASTER' ? (selectedConfig.name || '待填写') : `${selectedConfig.customerCode || '待选择'} ${selectedConfig.customerName || ''}` }}</strong></div><div><span>当前版本：</span><strong>{{ selectedConfig.version }}</strong></div></div>
-        <section class="config-version-panel"><el-form label-position="top" class="config-version-grid">
-          <template v-if="selectedConfig.editorKind === 'MASTER'"><el-form-item label="母版名称"><el-input v-model="selectedConfig.name" /></el-form-item><el-form-item label="可分配范围维度"><el-select v-model="selectedConfig.rangeMode" @change="refreshRangeText(selectedConfig)"><el-option label="店铺" value="STORE" /><el-option label="客户组" value="GROUP" /><el-option label="指定客户" value="CUSTOMER" /></el-select></el-form-item><el-form-item class="span-2" label="可分配客户范围"><el-select v-model="selectedConfig.rangeValues" multiple filterable collapse-tags @change="syncRangeText(selectedConfig)"><el-option v-for="item in rangeOptions(selectedConfig.rangeMode)" :key="item" :label="item" :value="item" /></el-select></el-form-item></template>
-          <template v-else><el-form-item label="客户"><el-select v-model="selectedConfig.customerCode" filterable :disabled="selectedConfig.sourceNo !== '新配置'"><el-option v-for="item in customerConfigs.filter(row => row.type === activeType)" :key="item.customerCode" :label="`${item.customerCode} ${item.customerName}`" :value="item.customerCode" /></el-select></el-form-item></template>
-          <el-form-item label="生效开始日"><el-date-picker v-model="selectedConfig.effectStart" value-format="YYYY-MM-DD" type="date" /></el-form-item><el-form-item label="生效结束日"><el-input v-model="selectedConfig.effectEnd" /></el-form-item><el-form-item class="span-2" label="变更原因"><el-input v-model="selectedConfig.changeReason" /></el-form-item>
-        </el-form><div class="config-version-meta">母版新版本不会自动升级客户；客户切换将通过分配向导逐一确认。</div></section>
-        <ReceivableConfigEditor v-if="selectedConfig.type === 'AR'" :key="selectedConfig.id" ref="editorRef" :config="{ ...selectedConfig, no:selectedConfig.editorKind === 'MASTER' ? selectedConfig.no : selectedConfig.sourceNo }" />
-        <RefundConfigEditor v-else :key="selectedConfig.id" ref="editorRef" :config="{ ...selectedConfig, no:selectedConfig.editorKind === 'MASTER' ? selectedConfig.no : selectedConfig.sourceNo }" />
-      </template>
-      <template #footer><div class="config-drawer-footer"><el-button @click="detailVisible = false">取消</el-button><el-button type="primary" @click="save">{{ selectedConfig?.editorKind === 'MASTER' ? '发布版本' : '保存配置' }}</el-button></div></template>
+
+    <BillingConfigDetailDialog
+      v-model="detailVisible"
+      ref="editorRef"
+      :config="selectedConfig"
+      :detail-mode="detailMode"
+      :active-type="activeType"
+      :reference-stats="selectedConfig ? statsFor(selectedConfig) : undefined"
+      :editing-references="editingReferences"
+      :editing-impact-text="editingImpactText"
+      @save="save"
+    />
+
+    <el-dialog v-model="selectionVisible" class="module-dialog module-dialog-standard" align-center append-to-body destroy-on-close>
+      <template #header><div class="drawer-title"><span>选择配置</span><small>{{ selectedCustomer?.customerCode }} {{ selectedCustomer?.customerName }}</small></div></template>
+      <DataTableFrame :total="configRowsWithStats.length" :selected-count="0" :pagination="false" :column-sort="false"><el-table :data="configRowsWithStats" border row-key="id"><el-table-column label="配置" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.name" :secondary="`${scope.row.no} / ${scope.row.version}`" /></template></el-table-column><el-table-column label="引用标签" width="145"><template #default="scope"><StatusTag :label="scope.row.referenceStats.label" :tone="usageTone(scope.row.referenceStats.usageType)" /></template></el-table-column><el-table-column label="操作" width="80"><template #default="scope"><el-button link type="primary" :disabled="scope.row.status === '停用'" @click="selectConfig(scope.row)">选择</el-button></template></el-table-column></el-table></DataTableFrame>
     </el-dialog>
-    <ConfigMasterAssignmentDialog v-model="assignmentVisible" :master="selectedMaster" :customers="assignmentCandidates(selectedMaster)" source-label="账单配置母版" @confirm="assignCustomers" />
-    <ConfigMasterGenerationDialog v-model="generationVisible" :master="selectedMaster" :customers="customerConfigs" :tasks="taskRecords" @confirm="confirmMasterGeneration" />
+
+    <ConfigReferenceDialog v-model="referenceVisible" :config="targetConfig" :customers="currentReferences" :reference-history="customerReferences" :tasks="taskRecords" :focus-customer-code="focusCustomerCode" @confirm="assignReferences" />
+    <ConfigGenerationDialog v-model="generationVisible" :config="targetConfig" :references="customerReferences" :tasks="taskRecords" :focus-customer-code="generationCustomerCode" @confirm="confirmGeneration" />
   </div>
 </template>
 
 <style scoped>
-.scope-info-bar{min-height:48px;margin-bottom:var(--space-3);padding:0 var(--space-4);display:flex;align-items:center;gap:48px;border:1px solid #dfe4ec;background:#f7f9fb;color:#687386}.scope-info-bar div{display:flex;gap:4px}.scope-info-bar strong{color:#29364c}.config-version-panel{margin-bottom:var(--space-3);padding:var(--space-3) var(--space-4);border:1px solid #dfe4ec;background:#fff}.config-version-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.config-version-grid .span-2{grid-column:span 2}.config-version-grid :deep(.el-form-item){margin-bottom:0}.config-version-grid :deep(.el-select),.config-version-grid :deep(.el-date-editor){width:100%}.config-version-meta{margin-top:var(--space-2);color:#7b8798;font-size:var(--font-size-sm)}.config-drawer-footer{display:flex;justify-content:flex-end;gap:8px;padding-right:var(--space-2)}@media(max-width:760px){.scope-info-bar{align-items:flex-start;flex-direction:column;gap:6px;padding:var(--space-2) var(--space-3)}.config-version-grid{grid-template-columns:1fr}.config-version-grid .span-2{grid-column:auto}}
+.config-expand-content{display:grid;gap:var(--space-3);padding:var(--space-2) var(--space-4)}.version-reference-breakdown{display:grid;grid-template-columns:150px minmax(0,1fr);gap:6px 12px}.version-reference-breakdown>strong{grid-column:1/-1;color:#334158}.version-reference-row{grid-column:1/-1;min-height:34px;display:grid;grid-template-columns:64px 92px minmax(0,1fr) 150px;align-items:center;border-bottom:1px solid #edf0f4}.version-reference-row b{color:#334158}.version-reference-row span,.version-reference-row small{color:#6e798b}.version-actions{display:flex;justify-content:flex-end;gap:4px}@media(max-width:760px){.version-reference-row{grid-template-columns:48px 70px minmax(0,1fr)}.version-actions{grid-column:1/-1;justify-content:flex-start}}
 </style>

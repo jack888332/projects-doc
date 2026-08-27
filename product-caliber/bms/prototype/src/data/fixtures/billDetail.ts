@@ -16,20 +16,20 @@ export const receivableOrderFeeFixtures = [
 ]
 
 export const refundDetailFixtures = [
-  { billNo: 'PCB-OG0347-20260526', waybill: 'YT682941503GB', order: 'SO-260526-003952', signedAt: '2026/05/25 16:42', sourceCurrency: 'TWD', sourceAmount: 9780, codSurcharge: 0, payableRefund: 9780, specifiedDeduction: 0, provisionalRefund: 9780, refundRate: 1, settlementCurrency: 'TWD', actualRefund: 9780, returned: 2101, pending: 7679, state: '部分核销' },
-  { billNo: 'PCB-OG0370-20260721', waybill: 'YT682941566TW', order: 'SO-260721-004221', signedAt: '2026/07/21 11:08', sourceCurrency: 'CNY', sourceAmount: 91640, codSurcharge: 0, payableRefund: 91640, specifiedDeduction: 3020, provisionalRefund: 88620, refundRate: 1, settlementCurrency: 'CNY', actualRefund: 88620, returned: 0, pending: 88620, state: '待核销' },
+  { billNo: 'PCB-OG0347-20260526-0a19', waybill: 'YT682941503GB', order: 'SO-260526-003952', signedAt: '2026/05/25 16:42', sourceCurrency: 'TWD', sourceAmount: 9780, codSurcharge: 0, payableRefund: 9780, specifiedDeduction: 0, provisionalRefund: 9780, refundRate: 1, settlementCurrency: 'TWD', actualRefund: 9780, returned: 2101, pending: 7679, state: '部分核销' },
+  { billNo: 'PCB-OG0370-20260721-0a19', waybill: 'YT682941566TW', order: 'SO-260721-004221', signedAt: '2026/07/21 11:08', sourceCurrency: 'CNY', sourceAmount: 91640, codSurcharge: 0, payableRefund: 91640, specifiedDeduction: 3020, provisionalRefund: 88620, refundRate: 1, settlementCurrency: 'CNY', actualRefund: 88620, returned: 0, pending: 88620, state: '待核销' },
 ]
 
 export const deductionDetailFixtures = [
-  { billNo: 'PCB-OG0370-20260721', feeNo: 'FEE-COD-20260721-001', fee: '代收货款手续费', order: 'SO-260721-004221', waybill: 'YT682941566TW', originalCurrency: 'CNY', originalAmount: 3020, conversionRate: 1, sourceCurrency: 'CNY', deductionAmount: 3020, state: '已计入返款账单' },
+  { billNo: 'PCB-OG0370-20260721-0a19', feeNo: 'FEE-COD-20260721-001', fee: '代收货款手续费', order: 'SO-260721-004221', waybill: 'YT682941566TW', originalCurrency: 'CNY', originalAmount: 3020, conversionRate: 1, sourceCurrency: 'CNY', deductionAmount: 3020, state: '已计入返款账单' },
 ]
 
 export const billWriteoffFixtures = [
-  { billNo: 'PCB-OG0347-20260526', no: 'WO-20260530-001', type: '返款核销', currency: 'TWD', amount: 2101, time: '2026/05/30 15:26', operator: '财务管理员' },
+  { billNo: 'PCB-OG0347-20260526-0a19', no: 'WO-20260530-001', type: '返款核销', currency: 'TWD', amount: 2101, time: '2026/05/30 15:26', operator: '财务管理员' },
   { billNo: 'ARB-OG0360-20260601-81FF', no: 'WO-20260718-003', type: '应收核销', currency: 'CNY', amount: 8000, time: '2026/07/18 14:12', operator: '财务管理员' },
 ]
 
 export const billAdjustmentLinkFixtures = [
   { billNo: 'ARB-OG0370-20260707-81FF', no: 'ADJ-AR-260715-001', type: '应收调账', status: '审核通过', fee: '派送附加费', objectNo: 'PF607701342355197952', currency: 'CNY', delta: 18, adjustedAt: '2026/07/15 10:24' },
-  { billNo: 'PCB-OG0370-20260721', no: 'ADJ-RF-260728-004', type: '返款调账', status: '待审核', fee: '代收服务费', objectNo: 'SO-260721-004221', currency: 'CNY', delta: -320, adjustedAt: '2026/07/28 16:02' },
+  { billNo: 'PCB-OG0370-20260721-0a19', no: 'ADJ-RF-260728-004', type: '返款调账', status: '待审核', fee: '代收服务费', objectNo: 'SO-260721-004221', currency: 'CNY', delta: -320, adjustedAt: '2026/07/28 16:02' },
 ]

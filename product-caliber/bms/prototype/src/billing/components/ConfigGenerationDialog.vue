@@ -67,9 +67,9 @@ function confirm() {
       <el-table ref="tableRef" :data="preview.rows" border row-key="id" @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="44" :selectable="row => !row.blocked" />
         <el-table-column label="客户" min-width="180"><template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="scope.row.customerCode" /></template></el-table-column>
-        <el-table-column label="所属店铺快照" min-width="155" show-overflow-tooltip><template #default="scope">{{ (scope.row.stores || [scope.row.store]).join('、') }}</template></el-table-column>
-        <el-table-column label="所属客户组快照" min-width="155" show-overflow-tooltip><template #default="scope">{{ (scope.row.groups || [scope.row.group]).join('、') }}</template></el-table-column>
-        <el-table-column label="关联会员快照" min-width="145" show-overflow-tooltip><template #default="scope">{{ (scope.row.memberCodes || [scope.row.memberCode]).join('、') }}</template></el-table-column>
+        <el-table-column prop="memberCode" label="会员编码快照" min-width="145" show-overflow-tooltip />
+        <el-table-column prop="store" label="所属店铺快照" min-width="155" show-overflow-tooltip />
+        <el-table-column prop="group" label="所属客户组快照" min-width="155" show-overflow-tooltip />
         <el-table-column label="方案名称 / 标识" min-width="140"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="scope.row.schemeKey" /></template></el-table-column>
         <el-table-column label="实际账期" width="190"><template #default="scope">{{ scope.row.periodStart === '-' ? '-' : `${scope.row.periodStart} 至 ${scope.row.periodEnd}` }}</template></el-table-column>
         <el-table-column label="创建校验" min-width="190"><template #default="scope"><div class="validation-cell"><StatusTag :label="scope.row.blocked ? '跳过' : '可创建'" :tone="scope.row.blocked ? 'warning' : 'success'" /><small v-if="scope.row.reason">{{ scope.row.reason }}</small></div></template></el-table-column>

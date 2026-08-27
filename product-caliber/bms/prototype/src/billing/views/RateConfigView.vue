@@ -24,13 +24,13 @@ import {
   switchRateReference,
   validateRateConfigRules,
 } from '../../domain/rateConfig.js'
-import { customerRelationSummary, formatCustomerRelations, matchCustomerRelations } from '../../domain/customerRelations.js'
+import { customerRelationSummary, matchCustomerRelations, validateCustomerIdentity } from '../../domain/customerRelations.js'
 import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const AS_OF_DATE = '2026-08-27'
 const baseRates = useDemoDataset('billingBaseRates', billingBaseRateFixtures)
-const referenceRows = useDemoDataset('billingRateCustomerReferences', billingRateFixtures, 20260829)
-const rateConfigs = useDemoDataset('billingRateConfigs', billingRateConfigFixtures, 20260829)
+const referenceRows = useDemoDataset('billingRateCustomerReferences', billingRateFixtures, 2026082801)
+const rateConfigs = useDemoDataset('billingRateConfigs', billingRateConfigFixtures, 2026082801)
 const activeView = ref('references')
 const importVisible = ref(false)
 const editorVisible = ref(false)
@@ -63,17 +63,34 @@ const currencyPairs = [{ label:'USD -> CNY', value:'USD -> CNY' }, { label:'GBP 
 const customerDirectory = computed(() => {
   const unique = new Map()
   referenceRows.value.forEach((row) => {
-    const current = unique.get(row.customerCode)
-    const relations = [...(current?.relations || []), ...customerRelationSummary(row).relations]
-    const relationMap = new Map(relations.map(item => [`${item.store}|${item.group}|${item.memberCode}`, item]))
-    unique.set(row.customerCode, { ...current, customerCode:row.customerCode, customerName:row.customerName, store:row.store, group:row.group, relations:[...relationMap.values()] })
+    if (unique.has(row.customerCode)) return
+    const relation = customerRelationSummary(row)
+    const identityValidation = validateCustomerIdentity(row)
+    unique.set(row.customerCode, {
+      customerCode:row.customerCode,
+      customerName:row.customerName,
+      memberCode:relation.memberCode,
+      store:relation.store,
+      group:relation.group,
+      relations:relation.relations,
+      identityIssues:identityValidation.issues,
+    })
   })
   return [...unique.values()]
 })
-const stores = computed(() => [...new Set(customerDirectory.value.flatMap(row => customerRelationSummary(row).stores))])
-const groups = computed(() => [...new Set(customerDirectory.value.flatMap(row => customerRelationSummary(row).groups))])
+const stores = computed(() => [...new Set(customerDirectory.value.map(row => row.store).filter(Boolean))])
+const groups = computed(() => [...new Set(customerDirectory.value
+  .filter(row => !query.store || row.store === query.store)
+  .map(row => row.group)
+  .filter(Boolean))])
+const assignmentGroups = computed(() => [...new Set(customerDirectory.value
+  .filter(row => !assignmentStore.value.length || assignmentStore.value.includes(row.store))
+  .map(row => row.group)
+  .filter(Boolean))])
 
 watch(activeView, resetQuery)
+watch(() => query.store, () => { if (query.group && !groups.value.includes(query.group)) query.group = '' })
+watch(assignmentStore, () => { assignmentGroup.value = assignmentGroup.value.filter(group => assignmentGroups.value.includes(group)) })
 
 const formatDirection = direction => direction?.replace('->', '→') || '-'
 const formatRate = (rate) => { if (rate === null || rate === undefined || rate === '--') return '--'; const value = Number(rate); return Number.isNaN(value) ? '--' : value.toFixed(6) }
@@ -115,10 +132,9 @@ function enrichReference(row) {
     configVersion:row?.configVersion || '-',
     referenceLabel:config ? referenceLabel(config) : '未配置',
     referenceTone:config ? referenceTone(config) : 'warning',
-    allRelationText:formatCustomerRelations(relations.relations),
-    storesText:relations.stores.join('；') || '-',
-    groupsText:relations.groups.join('；') || '-',
-    memberCodesText:relations.memberCodes.join('；') || '-',
+    memberCode:relations.memberCode || '-',
+    store:relations.store || '-',
+    group:relations.group || '-',
     rules,
     ruleCount:rules.length || '-',
     ruleSummary:ruleSummary(rules),
@@ -153,7 +169,7 @@ const assignmentCustomerRows = computed(() => customerDirectory.value.map((custo
 }))
 const assignmentRows = computed(() => assignmentCustomerRows.value.map((row) => {
   const matched = matchCustomerRelations(row, { stores:assignmentStore.value, groups:assignmentGroup.value })
-  return { ...row, matches:matched.matches, matchedRelationText:formatCustomerRelations(matched.matchedRelations) }
+  return { ...row, matches:matched.matches }
 }).filter(row => row.matches))
 const selectedAssignmentChanges = computed(() => assignmentCustomerRows.value.filter(row => assignmentCodes.value.includes(row.customerCode) && !isAlreadyExact(row)))
 const replacementCount = computed(() => selectedAssignmentChanges.value.filter(row => row.configId && row.configId !== selectedConfig.value?.id).length)
@@ -488,7 +504,7 @@ async function removeBaseRate(row) {
       :reference-count="referenceCount(selectedConfig)"
       :selected-count="selectedAssignmentChanges.length"
       :stores="stores"
-      :groups="groups"
+      :groups="assignmentGroups"
       :rows="assignmentRows"
       :selected-codes="assignmentCodes"
       :replacement-count="replacementCount"

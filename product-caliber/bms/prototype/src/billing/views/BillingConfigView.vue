@@ -20,7 +20,6 @@ import { billingConfigFixtures, billingConfigSeedVersion, billingConfigVersionFi
 import { billingTaskFixtures, billingTaskSeedVersion } from '../../data/fixtures/billingTasks.ts'
 import { configReferenceStats, createConfigBatchTaskRows, isConfigReferenceActive } from '../../domain/configGeneration.js'
 import { useDemoDataset } from '../data/useDemoDataset.js'
-import { customerRelationSummary } from '../../domain/customerRelations.js'
 
 const activeType = ref('AR')
 const activeView = ref('customers')
@@ -49,8 +48,11 @@ const periodLabels = { DAY_1:'1 自然天', DAY_7:'7 自然天', DAY_10:'10 自�
 const periodLabel = value => periodLabels[value] || value || '-'
 const settlementCurrency = scheme => { const value = scheme?.feeRules?.find(rule => rule.fallback)?.settlementCurrency; return value === 'SOURCE_CURRENCY' ? '随原始币种' : value || '-' }
 const cloneSnapshot = snapshot => snapshot ? JSON.parse(JSON.stringify(snapshot)) : null
-const stores = computed(() => [...new Set(customerReferences.value.flatMap(row => customerRelationSummary(row).stores))])
-const groups = computed(() => [...new Set(customerReferences.value.flatMap(row => customerRelationSummary(row).groups))])
+const stores = computed(() => [...new Set(customerReferences.value.map(row => row.store).filter(Boolean))])
+const groups = computed(() => [...new Set(customerReferences.value
+  .filter(row => !query.store || row.store === query.store)
+  .map(row => row.group)
+  .filter(Boolean))])
 const statsFor = config => configReferenceStats(config, customerReferences.value, demoNow)
 const activeReferencesFor = config => customerReferences.value.filter(row => row.configId === config.id && isConfigReferenceActive(row, demoNow))
 const versionRowsFor = (config) => {
@@ -81,9 +83,9 @@ const currentReferences = computed(() => {
   })
 })
 const customerRows = computed(() => currentReferences.value.filter(row =>
-  (!appliedQuery.keyword || `${row.customerCode}${row.customerName}${row.configNo}${row.configName}`.includes(appliedQuery.keyword))
-  && (!appliedQuery.store || customerRelationSummary(row).stores.includes(appliedQuery.store))
-  && (!appliedQuery.group || customerRelationSummary(row).groups.includes(appliedQuery.group))
+  (!appliedQuery.keyword || `${row.customerCode}${row.customerName}${row.memberCode}${row.configNo}${row.configName}`.includes(appliedQuery.keyword))
+  && (!appliedQuery.store || row.store === appliedQuery.store)
+  && (!appliedQuery.group || row.group === appliedQuery.group)
   && (!appliedQuery.status || row.status === appliedQuery.status)))
 const configRows = computed(() => configRowsWithStats.value.filter(row =>
   (!appliedQuery.keyword || `${row.no}${row.name}`.includes(appliedQuery.keyword))
@@ -104,6 +106,7 @@ const summary = computed(() => activeView.value === 'customers' ? [
 
 watch(activeType, () => { activeView.value = 'customers'; resetQuery() })
 watch(activeView, resetQuery)
+watch(() => query.store, () => { if (query.group && !groups.value.includes(query.group)) query.group = '' })
 
 const usageTone = type => type === 'SHARED' ? 'info' : type === 'EXCLUSIVE' ? 'success' : 'warning'
 function referenceUsage(row) { const config = configs.value.find(item => item.id === row.configId); return config ? statsFor(config) : { usageType:'UNUSED', label:'未配置' } }
@@ -272,8 +275,10 @@ function generate(reference) { const snapshot = configFromReference(reference); 
         <template #actions><el-button type="primary" :icon="Plus" @click="newConfig">新建配置</el-button></template>
         <el-table v-if="activeView === 'customers'" :data="rows" border row-key="id" class="clean-table">
           <el-table-column type="expand"><template #default="scope"><dl class="inline-detail-grid"><div><dt>客户引用记录</dt><dd>{{ scope.row.referenceNo }}</dd></div><div><dt>准确版本</dt><dd>{{ scope.row.configNo }} / {{ scope.row.version }}</dd></div><div><dt>账期规则</dt><dd>{{ scope.row.cycle }}</dd></div><div><dt>生效周期</dt><dd>{{ scope.row.effectStart }} 至 {{ scope.row.effectEnd }}</dd></div></dl><ConfigSchemeOverview v-if="activeType === 'AR'" :snapshot="scope.row.schemeSnapshot" /></template></el-table-column>
-          <el-table-column label="客户" min-width="190"><template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="scope.row.customerCode" /></template></el-table-column>
-          <el-table-column label="所属店铺" min-width="150" show-overflow-tooltip><template #default="scope">{{ customerRelationSummary(scope.row).stores.join('、') || '-' }}</template></el-table-column><el-table-column label="所属客户组" min-width="150" show-overflow-tooltip><template #default="scope">{{ customerRelationSummary(scope.row).groups.join('、') || '-' }}</template></el-table-column><el-table-column label="关联会员" min-width="140" show-overflow-tooltip><template #default="scope">{{ customerRelationSummary(scope.row).memberCodes.join('、') || '-' }}</template></el-table-column>
+          <el-table-column label="客户（会员）" min-width="190"><template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="scope.row.customerCode" /></template></el-table-column>
+          <el-table-column prop="memberCode" label="会员编码" min-width="125" show-overflow-tooltip />
+          <el-table-column prop="store" label="所属店铺" min-width="150" show-overflow-tooltip />
+          <el-table-column prop="group" label="所属客户组" min-width="150" show-overflow-tooltip />
           <el-table-column label="引用状态" width="100"><template #default="scope"><StatusTag :label="scope.row.configId ? '已引用' : '未配置'" :tone="scope.row.configId ? 'success' : 'warning'" /></template></el-table-column>
           <el-table-column label="采用配置" min-width="220"><template #default="scope"><StackedCell :primary="scope.row.configName" :secondary="scope.row.configNo === '-' ? '-' : `${scope.row.configNo} / ${scope.row.version}`" /></template></el-table-column>
           <el-table-column label="引用标签" width="125"><template #default="scope"><StatusTag :label="referenceUsage(scope.row).label" :tone="usageTone(referenceUsage(scope.row).usageType)" /></template></el-table-column>

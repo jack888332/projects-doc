@@ -38,8 +38,10 @@ const emit = defineEmits(['update:modelValue', 'update:switchDate', 'update:reas
       <el-table :data="props.references" border row-key="id">
         <el-table-column label="升级" width="60"><template #default="scope"><el-checkbox :model-value="props.upgradeCodes.includes(scope.row.customerCode)" :aria-label="`升级 ${scope.row.customerName}`" @change="emit('toggleUpgrade', scope.row.customerCode, $event)" /></template></el-table-column>
         <el-table-column prop="customerCode" label="客户编码" width="100" />
-        <el-table-column prop="customerName" label="客户名称" min-width="180" />
-        <el-table-column label="全部当前归属（店铺 / 客户组 / 会员）" min-width="300"><template #default="scope"><span class="relation-text" :title="scope.row.allRelationText">{{ scope.row.allRelationText }}</span></template></el-table-column>
+        <el-table-column prop="customerName" label="客户名称" min-width="170" />
+        <el-table-column prop="memberCode" label="会员编码" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="store" label="所属店铺" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="group" label="所属客户组" min-width="140" show-overflow-tooltip />
         <el-table-column prop="configVersion" label="当前准确版本" width="110" />
         <el-table-column label="发布后" width="105"><template #default="scope">{{ props.upgradeCodes.includes(scope.row.customerCode) ? props.nextVersion : scope.row.configVersion }}</template></el-table-column>
       </el-table>

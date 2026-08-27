@@ -82,7 +82,7 @@ const canFilterGenerationMode = computed(() => !taskQuery.taskType || taskQuery.
 const selectedSourceScans = computed(() => sourceScansByTaskId[selectedTask.value?.id] || [])
 
 const filteredTasks = computed(() => taskRecords.value.filter((item) => {
-  const customerText = `${item.customerName}${item.customerNo}${(item.memberCodes || [item.memberCode]).join('')}`.toLowerCase()
+  const customerText = `${item.customerName}${item.customerNo}${item.memberCode}`.toLowerCase()
   const periodMatched = !appliedTaskQuery.period?.length
     || (dayjs(item.periodStart).isAfter(dayjs(appliedTaskQuery.period[0]).subtract(1, 'day'))
       && dayjs(item.periodEnd).isBefore(dayjs(appliedTaskQuery.period[1]).add(1, 'day')))
@@ -97,8 +97,8 @@ const filteredTasks = computed(() => taskRecords.value.filter((item) => {
     && (!appliedTaskQuery.generationMode || item.generationMode === appliedTaskQuery.generationMode)
     && (!appliedTaskQuery.triggerType || item.triggerType === appliedTaskQuery.triggerType)
     && (!appliedTaskQuery.schemeType || item.schemeType === appliedTaskQuery.schemeType)
-    && (!appliedTaskQuery.shop || (item.shops || [item.shop]).includes(appliedTaskQuery.shop))
-    && (!appliedTaskQuery.customerGroup || (item.customerGroups || [item.customerGroup]).includes(appliedTaskQuery.customerGroup))
+    && (!appliedTaskQuery.shop || item.shop === appliedTaskQuery.shop)
+    && (!appliedTaskQuery.customerGroup || item.customerGroup === appliedTaskQuery.customerGroup)
     && periodMatched
 }))
 
@@ -266,10 +266,10 @@ function viewResult(row) {
             </el-table-column>
             <el-table-column label="方案名称 / 标识" min-width="160"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="`${scope.row.schemeKey} · ${scope.row.schemeType}`" /></template></el-table-column>
             <el-table-column label="客户" min-width="190">
-              <template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="`${scope.row.customerNo} / ${(scope.row.memberCodes || [scope.row.memberCode]).join('、')}`" /></template>
+              <template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="`${scope.row.customerNo} / ${scope.row.memberCode}`" /></template>
             </el-table-column>
-            <el-table-column label="所属店铺" width="150" show-overflow-tooltip><template #default="scope">{{ (scope.row.shops || [scope.row.shop]).join('、') }}</template></el-table-column>
-            <el-table-column label="所属客户组" width="150" show-overflow-tooltip><template #default="scope">{{ (scope.row.customerGroups || [scope.row.customerGroup]).join('、') }}</template></el-table-column>
+            <el-table-column prop="shop" label="所属店铺" width="150" show-overflow-tooltip />
+            <el-table-column prop="customerGroup" label="所属客户组" width="150" show-overflow-tooltip />
             <el-table-column prop="period" label="账期" width="188" />
             <el-table-column prop="dataCutoff" label="数据截止点" width="160" />
             <TableActionColumn>
@@ -332,8 +332,9 @@ function viewResult(row) {
               <div><dt>方案类型</dt><dd>{{ selectedTask.schemeType }}</dd></div>
               <div><dt>客户配置引用</dt><dd>{{ selectedTask.customerReferenceNo }}</dd></div>
               <div><dt>客户</dt><dd>{{ selectedTask.customerName }} / {{ selectedTask.customerNo }}</dd></div>
-              <div><dt>关联会员 / 全部当前所属店铺快照</dt><dd>{{ (selectedTask.memberCodes || [selectedTask.memberCode]).join('、') }} / {{ (selectedTask.shops || [selectedTask.shop]).join('、') }}</dd></div>
-              <div><dt>全部当前所属客户组快照</dt><dd>{{ (selectedTask.customerGroups || [selectedTask.customerGroup]).join('、') }}</dd></div>
+              <div><dt>会员编码</dt><dd>{{ selectedTask.memberCode }}</dd></div>
+              <div><dt>所属店铺快照</dt><dd>{{ selectedTask.shop }}</dd></div>
+              <div><dt>所属客户组快照</dt><dd>{{ selectedTask.customerGroup }}</dd></div>
               <div><dt>实际命中来源订单所属店铺快照</dt><dd>{{ selectedTask.sourceShopSnapshots?.join('、') || (selectedTask.status === 'SUCCESS' ? '-' : '待执行') }}</dd></div>
               <div><dt>账期</dt><dd>{{ selectedTask.period }}</dd></div>
               <div><dt>数据截止点</dt><dd>{{ selectedTask.dataCutoff }}</dd></div>

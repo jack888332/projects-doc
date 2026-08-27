@@ -40,12 +40,11 @@ const makeRefundSnapshot = (mode = 'RECEIVED', period = 'WEEK', currency = 'CNY'
   effectPeriod:[effectStart, '2027-07-31'],
 })
 
-export const billingConfigSeedVersion = 2026082704
+export const billingConfigSeedVersion = 2026082801
 
 const customerRelationDirectory: Record<string, Record<string, string>[]> = {
   OG0271: [
     { store:'星际货运(中转)', group:'台湾大客户组', memberCode:'M-700127' },
-    { store:'台湾集运店', group:'美国电商组', memberCode:'M-700129' },
   ],
   OG0370: [{ store:'星际中转2', group:'日本同行组', memberCode:'M-672019' }],
   OG0347: [{ store:'台湾集运店', group:'台湾大客户组', memberCode:'M-204801' }],

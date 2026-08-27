@@ -129,7 +129,7 @@ function runQuery() {
     <div class="summary-dimension-heading"><strong>店铺</strong></div>
     <section class="condition-query-panel summary-scope-row">
       <div class="condition-filter-bar">
-        <ConditionFilter v-model="shopQuery.shop" label="店铺" :options="shops" @change="linkedQuery.touch('shop')" />
+        <ConditionFilter v-model="shopQuery.shop" label="所属店铺" :options="shops" @change="linkedQuery.touch('shop')" />
         <ConditionFilter v-model="shopQuery.period" label="账期范围" type="period-range" :popover-width="380" @change="linkedQuery.touch('shop')" />
         <div v-if="linkedQuery.isSubmitArea('shop')" class="condition-filter-actions linked-query-actions">
           <el-button type="primary" @click="runQuery">查询</el-button>

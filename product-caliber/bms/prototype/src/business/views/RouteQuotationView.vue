@@ -362,7 +362,7 @@ function exportQuotes() {
         </div>
         <el-form size="small" label-position="right" label-width="130px" class="route-quote-detail-form">
           <div class="route-quote-form-grid">
-            <el-form-item label="店铺" required class="span-all"><el-select v-model="detailDraft.shop" clearable filterable><el-option v-for="item in shops" :key="item" :label="item" :value="item" /></el-select></el-form-item>
+            <el-form-item label="所属店铺" required class="span-all"><el-select v-model="detailDraft.shop" clearable filterable><el-option v-for="item in shops" :key="item" :label="item" :value="item" /></el-select></el-form-item>
             <el-form-item label="报价名称" required><el-input v-model="detailDraft.name" /></el-form-item>
             <el-form-item label="报价分组" required><el-select v-model="detailDraft.groups" multiple clearable collapse-tags collapse-tags-tooltip><el-option v-for="item in quoteGroups" :key="item" :label="item" :value="item" /></el-select></el-form-item>
             <el-form-item label="业务类型" required><el-select v-model="detailDraft.businessTypes" multiple clearable collapse-tags collapse-tags-tooltip><el-option v-for="item in businessTypes" :key="item" :label="item" :value="item" /></el-select></el-form-item>

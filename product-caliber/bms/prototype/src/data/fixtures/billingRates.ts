@@ -7,11 +7,11 @@ export const billingBaseRateFixtures = [
 
 // 每个客户在同一时段只有一条特调配置引用，引用固定到配置的准确版本。
 export const billingRateFixtures = [
-  { id:'RR-001', customerCode:'OG4155', customerName:'OceanGate Logistics', store:'星际货运(中转)', group:'台湾大客户组', relations:[{ store:'星际货运(中转)', group:'台湾大客户组', memberCode:'M-415501' }], configId:'RC-001', configVersion:'V2', effectiveFrom:'2026-08-01', effectiveTo:'长期', status:'启用' },
-  { id:'RR-002', customerCode:'TK9012', customerName:'TopKing Supply', store:'星际中转2', group:'日本同行组', relations:[{ store:'星际中转2', group:'日本同行组', memberCode:'M-901201' }], configId:'RC-002', configVersion:'V3', effectiveFrom:'2026-07-01', effectiveTo:'长期', status:'启用' },
-  { id:'RR-003', customerCode:'NW2048', customerName:'NorthWind Cargo', store:'台湾集运店', group:'美国电商组', relations:[{ store:'台湾集运店', group:'美国电商组', memberCode:'M-204801' }], configId:'RC-003', configVersion:'V1', effectiveFrom:'2026-07-15', effectiveTo:'长期', status:'启用' },
-  { id:'RR-004', customerCode:'OG0271', customerName:'渣渣辉3号', store:'星际货运(中转)', group:'台湾大客户组', relations:[{ store:'星际货运(中转)', group:'台湾大客户组', memberCode:'M-700127' },{ store:'台湾集运店', group:'美国电商组', memberCode:'M-700129' }], configId:'RC-001', configVersion:'V1', effectiveFrom:'2026-06-01', effectiveTo:'长期', status:'启用' },
-  { id:'RR-005', customerCode:'OG0370', customerName:'JYK-深圳立杰海快', store:'星际中转2', group:'日本同行组', relations:[{ store:'星际中转2', group:'日本同行组', memberCode:'M-672019' }], configId:null, configVersion:null, effectiveFrom:null, effectiveTo:null, status:'未配置' },
+  { id:'RR-001', customerCode:'OG4155', customerName:'OceanGate Logistics', memberCode:'M-415501', store:'星际货运(中转)', group:'台湾大客户组', relations:[{ store:'星际货运(中转)', group:'台湾大客户组', memberCode:'M-415501' }], configId:'RC-001', configVersion:'V2', effectiveFrom:'2026-08-01', effectiveTo:'长期', status:'启用' },
+  { id:'RR-002', customerCode:'TK9012', customerName:'TopKing Supply', memberCode:'M-901201', store:'星际中转2', group:'日本同行组', relations:[{ store:'星际中转2', group:'日本同行组', memberCode:'M-901201' }], configId:'RC-002', configVersion:'V3', effectiveFrom:'2026-07-01', effectiveTo:'长期', status:'启用' },
+  { id:'RR-003', customerCode:'NW2048', customerName:'NorthWind Cargo', memberCode:'M-204801', store:'台湾集运店', group:'美国电商组', relations:[{ store:'台湾集运店', group:'美国电商组', memberCode:'M-204801' }], configId:'RC-003', configVersion:'V1', effectiveFrom:'2026-07-15', effectiveTo:'长期', status:'启用' },
+  { id:'RR-004', customerCode:'OG0271', customerName:'渣渣辉3号', memberCode:'M-700127', store:'星际货运(中转)', group:'台湾大客户组', relations:[{ store:'星际货运(中转)', group:'台湾大客户组', memberCode:'M-700127' }], configId:'RC-001', configVersion:'V1', effectiveFrom:'2026-06-01', effectiveTo:'长期', status:'启用' },
+  { id:'RR-005', customerCode:'OG0370', customerName:'JYK-深圳立杰海快', memberCode:'M-672019', store:'星际中转2', group:'日本同行组', relations:[{ store:'星际中转2', group:'日本同行组', memberCode:'M-672019' }], configId:null, configVersion:null, effectiveFrom:null, effectiveTo:null, status:'未配置' },
 ]
 
 export const billingRateConfigFixtures = [

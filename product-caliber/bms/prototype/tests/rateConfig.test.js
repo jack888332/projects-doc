@@ -13,12 +13,10 @@ import {
 const customer = {
   customerCode:'OG0271',
   customerName:'渣渣辉3号',
+  memberCode:'M-001',
   store:'星际货运(中转)',
   group:'台湾大客户组',
-  relations:[
-    { store:'星际货运(中转)', group:'台湾大客户组', memberCode:'M-001' },
-    { store:'台湾集运店', group:'美国电商组', memberCode:'M-002' },
-  ],
+  relations:[{ store:'星际货运(中转)', group:'台湾大客户组', memberCode:'M-001' }],
 }
 
 const reference = (overrides = {}) => ({
@@ -49,6 +47,7 @@ describe('rate configuration references', () => {
       expect.objectContaining({ id:'RR-001', configVersion:'V1', effectiveTo:'2026-08-31' }),
       expect.objectContaining({ id:'RR-002', configVersion:'V2', effectiveFrom:'2026-09-01', effectiveTo:'长期' }),
     ])
+    expect(result.created).toMatchObject({ memberCode:'M-001', store:'星际货运(中转)', group:'台湾大客户组' })
     expect(result.created.relations).toEqual(customer.relations)
   })
 

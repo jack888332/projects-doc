@@ -96,6 +96,7 @@ export function switchRateReference(references, {
     id:referenceId,
     customerCode:customer.customerCode,
     customerName:customer.customerName,
+    memberCode:customer.memberCode || relations[0]?.memberCode || '',
     store:customer.store || relations[0]?.store || '',
     group:customer.group || relations[0]?.group || '',
     relations,

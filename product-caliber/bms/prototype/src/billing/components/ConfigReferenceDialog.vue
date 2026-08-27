@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import ConditionFilter from '../../shared/components/ConditionFilter.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
-import { customerRelationSummary, formatCustomerRelations, matchCustomerRelations } from '../../domain/customerRelations.js'
+import { customerRelationSummary, matchCustomerRelations, validateCustomerIdentity } from '../../domain/customerRelations.js'
 import { isConfigReferenceActive, taskOverlapsReferenceStart } from '../../domain/configGeneration.js'
 
 const props = defineProps({
@@ -25,12 +25,17 @@ const appliedQuery = reactive({ customer:'', stores:[], groups:[] })
 const form = reactive({ effectiveAt: '2026-09-01', forceConfirmed: false, reason: '' })
 const visible = computed({ get: () => props.modelValue, set: value => emit('update:modelValue', value) })
 const stores = computed(() => [...new Set(props.customers.flatMap(row => customerRelationSummary(row).stores))])
-const groups = computed(() => [...new Set(props.customers.flatMap(row => customerRelationSummary(row).groups))])
+const groups = computed(() => [...new Set(props.customers
+  .flatMap(row => customerRelationSummary(row).relations)
+  .filter(relation => !query.stores.length || query.stores.includes(relation.store))
+  .map(relation => relation.group)
+  .filter(Boolean))])
 function taskOverlapsSwitch(task, customerCode) {
   return taskOverlapsReferenceStart(task, { customerCode, billType:props.config?.type, effectiveAt:form.effectiveAt })
 }
 const allRows = computed(() => props.customers.map((customer) => {
   const relationMatch = matchCustomerRelations(customer, appliedQuery)
+  const identityValidation = validateCustomerIdentity(customer)
   const referenceAtSwitch = props.referenceHistory
     .filter(reference => reference.type === props.config?.type && reference.customerCode === customer.customerCode && isConfigReferenceActive(reference, form.effectiveAt))
     .sort((left, right) => String(right.effectStart).localeCompare(String(left.effectStart)))[0]
@@ -38,8 +43,9 @@ const allRows = computed(() => props.customers.map((customer) => {
   const sameConfig = adopted.configId === props.config?.id
   const sameVersion = sameConfig && adopted.configNo === props.config?.no && adopted.version === props.config?.version
   const blockingTasks = props.tasks.filter(task => taskOverlapsSwitch(task, customer.customerCode))
-  const blocked = Boolean(customer.blocked || blockingTasks.length)
-  const category = blocked ? '不可切换'
+  const blocked = Boolean(customer.blocked || blockingTasks.length || !identityValidation.valid)
+  const category = !identityValidation.valid ? '主数据异常'
+    : blocked ? '不可切换'
     : sameVersion ? '已引用当前版本'
     : sameConfig ? '本配置其它版本'
       : adopted.configId ? '其它配置'
@@ -55,17 +61,13 @@ const allRows = computed(() => props.customers.map((customer) => {
     category,
     blocked,
     blockingTaskNos:blockingTasks.map(task => task.taskNo),
+    identityIssues:identityValidation.issues,
     selectable:!sameVersion && !blocked,
     risky:category === '其它配置',
     relationMatch:relationMatch.matches,
-    relations:relationMatch.relations,
-    stores:relationMatch.stores,
-    groups:relationMatch.groups,
-    memberCodes:relationMatch.memberCodes,
-    storesText:relationMatch.stores.join('、') || '-',
-    groupsText:relationMatch.groups.join('、') || '-',
-    memberCodesText:relationMatch.memberCodes.join('、') || '-',
-    matchedRelationsText:formatCustomerRelations(relationMatch.matchedRelations),
+    store:relationMatch.store || '-',
+    group:relationMatch.group || '-',
+    memberCode:relationMatch.memberCode || '-',
   }
 }))
 const rows = computed(() => allRows.value.filter(row =>
@@ -76,6 +78,8 @@ const riskCount = computed(() => resolvedSelectedRows.value.filter(row => row.ri
 
 function applyQuery() { Object.assign(appliedQuery, { customer:query.customer, stores:[...query.stores], groups:[...query.groups] }) }
 function resetQuery() { Object.assign(query, { customer:'', stores:[], groups:[] }); applyQuery() }
+
+watch(() => [...query.stores], () => { query.groups = query.groups.filter(group => groups.value.includes(group)) })
 
 watch(() => props.modelValue, async (open) => {
   if (!open) return
@@ -112,7 +116,7 @@ function confirm() {
       <div><span>已选客户</span><strong>{{ selectedRows.length }}</strong></div>
       <div><span>强制替换</span><strong :class="{ danger:riskCount }">{{ riskCount }}</strong></div>
     </div>
-    <el-alert title="所属店铺和所属客户组只用于本次筛选；确认后逐客户建立准确版本引用，客户归属变化不会自动增删引用。" type="info" :closable="false" show-icon />
+    <el-alert title="客户与会员为同一主体；所属店铺和所属客户组只用于本次筛选，客户组选项随店铺联动。确认后逐客户建立准确版本引用。" type="info" :closable="false" show-icon />
     <div class="reference-filters">
       <ConditionFilter v-model="query.customer" label="客户" type="text" />
       <el-select v-model="query.stores" multiple collapse-tags collapse-tags-tooltip clearable placeholder="所属店铺" aria-label="所属店铺"><el-option v-for="item in stores" :key="item" :label="item" :value="item" /></el-select>
@@ -124,12 +128,11 @@ function confirm() {
         <el-table-column type="selection" width="44" :selectable="selectable" reserve-selection />
         <el-table-column prop="code" label="客户编码" width="100" />
         <el-table-column prop="name" label="客户名称" min-width="170" />
-        <el-table-column prop="storesText" label="所属店铺" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="groupsText" label="所属客户组" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="memberCodesText" label="关联会员" min-width="135" show-overflow-tooltip />
-        <el-table-column prop="matchedRelationsText" label="本次命中归属" min-width="230" show-overflow-tooltip />
+        <el-table-column prop="memberCode" label="会员编码" min-width="125" show-overflow-tooltip />
+        <el-table-column prop="store" label="所属店铺" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="group" label="所属客户组" min-width="150" show-overflow-tooltip />
         <el-table-column label="当前配置" min-width="190"><template #default="scope">{{ scope.row.configName || '未配置' }}<small v-if="scope.row.version && scope.row.version !== '-'"> · {{ scope.row.version }}</small></template></el-table-column>
-        <el-table-column label="识别结果" min-width="190"><template #default="scope"><div class="result-cell"><StatusTag :label="scope.row.category" :tone="scope.row.blocked ? 'danger' : scope.row.risky ? 'warning' : scope.row.category === '已引用当前版本' ? 'neutral' : 'success'" /><small v-if="scope.row.blockingTaskNos.length">冲突任务：{{ scope.row.blockingTaskNos.join('、') }}</small></div></template></el-table-column>
+        <el-table-column label="识别结果" min-width="210"><template #default="scope"><div class="result-cell"><StatusTag :label="scope.row.category" :tone="scope.row.blocked ? 'danger' : scope.row.risky ? 'warning' : scope.row.category === '已引用当前版本' ? 'neutral' : 'success'" /><small v-if="scope.row.identityIssues.length">{{ scope.row.identityIssues.join('；') }}</small><small v-else-if="scope.row.blockingTaskNos.length">冲突任务：{{ scope.row.blockingTaskNos.join('、') }}</small></div></template></el-table-column>
       </el-table>
     </DataTableFrame>
     <el-form label-position="top" class="reference-form">

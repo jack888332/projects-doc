@@ -42,8 +42,8 @@ const form = reactive({
 })
 const allFolded = computed(() => form.branches.length > 0 && form.branches.every(item => item.folded))
 const previewNo = computed(() => {
-  if (!props.config.no || props.config.no === '新配置') return 'ARB-SCHEME-{时间戳}-v1'
-  return props.config.no.replace(/-v(\d+)$/, (_, n) => `-v${Number(n) + 1}`)
+  if (!props.config.no || ['新配置', '新母版'].includes(props.config.no)) return '保存后自动生成'
+  return props.config.no
 })
 
 function toggleAll() {
@@ -100,7 +100,7 @@ defineExpose({ validate })
         <div><strong>应收账单结算条款</strong><el-button link type="primary" @click="toggleAll">{{ allFolded ? '展开所有方案' : '折叠所有方案' }}</el-button></div>
         <el-switch :model-value="allFolded" @change="toggleAll" />
       </header>
-      <div class="config-no-bar"><span>配置编号</span><el-tooltip content="格式：ARB-SCHEME-{创建时间戳}-v{版本号}。前段创建后不可变，仅版本号随保存递增。"><b>{{ previewNo }}</b></el-tooltip><small>{{ config.no === '新配置' ? '首次保存将生成 v1' : '保存后版本号自动递增' }}</small></div>
+      <div class="config-no-bar"><span>配置编号</span><el-tooltip content="配置编号创建后不变，内容变更通过独立版本号形成新快照。"><b>{{ previewNo }}</b></el-tooltip><small>{{ ['新配置','新母版'].includes(config.no) ? '首次保存生成编号和 V1' : '保存后生成新版本，配置编号保持不变' }}</small></div>
 
       <div class="scheme-section">
         <div class="scheme-title"><strong>默认方案</strong><span>不包含限制条件，默认直接生效</span></div>

@@ -194,6 +194,7 @@ CREATE TABLE `bill_config_fee_currency_rule` (
   `fee_index_id` bigint(20) unsigned DEFAULT NULL COMMENT '费项ID',
   `fee_code` varchar(64) NOT NULL COMMENT '费项编码',
   `fee_name` varchar(128) DEFAULT NULL COMMENT '费项名称',
+  `is_fallback` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否兜底规则：0否，1是',
   `charge_currency_mode` varchar(32) NOT NULL DEFAULT 'CONFIG_DEFAULT' COMMENT '收费币种模式：CONFIG_DEFAULT账单默认币种，SOURCE来源币种，FIXED固定币种',
   `charge_currency` varchar(16) DEFAULT NULL COMMENT '固定收费币种',
   `enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否启用：0否，1是',

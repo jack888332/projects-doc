@@ -121,7 +121,7 @@ async function openBill(row) {
           <el-table-column prop="tracking" label="尾程运单号" width="160" fixed />
           <el-table-column prop="order" label="所属内部订单" width="155" />
           <el-table-column prop="customer" label="客户" min-width="170" show-overflow-tooltip />
-          <el-table-column prop="shop" label="店铺" width="120" show-overflow-tooltip />
+          <el-table-column prop="shop" label="所属店铺" width="120" show-overflow-tooltip />
           <el-table-column prop="signStatus" label="签收状态" width="95" />
           <el-table-column prop="signedAt" label="签收时间" width="155" />
           <el-table-column label="货款原始金额" width="135">

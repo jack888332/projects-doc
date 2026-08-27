@@ -22,21 +22,45 @@ const creditRatings = ['A', 'B', 'C', 'D']
 const creditTerms = [{ label: '0 天', value: 0 }, { label: '3 天', value: 3 }, { label: '5 天', value: 5 }, { label: '7 天', value: 7 }, { label: '15 天', value: 15 }, { label: '30 天', value: 30 }]
 const overdueOptions = [{ label: '0%', value: 0 }, { label: '0.03%/天', value: 0.0003 }, { label: '0.05%/天', value: 0.0005 }, { label: '0.1%/天', value: 0.001 }]
 
+const clone = value => JSON.parse(JSON.stringify(value))
+const periodFromCycle = (cycle = '') => {
+  if (cycle.includes('半月')) return 'HALF_MONTH'
+  if (cycle.includes('月')) return 'MONTH'
+  if (cycle.includes('10')) return 'DAY_10'
+  if (cycle.includes('15')) return 'DAY_15'
+  if (cycle.includes('7')) return 'DAY_7'
+  if (cycle.includes('1')) return 'DAY_1'
+  return 'WEEK'
+}
 let schemeSeed = 1
-const createScheme = () => {
-  const sourceCurrency = props.config.currency || 'CNY'
+const existingBranchNumbers = (props.config.schemeSnapshot?.branches || [])
+  .map(scheme => Number(String(scheme.schemeKey || '').replace('BRANCH-', '')) || 0)
+let branchKeySeed = Math.max(0, ...existingBranchNumbers)
+const nextBranchKey = () => `BRANCH-${String(++branchKeySeed).padStart(2, '0')}`
+const createScheme = (snapshot = {}, fallbackKey = '') => {
+  const sourceCurrency = snapshot.sourceCurrency || props.config.currency || 'CNY'
   return {
-    id: schemeSeed++, folded: false, businessTypes: [], targetCountries: [], warehouses: [],
-    sourceCurrency, feeRules: [{ feeCode: 'FALLBACK', fallback: true, settlementCurrency: 'SOURCE_CURRENCY' }],
-    template: '', node: 'WEIGHT_OUTBOUND',
-    period: props.config.cycle?.includes('7') ? 'DAY_7' : 'WEEK', sendAfterDays: Number.parseInt(props.config.sentRule) || 3,
-    effectPeriod: ['2026-08-01', '2027-07-31'],
+    id: schemeSeed++, folded: false,
+    schemeKey: snapshot.schemeKey || fallbackKey,
+    enabled: snapshot.enabled !== false,
+    businessTypes: [...(snapshot.businessTypes || [])],
+    targetCountries: [...(snapshot.targetCountries || [])],
+    warehouses: [...(snapshot.warehouses || [])],
+    sourceCurrency,
+    feeRules: snapshot.feeRules?.length
+      ? clone(snapshot.feeRules)
+      : [{ feeCode: 'FALLBACK', fallback: true, settlementCurrency: 'SOURCE_CURRENCY' }],
+    template: '',
+    node: snapshot.node || 'WEIGHT_OUTBOUND',
+    period: snapshot.period || periodFromCycle(props.config.cycle),
+    sendAfterDays: snapshot.sendAfterDays ?? (Number.parseInt(props.config.sentRule) || 3),
+    effectPeriod: [...(snapshot.effectPeriod || [props.config.effectStart || '2026-08-01', props.config.effectEnd === '长期' ? '2027-07-31' : props.config.effectEnd || '2027-07-31'])],
   }
 }
-const defaultScheme = createScheme()
+const defaultScheme = createScheme(props.config.schemeSnapshot?.defaultScheme, 'DEFAULT')
 const form = reactive({
   defaultScheme,
-  branches: [],
+  branches: (props.config.schemeSnapshot?.branches || []).map(snapshot => createScheme(snapshot, snapshot.schemeKey || nextBranchKey())),
   creditRating: 'A', creditTerm: 7, overdueFee: 0, advanceLimit: '500000',
   contractNo: 'HT-SCHEME-2026', contractFiles: [],
 })
@@ -50,7 +74,7 @@ function toggleAll() {
   const next = !allFolded.value
   form.branches.forEach(item => { item.folded = next })
 }
-function addBranch() { form.branches.push(createScheme()) }
+function addBranch() { form.branches.push(createScheme({}, nextBranchKey())) }
 function handleFile(file) { form.contractFiles = [{ name: file.name, url: '#' }] }
 function overlaps(a, b, key) {
   if (!a[key].length || !b[key].length) return true
@@ -90,7 +114,30 @@ function validate() {
   if (error) { ElMessage.warning(error); return false }
   return true
 }
-defineExpose({ validate })
+function snapshotScheme(scheme, branch = false) {
+  return {
+    schemeKey: scheme.schemeKey,
+    enabled: scheme.enabled,
+    ...(branch ? {
+      businessTypes: [...scheme.businessTypes],
+      targetCountries: [...scheme.targetCountries],
+      warehouses: [...scheme.warehouses],
+    } : {}),
+    sourceCurrency: scheme.sourceCurrency,
+    feeRules: clone(scheme.feeRules),
+    node: scheme.node,
+    period: scheme.period,
+    sendAfterDays: scheme.sendAfterDays,
+    effectPeriod: [...scheme.effectPeriod],
+  }
+}
+function getSchemeSnapshot() {
+  return {
+    defaultScheme: snapshotScheme(form.defaultScheme),
+    branches: form.branches.map(scheme => snapshotScheme(scheme, true)),
+  }
+}
+defineExpose({ validate, getSchemeSnapshot })
 </script>
 
 <template>

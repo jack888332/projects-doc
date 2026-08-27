@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import dayjs from 'dayjs'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { Download, RefreshRight, View } from '@element-plus/icons-vue'
@@ -20,7 +21,7 @@ const router = useRouter()
 const isReceivable = computed(() => props.billType === 'AR')
 const title = computed(() => isReceivable.value ? '应收账单' : '返款账单')
 const pageSchema = computed(() => createBillListSchema(isReceivable.value))
-const initialQuery = { billNo: '', customer: '', shop: '', group: '', taskNo: '', configNo: '', country: '', periodType: '', period: [] }
+const initialQuery = { billNo: '', customer: '', shop: '', group: '', batchNo: '', taskNo: '', configNo: '', configVersion: '', country: '', periodType: '', period: [] }
 const { query, appliedQuery, applyQuery, resetQuery: resetStagedQuery } = useStagedQuery(initialQuery)
 const activeStatus = ref('待审核')
 const selectedRows = ref([])
@@ -33,7 +34,7 @@ const exportFormatOptions = [
 ]
 const expectedSheetCount = computed(() => exportPurpose.value === 'INTERNAL' && exportFormat.value === 'MERGED' ? 1 : scopeBillCount.value)
 
-const bills = useDemoDataset('billingBills', billingBillFixtures, 6)
+const bills = useDemoDataset('billingBills', billingBillFixtures, 20260827)
 
 const statuses = computed(() => isReceivable.value
   ? ['待审核', '待结清', '逾期未结清', '已结清', '已作废', '全部']
@@ -42,19 +43,27 @@ const typeBills = computed(() => bills.value.filter((item) => item.type === prop
 const filteredBills = computed(() => typeBills.value.filter((item) => {
   const statusMatch = activeStatus.value === '全部'
     || (activeStatus.value === '逾期未结清' ? item.status === '待结清' && item.overdueDays > 0 : item.status === activeStatus.value)
+  const periodMatched = !appliedQuery.period?.length
+    || (dayjs(item.periodStart).isAfter(dayjs(appliedQuery.period[0]).subtract(1, 'day'))
+      && dayjs(item.periodEnd).isBefore(dayjs(appliedQuery.period[1]).add(1, 'day')))
   return statusMatch && (!appliedQuery.billNo || item.billNo.includes(appliedQuery.billNo))
     && (!appliedQuery.customer || `${item.customer}${item.customerNo}`.includes(appliedQuery.customer))
     && (!appliedQuery.shop || item.shop.includes(appliedQuery.shop))
     && (!appliedQuery.group || item.group === appliedQuery.group)
+    && (!appliedQuery.batchNo || item.batchNo.includes(appliedQuery.batchNo))
     && (!appliedQuery.taskNo || item.taskNo === appliedQuery.taskNo)
     && (!appliedQuery.configNo || item.configNo === appliedQuery.configNo)
+    && (!appliedQuery.configVersion || item.configVersion === appliedQuery.configVersion)
     && (!appliedQuery.country || item.country === appliedQuery.country)
     && (!appliedQuery.periodType || item.periodType === appliedQuery.periodType)
+    && periodMatched
 }))
-const hasBatchScope = computed(() => Boolean(appliedQuery.taskNo || appliedQuery.configNo))
+const hasBatchScope = computed(() => Boolean(appliedQuery.batchNo || appliedQuery.taskNo || appliedQuery.configNo || appliedQuery.configVersion))
 const batchScopeText = computed(() => {
+  if (appliedQuery.batchNo) return `生成批次号 / ${appliedQuery.batchNo}`
   if (appliedQuery.taskNo) return `任务编号 / ${appliedQuery.taskNo}`
   if (appliedQuery.configNo) return `配置编号 / ${appliedQuery.configNo}`
+  if (appliedQuery.configVersion) return `准确版本 / ${appliedQuery.configVersion}`
   return ''
 })
 const scopeBillCount = computed(() => hasBatchScope.value ? filteredBills.value.length : selectedRows.value.length)
@@ -125,7 +134,7 @@ function confirmExport() {
         <el-table-column v-if="!isReceivable" prop="refundMode" label="返款模式" width="100" />
         <el-table-column :label="isReceivable ? '费项结算币种金额' : '货款结算币种金额'" width="250"><template #default="scope"><div class="amount-lines"><span>{{ isReceivable ? '应收' : '原始货款' }} <b>{{ money(isReceivable ? scope.row.amount : scope.row.original) }} {{ scope.row.currency }}</b></span><span>{{ isReceivable ? '已核销' : '扣除费项' }} {{ money(isReceivable ? scope.row.paid : scope.row.deduction) }} {{ scope.row.currency }}</span><span>{{ isReceivable ? '未核销' : '待返货款' }} <b>{{ money(scope.row.amount - scope.row.paid) }} {{ scope.row.currency }}</b></span></div></template></el-table-column>
         <el-table-column prop="periodType" label="账期类型" width="90" /><el-table-column prop="periodStart" label="账期起始日" width="112" /><el-table-column prop="periodEnd" label="账期结束日" width="112" />
-        <el-table-column v-if="isReceivable" prop="sector" label="业务板块" width="125" /><el-table-column prop="country" :label="isReceivable ? '运抵国' : '目的国'" width="100" /><el-table-column prop="customer" label="客户名称" width="160" show-overflow-tooltip /><el-table-column prop="shop" label="店铺" width="155" show-overflow-tooltip /><el-table-column prop="group" label="客户组" width="130" show-overflow-tooltip /><el-table-column prop="taskNo" label="任务编号" width="200" show-overflow-tooltip /><el-table-column prop="configNo" label="配置编号" width="240" show-overflow-tooltip /><el-table-column prop="sentAt" label="账单发出日" width="112" />
+        <el-table-column v-if="isReceivable" prop="sector" label="业务板块" width="125" /><el-table-column prop="country" :label="isReceivable ? '运抵国' : '目的国'" width="100" /><el-table-column prop="customer" label="客户名称" width="160" show-overflow-tooltip /><el-table-column prop="shop" label="所属店铺" width="155" show-overflow-tooltip /><el-table-column prop="group" label="所属客户组" width="130" show-overflow-tooltip /><el-table-column prop="batchNo" label="生成批次号" width="210" show-overflow-tooltip /><el-table-column prop="taskNo" label="任务编号" width="200" show-overflow-tooltip /><el-table-column prop="configNo" label="配置编号" width="220" show-overflow-tooltip /><el-table-column prop="configVersion" label="准确版本" width="90" /><el-table-column prop="sentAt" label="账单发出日" width="112" />
         <el-table-column v-if="isReceivable" prop="dueAt" label="信用期结束日" width="120" /><el-table-column v-if="isReceivable" prop="overdueDays" label="逾期天数" width="90" /><el-table-column prop="notice" label="通知状态" width="95" />
         <TableActionColumn><template #default="scope"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="openDetail(scope.row)" /><HoverActionMenu v-if="!['已结清','已作废'].includes(scope.row.status) && !scope.row.processingState"><el-dropdown-item :icon="RefreshRight" @click="action('账单重算')">账单重算</el-dropdown-item></HoverActionMenu></div></template></TableActionColumn>
       </el-table>

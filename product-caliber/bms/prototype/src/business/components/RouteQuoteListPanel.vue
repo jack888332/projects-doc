@@ -73,7 +73,7 @@ const feeSummary = (quote) => {
       >
         <el-table-column type="selection" width="46" fixed />
         <el-table-column type="index" label="序号" width="62" fixed />
-        <el-table-column prop="shop" label="店铺" min-width="140" />
+        <el-table-column prop="shop" label="所属店铺" min-width="140" />
         <el-table-column label="报价名" min-width="245" show-overflow-tooltip>
           <template #default="scope"><StackedCell :primary="scope.row.name" :secondary="scope.row.quoteType" /></template>
         </el-table-column>

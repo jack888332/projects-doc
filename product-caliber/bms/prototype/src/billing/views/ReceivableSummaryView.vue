@@ -163,7 +163,7 @@ function runQuery() {
         border
       >
         <el-table-column label="客户" min-width="220" fixed><template #default="scope"><StackedCell :primary="scope.row.customer" :secondary="`${scope.row.customerNo} / ${scope.row.memberCode}`" /></template></el-table-column>
-        <el-table-column prop="shop" label="店铺" min-width="130" />
+        <el-table-column prop="shop" label="所属店铺" min-width="130" />
         <el-table-column prop="currency" label="结算币种" width="92" />
         <el-table-column label="应收金额" min-width="132"><template #default="scope">{{ money(scope.row.receivable, scope.row.currency) }}</template></el-table-column>
         <el-table-column label="已收金额" min-width="132"><template #default="scope">{{ money(scope.row.received, scope.row.currency) }}</template></el-table-column>

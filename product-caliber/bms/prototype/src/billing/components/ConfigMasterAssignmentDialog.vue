@@ -68,9 +68,9 @@ function confirm() {
         <el-table-column type="selection" width="44" :selectable="selectable" />
         <el-table-column prop="code" label="客户编码" width="100" />
         <el-table-column prop="name" label="客户名称" min-width="170" />
-        <el-table-column prop="store" label="店铺" min-width="130" />
-        <el-table-column prop="group" label="客户组" min-width="130" />
-        <el-table-column label="当前配置" min-width="190"><template #default="scope">{{ scope.row.sourceName || '未配置' }}<small v-if="scope.row.version"> · {{ scope.row.version }}</small></template></el-table-column>
+        <el-table-column prop="store" label="所属店铺" min-width="130" />
+        <el-table-column prop="group" label="所属客户组" min-width="130" />
+        <el-table-column label="当前配置" min-width="190"><template #default="scope">{{ scope.row.sourceName || '未配置' }}<small v-if="scope.row.version && scope.row.version !== '-'"> · {{ scope.row.version }}</small></template></el-table-column>
         <el-table-column label="识别结果" width="125"><template #default="scope"><StatusTag :label="scope.row.category" :tone="scope.row.blocked ? 'danger' : scope.row.risky ? 'warning' : scope.row.category === '已引用当前版本' ? 'neutral' : 'success'" /></template></el-table-column>
       </el-table>
     </DataTableFrame>

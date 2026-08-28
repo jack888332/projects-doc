@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 
 const props = defineProps({
@@ -10,6 +10,18 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:detailVisible', 'update:configVisible', 'saved'])
 const taskItems = computed(() => props.items.filter((item) => item.taskNo === props.task?.no))
+const savedConfig = reactive({ receivableNotice: true, refundNotice: true, qrCode: 'wechat-pay-og4155.png', account: '招商银行深圳分行 7559 **** 1842' })
+const draft = reactive({ ...savedConfig })
+
+watch(() => props.configVisible, (visible) => {
+  if (visible) Object.assign(draft, savedConfig)
+})
+
+function saveConfig() {
+  Object.assign(savedConfig, draft)
+  emit('update:configVisible', false)
+  emit('saved', { ...savedConfig })
+}
 </script>
 
 <template>
@@ -21,7 +33,7 @@ const taskItems = computed(() => props.items.filter((item) => item.taskNo === pr
   </el-dialog>
 
   <el-dialog :model-value="configVisible" title="客户对账报表导出配置" class="module-dialog" align-center append-to-body destroy-on-close @update:model-value="emit('update:configVisible', $event)">
-    <el-form label-width="140px"><el-form-item label="应收客户通知"><el-switch model-value active-text="启用" /></el-form-item><el-form-item label="返款客户通知"><el-switch model-value active-text="启用" /></el-form-item><el-form-item label="收款二维码"><el-input model-value="wechat-pay-og4155.png" /></el-form-item><el-form-item label="收款账户"><el-input model-value="招商银行深圳分行 7559 **** 1842" /></el-form-item></el-form>
-    <template #footer><el-button @click="emit('update:configVisible', false)">取消</el-button><el-button type="primary" @click="emit('update:configVisible', false); emit('saved')">保存</el-button></template>
+    <el-form label-width="140px"><el-form-item label="应收客户通知"><el-switch v-model="draft.receivableNotice" active-text="启用" /></el-form-item><el-form-item label="返款客户通知"><el-switch v-model="draft.refundNotice" active-text="启用" /></el-form-item><el-form-item label="收款二维码"><el-input v-model="draft.qrCode" /></el-form-item><el-form-item label="收款账户"><el-input v-model="draft.account" /></el-form-item></el-form>
+    <template #footer><el-button @click="emit('update:configVisible', false)">取消</el-button><el-button type="primary" @click="saveConfig">保存</el-button></template>
   </el-dialog>
 </template>

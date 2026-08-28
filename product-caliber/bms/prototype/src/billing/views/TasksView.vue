@@ -172,7 +172,7 @@ function openDetail(row, tab = 'overview') {
 }
 
 function openBatch(batchNo) {
-  if (!batchNo || batchNo === '-') return
+  if (!batchNo || ['-', '--'].includes(batchNo)) return
   detailVisible.value = false
   selectedBatchNo.value = batchNo
   batchVisible.value = true
@@ -186,7 +186,7 @@ async function rerunTask(row) {
     { confirmButtonText: '确认重新执行', cancelButtonText: '取消', type: 'warning' },
   )
   row.status = 'PENDING'
-  row.finishedAt = '-'
+  row.finishedAt = '--'
   row.duration = '0秒'
   row.resultConclusion = '等待从失败检查点恢复'
   ElMessage.success('任务已回到待执行队列，任务编号和执行快照保持不变')
@@ -247,10 +247,10 @@ function viewResult(row) {
           <MetricGrid :items="taskSummary" :columns="5" />
 
           <DataTableFrame :total="filteredTasks.length" :selected-count="0" :page-size="10">
-            <template #actions><el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button><DownloadButton title="下载任务" :options="[{ label: '当前筛选结果', value: 'filtered', description: '下载当前筛选条件下的任务列表' }, { label: '全部任务', value: 'all', description: '下载全部生成任务' }]" /></template>
+            <template #actions><el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button><DownloadButton title="下载任务" file-name="账单生成任务" :rows="{ filtered: filteredTasks, all: taskRecords }" :options="[{ label: '当前筛选结果', value: 'filtered', description: '下载当前筛选条件下的任务列表' }, { label: '全部任务', value: 'all', description: '下载全部生成任务' }]" /></template>
             <el-table :data="filteredTasks" class="clean-table" row-key="taskNo">
             <el-table-column label="生成批次编号" width="190" fixed>
-              <template #default="scope"><el-button v-if="scope.row.batchNo !== '-'" link type="primary" @click="openBatch(scope.row.batchNo)">{{ scope.row.batchNo }}</el-button><span v-else>-</span></template>
+              <template #default="scope"><el-button v-if="scope.row.batchNo !== '-'" link type="primary" @click="openBatch(scope.row.batchNo)">{{ scope.row.batchNo }}</el-button><span v-else>--</span></template>
             </el-table-column>
             <el-table-column prop="taskNo" label="任务编号" width="185" fixed />
             <el-table-column label="任务状态" width="98">
@@ -264,7 +264,7 @@ function viewResult(row) {
             <el-table-column label="账单配置" min-width="185">
               <template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="`${configSourceMeta[scope.row.configSource] || scope.row.configSource} · ${scope.row.configVersion}`" /></template>
             </el-table-column>
-            <el-table-column label="方案名称 / 标识" min-width="160"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="`${scope.row.schemeKey} · ${scope.row.schemeType}`" /></template></el-table-column>
+            <el-table-column label="方案名称 / 编号" min-width="220"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="`${scope.row.schemeKey} · ${scope.row.schemeType}`" /></template></el-table-column>
             <el-table-column label="客户" min-width="190">
               <template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="`${scope.row.customerNo} / ${scope.row.memberCode}`" /></template>
             </el-table-column>
@@ -314,7 +314,7 @@ function viewResult(row) {
         <el-tabs v-model="detailTab" class="drawer-tabs">
           <el-tab-pane label="任务概览" name="overview">
             <dl class="detail-grid">
-              <div><dt>生成批次编号</dt><dd><el-button v-if="selectedTask.batchNo !== '-'" link type="primary" @click="openBatch(selectedTask.batchNo)">{{ selectedTask.batchNo }}</el-button><span v-else>-</span></dd></div>
+              <div><dt>生成批次编号</dt><dd><el-button v-if="selectedTask.batchNo !== '-'" link type="primary" @click="openBatch(selectedTask.batchNo)">{{ selectedTask.batchNo }}</el-button><span v-else>--</span></dd></div>
               <div><dt>任务编号</dt><dd>{{ selectedTask.taskNo }}</dd></div>
               <div><dt>任务创建时间</dt><dd>{{ selectedTask.createdAt }}</dd></div>
               <div><dt>任务类型</dt><dd>{{ display(taskTypeMeta, selectedTask.taskType) }}</dd></div>
@@ -328,14 +328,14 @@ function viewResult(row) {
             <dl class="detail-grid">
               <div><dt>账单配置</dt><dd>{{ selectedTask.configNo }} · {{ selectedTask.configVersion }}</dd></div>
               <div><dt>配置来源</dt><dd>{{ configSourceMeta[selectedTask.configSource] || selectedTask.configSource }}</dd></div>
-              <div><dt>方案名称 / 标识</dt><dd>{{ selectedTask.schemeName }} / {{ selectedTask.schemeKey }}</dd></div>
+              <div><dt>方案名称 / 编号</dt><dd>{{ selectedTask.schemeName }} / {{ selectedTask.schemeKey }}</dd></div>
               <div><dt>方案类型</dt><dd>{{ selectedTask.schemeType }}</dd></div>
               <div><dt>客户配置引用</dt><dd>{{ selectedTask.customerReferenceNo }}</dd></div>
               <div><dt>客户</dt><dd>{{ selectedTask.customerName }} / {{ selectedTask.customerNo }}</dd></div>
               <div><dt>会员编码</dt><dd>{{ selectedTask.memberCode }}</dd></div>
               <div><dt>所属店铺快照</dt><dd>{{ selectedTask.shop }}</dd></div>
               <div><dt>所属客户组快照</dt><dd>{{ selectedTask.customerGroup }}</dd></div>
-              <div><dt>实际命中来源订单所属店铺快照</dt><dd>{{ selectedTask.sourceShopSnapshots?.join('、') || (selectedTask.status === 'SUCCESS' ? '-' : '待执行') }}</dd></div>
+              <div><dt>实际命中来源订单所属店铺快照</dt><dd>{{ selectedTask.sourceShopSnapshots?.join('、') || (selectedTask.status === 'SUCCESS' ? '--' : '待执行') }}</dd></div>
               <div><dt>账期</dt><dd>{{ selectedTask.period }}</dd></div>
               <div><dt>数据截止点</dt><dd>{{ selectedTask.dataCutoff }}</dd></div>
             </dl>

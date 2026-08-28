@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { Download } from '@element-plus/icons-vue'
+import { downloadRows } from '../files/downloadRows.js'
 
 defineOptions({ inheritAttrs: false })
 
@@ -9,10 +10,12 @@ const props = defineProps({
   title: { type: String, default: '下载' },
   options: {
     type: Array,
-    default: () => [{ label: 'Excel 文件', value: 'xlsx' }],
+    default: () => [{ label: 'CSV 文件', value: 'csv' }],
   },
   disabled: { type: Boolean, default: false },
-  successMessage: { type: String, default: '下载任务已创建' },
+  rows: { type: [Array, Object], default: () => [] },
+  fileName: { type: String, default: 'BMS数据' },
+  successMessage: { type: String, default: '下载完成' },
 })
 
 const emit = defineEmits(['download'])
@@ -26,6 +29,8 @@ watch(choices, (items) => {
 
 function finish(value) {
   const option = props.options.find((item) => item.value === value)
+  const rows = Array.isArray(props.rows) ? props.rows : props.rows?.[value]
+  downloadRows(rows, `${props.fileName}-${option?.label || value || '导出'}`)
   emit('download', value, option)
   if (props.successMessage) ElMessage.success(props.successMessage)
 }

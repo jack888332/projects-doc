@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import dayjs from 'dayjs'
 import ConfigSchemeOverview from './ConfigSchemeOverview.vue'
 import ReceivableConfigEditor from './ReceivableConfigEditor.vue'
 import RefundConfigEditor from './RefundConfigEditor.vue'
@@ -15,6 +16,11 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'save'])
 const editorRef = ref(null)
+const displayVersionNo = computed(() => {
+  if (!props.config) return '-'
+  if (props.config.no === '新配置') return `发布后生成-${props.config.publishVersion || 'V1'}`
+  return `${props.config.no}-${props.config.publishVersion || props.config.version}`
+})
 
 function updateConfig(field, value) {
   if (props.config) props.config[field] = value
@@ -39,18 +45,18 @@ defineExpose({
   >
     <template #header>
       <div class="drawer-title">
-        <span>{{ props.detailMode === 'view' ? '查看客户引用准确版本' : props.config?.no === '新配置' ? '新建配置' : '发布配置新版本' }}</span>
+        <span>{{ props.detailMode === 'view' ? '查看配置版本快照' : props.config?.no === '新配置' ? '新建配置' : '编辑并发布新版本' }}</span>
         <small>{{ props.activeType === 'AR' ? '应收账单配置' : '返款账单配置' }}</small>
       </div>
     </template>
 
     <template v-if="props.config">
       <div class="scope-info-bar">
-        <div><span>配置：</span><strong>{{ props.config.name || '待填写' }}</strong></div>
-        <div><span>准确版本：</span><strong>{{ props.config.version }}</strong></div>
+        <div><span>配置：</span><strong>{{ props.config.name || props.config.no }}</strong></div>
+        <div><span>配置版本编号：</span><strong>{{ props.detailMode === 'view' ? `${props.config.no}-${props.config.version}` : displayVersionNo }}</strong></div>
         <div>
-          <span>{{ props.detailMode === 'view' ? '本版本有效引用：' : '全部有效引用：' }}</span>
-          <strong>{{ props.detailMode === 'view' ? props.referenceStats.exact : props.referenceStats.total }}</strong>
+          <span>{{ props.detailMode === 'view' ? '当前配置引用：' : '当前引用客户：' }}</span>
+          <strong>{{ props.referenceStats.total }}</strong>
         </div>
       </div>
 
@@ -63,7 +69,7 @@ defineExpose({
             <div><dt>发出规则</dt><dd>{{ props.config.sentRule }}</dd></div>
             <div><dt>默认结算币种</dt><dd>{{ props.config.currency }}</dd></div>
           </dl>
-          <div class="config-version-meta">本页读取客户引用记录锁定的准确版本快照，不随配置当前版本变化。</div>
+          <div class="config-version-meta">本页读取任务或历史引用锁定的版本快照，不随配置当前生效版本变化。</div>
         </section>
       </template>
 
@@ -78,12 +84,14 @@ defineExpose({
         />
         <section class="config-version-panel">
           <el-form label-position="top" class="config-version-grid">
-            <el-form-item label="配置名称"><el-input :model-value="props.config.name" @update:model-value="updateConfig('name', $event)" /></el-form-item>
-            <el-form-item label="生效开始日"><el-date-picker :model-value="props.config.effectStart" value-format="YYYY-MM-DD" type="date" @update:model-value="updateConfig('effectStart', $event)" /></el-form-item>
-            <el-form-item label="生效结束日"><el-input :model-value="props.config.effectEnd" @update:model-value="updateConfig('effectEnd', $event)" /></el-form-item>
+            <el-form-item label="配置名称"><el-input :model-value="props.config.name" placeholder="选填；未填写时展示配置版本编号" @update:model-value="updateConfig('name', $event)" /></el-form-item>
+            <el-form-item label="发布生效方式">
+              <el-radio-group :model-value="props.config.publishEffectMode" @update:model-value="updateConfig('publishEffectMode', $event)"><el-radio-button value="IMMEDIATE">立即生效</el-radio-button><el-radio-button value="SCHEDULED">指定日期生效</el-radio-button></el-radio-group>
+            </el-form-item>
+            <el-form-item label="指定生效日期" :required="props.config.publishEffectMode === 'SCHEDULED'"><el-date-picker :model-value="props.config.publishEffectDate" value-format="YYYY-MM-DD" type="date" :disabled="props.config.publishEffectMode !== 'SCHEDULED'" :disabled-date="date => !dayjs(date).isAfter('2026-08-27', 'day')" @update:model-value="updateConfig('publishEffectDate', $event)" /></el-form-item>
             <el-form-item label="变更原因"><el-input :model-value="props.config.changeReason" @update:model-value="updateConfig('changeReason', $event)" /></el-form-item>
           </el-form>
-          <div class="config-version-meta">发布新版本不会自动升级客户；发布完成后按客户选择是否切换到新准确版本。</div>
+          <div class="config-version-meta">编辑过程不保存草稿。新版生效时，全部引用此配置的客户统一采用新版；已创建任务和已有账单继续使用其锁定的历史版本。</div>
         </section>
         <ReceivableConfigEditor v-if="props.config.type === 'AR'" :key="props.config.id" ref="editorRef" :config="props.config" />
         <RefundConfigEditor v-else :key="props.config.id" ref="editorRef" :config="props.config" />
@@ -93,7 +101,7 @@ defineExpose({
     <template #footer>
       <div class="config-drawer-footer">
         <el-button @click="emit('update:modelValue', false)">{{ props.detailMode === 'view' ? '关闭' : '取消' }}</el-button>
-        <el-button v-if="props.detailMode !== 'view'" type="primary" @click="emit('save')">发布版本</el-button>
+        <el-button v-if="props.detailMode !== 'view'" type="primary" @click="emit('save')">{{ props.config?.publishEffectMode === 'SCHEDULED' ? '发布并预约生效' : '发布并立即生效' }}</el-button>
       </div>
     </template>
   </el-dialog>

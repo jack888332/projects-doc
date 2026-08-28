@@ -155,7 +155,7 @@ function runQuery() {
 
     <section class="module-panel summary-table-panel">
       <DataTableFrame :total="filteredRecords.length" :page-size="10">
-      <template #actions><DownloadButton title="下载营收汇总" :options="[{ label: '客户汇总', value: 'customer', description: '按当前客户筛选结果下载' }, { label: '店铺汇总', value: 'shop', description: '按当前店铺范围下载' }]" /></template>
+      <template #actions><DownloadButton title="下载营收汇总" file-name="营收汇总" :rows="{ customer: filteredRecords, shop: shopRecords }" :options="[{ label: '客户汇总', value: 'customer', description: '按当前客户筛选结果下载' }, { label: '店铺汇总', value: 'shop', description: '按当前店铺范围下载' }]" /></template>
 <el-table
         :data="filteredRecords"
         class="clean-table receivable-summary-table"

@@ -8,28 +8,28 @@ const props = defineProps({
   stores: { type:Array, default:() => [] }, groups: { type:Array, default:() => [] }, store: { type:Array, default:() => [] }, group: { type:Array, default:() => [] }, rows: { type:Array, default:() => [] }, selectedCodes: { type:Array, default:() => [] }, switchDate: { type:String, default:'' }, reason: { type:String, default:'' }, replacementCount: { type:Number, default:0 },
 })
 const emit = defineEmits(['update:modelValue', 'update:store', 'update:group', 'update:switchDate', 'update:reason', 'toggleAssignment', 'confirm'])
-const isAlreadyExact = row => row.configId === props.config?.id && row.configVersion === props.targetVersion
-const resultLabel = row => row.identityIssues?.length ? '主数据异常' : isAlreadyExact(row) ? '已引用目标版本' : row.configId === props.config?.id ? '切换准确版本' : row.configId ? '替换其它配置' : '新增引用'
-const resultTone = row => row.identityIssues?.length ? 'danger' : isAlreadyExact(row) ? 'neutral' : row.configId && row.configId !== props.config?.id ? 'warning' : 'success'
+const isAlreadyConfig = row => row.configId === props.config?.id
+const resultLabel = row => row.identityIssues?.length ? '主数据异常' : isAlreadyConfig(row) ? '已引用当前配置' : row.configId ? '替换其它配置' : '新增引用'
+const resultTone = row => row.identityIssues?.length ? 'danger' : isAlreadyConfig(row) ? 'neutral' : row.configId && row.configId !== props.config?.id ? 'warning' : 'success'
 </script>
 
 <template>
-  <el-dialog :model-value="props.modelValue" class="module-dialog module-dialog-large" width="980px" align-center append-to-body destroy-on-close :close-on-click-modal="false" @update:model-value="emit('update:modelValue', $event)">
-    <template #header><div class="drawer-title"><span>选择引用客户</span><small>{{ props.config?.no }} / {{ props.targetVersion }}</small></div></template>
-    <div class="config-summary"><div><span>配置</span><strong>{{ props.config?.name }}</strong></div><div><span>目标准确版本</span><strong>{{ props.targetVersion }}</strong></div><div><span>配置当前有效引用</span><strong>{{ props.referenceCount }}</strong></div><div><span>本次切换客户</span><strong>{{ props.selectedCount }}</strong></div></div>
+  <el-dialog :model-value="props.modelValue" class="module-dialog module-dialog-large" align-center append-to-body destroy-on-close :close-on-click-modal="false" @update:model-value="emit('update:modelValue', $event)">
+    <template #header><div class="drawer-title"><span>选择引用客户</span><small>{{ props.config?.no }}-{{ props.targetVersion }}</small></div></template>
+    <div class="config-summary"><div><span>配置</span><strong>{{ props.config?.name || `${props.config?.no}-${props.targetVersion}` }}</strong></div><div><span>当前生效版本</span><strong>{{ props.config?.no }}-{{ props.targetVersion }}</strong></div><div><span>配置当前有效引用</span><strong>{{ props.referenceCount }}</strong></div><div><span>本次切换客户</span><strong>{{ props.selectedCount }}</strong></div></div>
     <el-alert title="客户与会员为同一主体；一个会员只有一个当前店铺，客户组选项仅显示所选店铺内的分组。" type="info" :closable="false" show-icon />
     <div class="dialog-filters">
       <el-select :model-value="props.store" multiple collapse-tags clearable placeholder="所属店铺" @update:model-value="emit('update:store', $event)"><el-option v-for="item in props.stores" :key="item" :label="item" :value="item" /></el-select>
       <el-select :model-value="props.group" multiple collapse-tags clearable placeholder="所属客户组" @update:model-value="emit('update:group', $event)"><el-option v-for="item in props.groups" :key="item" :label="item" :value="item" /></el-select>
     </div>
-    <DataTableFrame class="dialog-table" :total="props.rows.length" :pagination="false" :column-sort="false">
+    <DataTableFrame class="dialog-table" :total="props.rows.length" :page-size="10" :column-sort="false">
       <el-table :data="props.rows" border row-key="customerCode">
-        <el-table-column label="选择" width="60"><template #default="scope"><el-checkbox :model-value="isAlreadyExact(scope.row) || props.selectedCodes.includes(scope.row.customerCode)" :disabled="isAlreadyExact(scope.row) || scope.row.identityIssues?.length > 0" :aria-label="`选择 ${scope.row.customerName}`" @change="emit('toggleAssignment', scope.row.customerCode, $event)" /></template></el-table-column>
+        <el-table-column label="选择" width="60"><template #default="scope"><el-checkbox :model-value="isAlreadyConfig(scope.row) || props.selectedCodes.includes(scope.row.customerCode)" :disabled="isAlreadyConfig(scope.row) || scope.row.identityIssues?.length > 0" :aria-label="`选择 ${scope.row.customerName}`" @change="emit('toggleAssignment', scope.row.customerCode, $event)" /></template></el-table-column>
         <el-table-column label="客户（会员）" min-width="175"><template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="scope.row.customerCode" /></template></el-table-column>
         <el-table-column prop="memberCode" label="会员编码" min-width="120" show-overflow-tooltip />
         <el-table-column prop="store" label="所属店铺" min-width="145" show-overflow-tooltip />
         <el-table-column prop="group" label="所属客户组" min-width="145" show-overflow-tooltip />
-        <el-table-column label="当前配置" min-width="190"><template #default="scope"><StackedCell :primary="scope.row.configName" :secondary="scope.row.config ? `${scope.row.configNo} / ${scope.row.configVersion}` : '-'" /></template></el-table-column>
+        <el-table-column label="当前配置" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.configName || '--'" :secondary="scope.row.config ? `${scope.row.configNo}-${scope.row.configVersion}` : '--'" /></template></el-table-column>
         <el-table-column label="切换结果" min-width="135"><template #default="scope"><div class="result-cell"><StatusTag :label="resultLabel(scope.row)" :tone="resultTone(scope.row)" /><small v-if="scope.row.identityIssues?.length">{{ scope.row.identityIssues.join('；') }}</small></div></template></el-table-column>
       </el-table>
     </DataTableFrame>

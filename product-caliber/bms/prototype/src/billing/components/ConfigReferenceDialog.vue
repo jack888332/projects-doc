@@ -20,36 +20,34 @@ const emit = defineEmits(['update:modelValue', 'confirm'])
 
 const selectionRef = ref(null)
 const selectedRows = ref([])
-const query = reactive({ customer:'', stores:[], groups:[] })
-const appliedQuery = reactive({ customer:'', stores:[], groups:[] })
+const query = reactive({ customer:'', store:'', group:'' })
+const appliedQuery = reactive({ customer:'', store:'', group:'' })
 const form = reactive({ effectiveAt: '2026-09-01', forceConfirmed: false, reason: '' })
 const visible = computed({ get: () => props.modelValue, set: value => emit('update:modelValue', value) })
 const stores = computed(() => [...new Set(props.customers.flatMap(row => customerRelationSummary(row).stores))])
 const groups = computed(() => [...new Set(props.customers
   .flatMap(row => customerRelationSummary(row).relations)
-  .filter(relation => !query.stores.length || query.stores.includes(relation.store))
+  .filter(relation => !query.store || query.store === relation.store)
   .map(relation => relation.group)
   .filter(Boolean))])
 function taskOverlapsSwitch(task, customerCode) {
   return taskOverlapsReferenceStart(task, { customerCode, billType:props.config?.type, effectiveAt:form.effectiveAt })
 }
 const allRows = computed(() => props.customers.map((customer) => {
-  const relationMatch = matchCustomerRelations(customer, appliedQuery)
+  const relationMatch = matchCustomerRelations(customer, { stores:appliedQuery.store, groups:appliedQuery.group })
   const identityValidation = validateCustomerIdentity(customer)
   const referenceAtSwitch = props.referenceHistory
     .filter(reference => reference.type === props.config?.type && reference.customerCode === customer.customerCode && isConfigReferenceActive(reference, form.effectiveAt))
     .sort((left, right) => String(right.effectStart).localeCompare(String(left.effectStart)))[0]
   const adopted = referenceAtSwitch || customer
   const sameConfig = adopted.configId === props.config?.id
-  const sameVersion = sameConfig && adopted.configNo === props.config?.no && adopted.version === props.config?.version
   const blockingTasks = props.tasks.filter(task => taskOverlapsSwitch(task, customer.customerCode))
   const blocked = Boolean(customer.blocked || blockingTasks.length || !identityValidation.valid)
   const category = !identityValidation.valid ? '主数据异常'
     : blocked ? '不可切换'
-    : sameVersion ? '已引用当前版本'
-    : sameConfig ? '本配置其它版本'
-      : adopted.configId ? '其它配置'
-        : '未配置'
+    : sameConfig ? '已引用当前配置'
+    : adopted.configId ? '其它配置'
+      : '未配置'
   return {
     ...customer,
     configId:adopted.configId,
@@ -62,12 +60,12 @@ const allRows = computed(() => props.customers.map((customer) => {
     blocked,
     blockingTaskNos:blockingTasks.map(task => task.taskNo),
     identityIssues:identityValidation.issues,
-    selectable:!sameVersion && !blocked,
+    selectable:!sameConfig && !blocked,
     risky:category === '其它配置',
     relationMatch:relationMatch.matches,
-    store:relationMatch.store || '-',
-    group:relationMatch.group || '-',
-    memberCode:relationMatch.memberCode || '-',
+    store:relationMatch.store || '--',
+    group:relationMatch.group || '--',
+    memberCode:relationMatch.memberCode || '--',
   }
 }))
 const rows = computed(() => allRows.value.filter(row =>
@@ -76,10 +74,10 @@ const rows = computed(() => allRows.value.filter(row =>
 const resolvedSelectedRows = computed(() => selectedRows.value.map(row => allRows.value.find(current => current.code === row.code) || row))
 const riskCount = computed(() => resolvedSelectedRows.value.filter(row => row.risky).length)
 
-function applyQuery() { Object.assign(appliedQuery, { customer:query.customer, stores:[...query.stores], groups:[...query.groups] }) }
-function resetQuery() { Object.assign(query, { customer:'', stores:[], groups:[] }); applyQuery() }
+function applyQuery() { Object.assign(appliedQuery, query) }
+function resetQuery() { Object.assign(query, { customer:'', store:'', group:'' }); applyQuery() }
 
-watch(() => [...query.stores], () => { query.groups = query.groups.filter(group => groups.value.includes(group)) })
+watch(() => query.store, () => { if (!groups.value.includes(query.group)) query.group = '' })
 
 watch(() => props.modelValue, async (open) => {
   if (!open) return
@@ -89,7 +87,7 @@ watch(() => props.modelValue, async (open) => {
   selectedRows.value = []
   resetQuery()
   await new Promise(resolve => window.setTimeout(resolve, 0))
-  const defaults = allRows.value.filter(row => row.selectable && (props.focusCustomerCode ? row.code === props.focusCustomerCode : row.category === '本配置其它版本'))
+  const defaults = allRows.value.filter(row => row.selectable && props.focusCustomerCode && row.code === props.focusCustomerCode)
   defaults.forEach(row => selectionRef.value?.toggleRowSelection(row, true))
 })
 
@@ -109,21 +107,21 @@ function confirm() {
 
 <template>
   <el-dialog v-model="visible" class="module-dialog module-dialog-large reference-dialog" align-center append-to-body destroy-on-close :close-on-click-modal="false">
-    <template #header><div class="drawer-title"><span>管理客户引用</span><small>{{ config?.name }} · {{ config?.no }} / {{ config?.version }}</small></div></template>
+    <template #header><div class="drawer-title"><span>管理客户引用</span><small>{{ config?.name ? `${config.name} · ` : '' }}{{ config?.no }}-{{ config?.version }}</small></div></template>
     <div class="reference-summary">
       <div><span>候选客户</span><strong>{{ allRows.length }}</strong></div>
-      <div><span>当前版本引用</span><strong>{{ allRows.filter(row => row.category === '已引用当前版本').length }}</strong></div>
+      <div><span>当前配置引用</span><strong>{{ allRows.filter(row => row.category === '已引用当前配置').length }}</strong></div>
       <div><span>已选客户</span><strong>{{ selectedRows.length }}</strong></div>
       <div><span>强制替换</span><strong :class="{ danger:riskCount }">{{ riskCount }}</strong></div>
     </div>
-    <el-alert title="客户与会员为同一主体；所属店铺和所属客户组只用于本次筛选，客户组选项随店铺联动。确认后逐客户建立准确版本引用。" type="info" :closable="false" show-icon />
+    <el-alert title="客户与会员为同一主体；所属店铺和所属客户组只用于本次筛选。确认后客户引用配置编号，后续新版生效时自动统一采用新版。" type="info" :closable="false" show-icon />
     <div class="reference-filters">
       <ConditionFilter v-model="query.customer" label="客户" type="text" />
-      <el-select v-model="query.stores" multiple collapse-tags collapse-tags-tooltip clearable placeholder="所属店铺" aria-label="所属店铺"><el-option v-for="item in stores" :key="item" :label="item" :value="item" /></el-select>
-      <el-select v-model="query.groups" multiple collapse-tags collapse-tags-tooltip clearable placeholder="所属客户组" aria-label="所属客户组"><el-option v-for="item in groups" :key="item" :label="item" :value="item" /></el-select>
-      <el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button>
+      <ConditionFilter v-model="query.store" label="所属店铺" :options="stores" />
+      <ConditionFilter v-model="query.group" label="所属客户组" :options="groups" />
+      <el-button type="primary" @click="applyQuery">查询</el-button>
     </div>
-    <DataTableFrame class="reference-table" :total="rows.length" :selected-count="selectedRows.length" :pagination="false" :column-sort="false">
+    <DataTableFrame class="reference-table" :total="rows.length" :selected-count="selectedRows.length" :page-size="10" :column-sort="false">
       <el-table ref="selectionRef" :data="rows" border row-key="id" @selection-change="selectedRows = $event">
         <el-table-column type="selection" width="44" :selectable="selectable" reserve-selection />
         <el-table-column prop="code" label="客户编码" width="100" />
@@ -131,8 +129,8 @@ function confirm() {
         <el-table-column prop="memberCode" label="会员编码" min-width="125" show-overflow-tooltip />
         <el-table-column prop="store" label="所属店铺" min-width="150" show-overflow-tooltip />
         <el-table-column prop="group" label="所属客户组" min-width="150" show-overflow-tooltip />
-        <el-table-column label="当前配置" min-width="190"><template #default="scope">{{ scope.row.configName || '未配置' }}<small v-if="scope.row.version && scope.row.version !== '-'"> · {{ scope.row.version }}</small></template></el-table-column>
-        <el-table-column label="识别结果" min-width="210"><template #default="scope"><div class="result-cell"><StatusTag :label="scope.row.category" :tone="scope.row.blocked ? 'danger' : scope.row.risky ? 'warning' : scope.row.category === '已引用当前版本' ? 'neutral' : 'success'" /><small v-if="scope.row.identityIssues.length">{{ scope.row.identityIssues.join('；') }}</small><small v-else-if="scope.row.blockingTaskNos.length">冲突任务：{{ scope.row.blockingTaskNos.join('、') }}</small></div></template></el-table-column>
+        <el-table-column label="当前配置" min-width="190"><template #default="scope">{{ scope.row.configName || scope.row.configNo || '未配置' }}<small v-if="scope.row.version && scope.row.version !== '-'"> · {{ scope.row.version }}</small></template></el-table-column>
+        <el-table-column label="识别结果" min-width="210"><template #default="scope"><div class="result-cell"><StatusTag :label="scope.row.category" :tone="scope.row.blocked ? 'danger' : scope.row.risky ? 'warning' : scope.row.category === '已引用当前配置' ? 'neutral' : 'success'" /><small v-if="scope.row.identityIssues.length">{{ scope.row.identityIssues.join('；') }}</small><small v-else-if="scope.row.blockingTaskNos.length">冲突任务：{{ scope.row.blockingTaskNos.join('、') }}</small></div></template></el-table-column>
       </el-table>
     </DataTableFrame>
     <el-form label-position="top" class="reference-form">

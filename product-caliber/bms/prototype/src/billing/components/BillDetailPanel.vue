@@ -150,7 +150,7 @@ function openGeneration() { generationDialog.value?.open() }
           <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口' && !bill.processingState" @click="emit('action', '审核通过')">审核通过</el-button>
           <el-button v-if="bill.status === '待审核' && !bill.processingState" @click="openGeneration">账单生成</el-button>
           <el-button v-if="!['已结清','已作废'].includes(bill.status) && !bill.processingState" @click="openPreview('账单重算')">账单重算</el-button>
-          <DownloadButton type="primary" plain title="下载账单" :options="[{ label: '账单文件', value: 'bill', description: '下载账单基本信息和金额汇总' }, { label: '费项明细', value: 'fee-detail', description: '下载账单费项明细' }]" />
+          <DownloadButton type="primary" plain title="下载账单" :file-name="bill.billNo" :rows="{ bill: [bill], 'fee-detail': filteredArOrderFeeRows }" :options="[{ label: '账单文件', value: 'bill', description: '下载账单基本信息和金额汇总' }, { label: '费项明细', value: 'fee-detail', description: '下载账单费项明细' }]" />
         </template>
         <template v-else>
           <el-button v-if="bill.status === '待审核' && bill.closeStatus === '已收口' && !bill.processingState" @click="emit('action', '审核通过')">审核通过</el-button>
@@ -160,7 +160,7 @@ function openGeneration() { generationDialog.value?.open() }
           <el-button v-if="!['已结清','已作废'].includes(bill.status) && !bill.processingState" @click="openPreview('账单重算')">账单重算</el-button>
           <el-button v-if="bill.status === '待结清' && !bill.processingState" @click="emit('action', '登记返款')">登记返款</el-button>
           <el-button @click="emit('action', '打开调账中心')">调账中心</el-button>
-          <DownloadButton type="primary" plain title="导出明细" :options="[{ label: '返款账单明细', value: 'refund-detail', description: '导出当前返款账单及关联明细' }]" />
+          <DownloadButton type="primary" plain title="导出明细" :file-name="bill.billNo" :rows="{ 'refund-detail': refundDetails }" :options="[{ label: '返款账单明细', value: 'refund-detail', description: '导出当前返款账单及关联明细' }]" />
         </template>
       </div>
     </section>
@@ -224,10 +224,10 @@ function openGeneration() { generationDialog.value?.open() }
             <el-table-column prop="businessNo" label="业务单号" width="245" fixed />
             <el-table-column prop="lastMileNo" label="尾程运单号" width="215" />
             <el-table-column prop="firstMileNo" label="首程运单号" width="215" />
-            <el-table-column label="运费" min-width="170"><template #default="scope">{{ scope.row.freight === null ? '-' : `${money(scope.row.freight)} CNY` }}</template></el-table-column>
-            <el-table-column label="派送附加费" min-width="170"><template #default="scope">{{ scope.row.deliverySurcharge === null ? '-' : `${money(scope.row.deliverySurcharge)} CNY` }}</template></el-table-column>
-            <el-table-column label="仓储费" min-width="150"><template #default="scope">{{ scope.row.warehouseFee === null ? '-' : `${money(scope.row.warehouseFee)} CNY` }}</template></el-table-column>
-            <el-table-column label="操作费" min-width="150"><template #default="scope">{{ scope.row.operationFee === null ? '-' : `${money(scope.row.operationFee)} CNY` }}</template></el-table-column>
+            <el-table-column label="运费" min-width="170"><template #default="scope">{{ scope.row.freight === null ? '--' : `${money(scope.row.freight)} CNY` }}</template></el-table-column>
+            <el-table-column label="派送附加费" min-width="170"><template #default="scope">{{ scope.row.deliverySurcharge === null ? '--' : `${money(scope.row.deliverySurcharge)} CNY` }}</template></el-table-column>
+            <el-table-column label="仓储费" min-width="150"><template #default="scope">{{ scope.row.warehouseFee === null ? '--' : `${money(scope.row.warehouseFee)} CNY` }}</template></el-table-column>
+            <el-table-column label="操作费" min-width="150"><template #default="scope">{{ scope.row.operationFee === null ? '--' : `${money(scope.row.operationFee)} CNY` }}</template></el-table-column>
           </el-table>
 <el-table v-else :data="arVerticalFeeRows" border class="clean-table fee-vertical-table">
             <el-table-column prop="feeNo" label="费用编号" width="190" /><el-table-column prop="businessNo" label="业务单号" width="220" /><el-table-column prop="lastMileNo" label="尾程运单号" width="180" /><el-table-column prop="fee" label="费项" /><el-table-column prop="currency" label="币种" width="90" /><el-table-column label="结算金额"><template #default="scope">{{ money(scope.row.amount) }} {{ scope.row.currency }}</template></el-table-column>

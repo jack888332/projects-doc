@@ -14,6 +14,30 @@ const periodFromCycle = (cycle = '') => {
 
 const rollingDays = period => Number(period?.replace('DAY_', '')) || 0
 
+export function createReceivableConfigNo(createdAt = dayjs(), existingNos = []) {
+  let timestamp = dayjs(createdAt)
+  if (!timestamp.isValid()) throw new Error('应收配置创建时间无效')
+  const used = new Set(existingNos)
+  let configNo = `ARB-SCHEME-${timestamp.format('YYYYMMDDHHmmssSSS')}`
+  while (used.has(configNo)) {
+    timestamp = timestamp.add(1, 'millisecond')
+    configNo = `ARB-SCHEME-${timestamp.format('YYYYMMDDHHmmssSSS')}`
+  }
+  return configNo
+}
+
+export function numberReceivableSchemes(snapshot, configNo) {
+  if (!snapshot) return snapshot
+  const branchSequence = (scheme, index) => Number(String(scheme?.schemeKey || '').match(/(?:^|-)BRANCH-(\d+)$/)?.[1]) || index + 1
+  const branches = (snapshot.branches || []).map((scheme, index) => ({ ...scheme, schemeKey:`${configNo}-BRANCH-${branchSequence(scheme, index)}` }))
+  return {
+    ...snapshot,
+    branchKeyCeiling:Math.max(Number(snapshot.branchKeyCeiling) || 0, ...branches.map((scheme, index) => branchSequence(scheme, index))),
+    defaultScheme:{ ...snapshot.defaultScheme, schemeKey:configNo },
+    branches,
+  }
+}
+
 function intersectEffectPeriods(schemePeriod, referencePeriod) {
   const starts = [schemePeriod?.[0], referencePeriod?.[0]].filter(Boolean).map(value => dayjs(value).startOf('day'))
   const ends = [schemePeriod?.[1], referencePeriod?.[1]]
@@ -102,10 +126,10 @@ function schemesFor(config) {
 
   const snapshot = config.schemeSnapshot
   if (!snapshot) return []
-  const defaultScheme = { ...snapshot.defaultScheme, schemeKey:'DEFAULT', schemeName:'默认方案', schemeType:'默认方案' }
+  const defaultScheme = { ...snapshot.defaultScheme, schemeKey:snapshot.defaultScheme?.schemeKey || config.no, schemeName:'默认方案', schemeType:'默认方案' }
   const branches = snapshot.branches
     .filter(scheme => scheme.enabled !== false)
-    .map((scheme, index) => ({ ...scheme, schemeKey:scheme.schemeKey || `BRANCH-${String(index + 1).padStart(2, '0')}`, schemeName:`分支方案 ${index + 1}`, schemeType:'分支方案' }))
+    .map((scheme, index) => ({ ...scheme, schemeKey:scheme.schemeKey || `${config.no}-BRANCH-${index + 1}`, schemeName:`分支方案 ${index + 1}`, schemeType:'分支方案' }))
   return [defaultScheme, ...branches]
 }
 
@@ -123,10 +147,10 @@ export function configReferenceStats(config, references, at = '2026-08-27') {
   if (!config) return { total:0, exact:0, usageType:'UNUSED', label:'未引用配置' }
   const active = references.filter(reference => reference.configId === config.id && isConfigReferenceActive(reference, at))
   const total = new Set(active.map(reference => reference.customerCode)).size
-  const exact = new Set(active.filter(reference => reference.configNo === config.no && reference.version === config.version).map(reference => reference.customerCode)).size
+  const exact = total
   if (total === 0) return { total, exact, usageType:'UNUSED', label:'未引用配置' }
   if (total === 1) return { total, exact, usageType:'EXCLUSIVE', label:'独享配置' }
-  return { total, exact, usageType:'SHARED', label:`共享配置（${total}）` }
+  return { total, exact, usageType:'SHARED', label:'共享配置' }
 }
 
 export function taskOverlapsReferenceStart(task, { customerCode, billType, effectiveAt }) {
@@ -137,13 +161,12 @@ export function taskOverlapsReferenceStart(task, { customerCode, billType, effec
 }
 
 export function buildConfigGenerationScopes({ config, references, tasks, cutoff, referenceAt = '2026-08-27 16:45:00', customerCode = '' }) {
-  if (!config) return { rows:[], exactCustomerCount:0, otherVersionCount:0 }
+  if (!config) return { rows:[], referenceCustomerCount:0 }
   const configReferences = references.filter(reference => reference.configId === config.id && isConfigReferenceActive(reference, referenceAt) && (!customerCode || reference.customerCode === customerCode))
   const exactByCustomer = new Map()
   configReferences
-    .filter(reference => reference.configNo === config.no && reference.version === config.version)
     .sort((left, right) => String(left.effectStart).localeCompare(String(right.effectStart)))
-    .forEach(reference => exactByCustomer.set(reference.customerCode, reference))
+    .forEach(reference => exactByCustomer.set(reference.customerCode, { ...reference, configNo:config.no, version:config.version, currency:config.currency, cycle:config.cycle, sentRule:config.sentRule, schemeSnapshot:config.schemeSnapshot, refundSnapshot:config.refundSnapshot, mode:config.mode }))
   const exactReferences = [...exactByCustomer.values()]
   const rows = exactReferences.flatMap(reference => schemesFor(config).map((scheme) => {
     const effectivePeriod = intersectEffectPeriods(scheme.effectPeriod, [reference.effectStart, reference.effectEnd])
@@ -158,7 +181,7 @@ export function buildConfigGenerationScopes({ config, references, tasks, cutoff,
         && ['BILL_GENERATE', 'BILL_RECALCULATE'].includes(lockTaskType)
         && (task.lockKey?.startsWith(`${lockPrefix}|`) || (!task.lockKey && task.customerNo === reference.customerCode && task.billType === config.type && task.periodStart === period.start && task.periodEnd === period.end && task.schemeKey === scheme.schemeKey))
     })
-    const reason = !period ? '当前准确版本尚无已结束账期' : conflict ? `同范围任务未结束：${conflict.taskNo}` : ''
+    const reason = !period ? '当前生效版本尚无已结束账期' : conflict ? `同范围任务未结束：${conflict.taskNo}` : ''
     const relationSummary = customerRelationSummary(reference)
     return {
       id: `${reference.id}-${scheme.schemeKey}-${periodKey}`,
@@ -184,8 +207,7 @@ export function buildConfigGenerationScopes({ config, references, tasks, cutoff,
 
   return {
     rows,
-    exactCustomerCount: exactReferences.length,
-    otherVersionCount: new Set(configReferences.map(reference => reference.customerCode)).size - exactReferences.length,
+    referenceCustomerCount: exactReferences.length,
   }
 }
 

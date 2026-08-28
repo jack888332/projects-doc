@@ -11,11 +11,13 @@ const sourceCurrencies = [{ label: '美元', value: 'USD' }, { label: '日元', 
 const settlementCurrencies = [{ label: '人民币', value: 'CNY' }, ...sourceCurrencies]
 const deductFees = [{ label: '代收货款手续费', value: 'COD_SERVICE_FEE' }, { label: '超材费', value: 'OVERSIZE_FEE' }, { label: '重出费', value: 'REISSUE_FEE' }, { label: '其他应收费项', value: 'OTHER_RECEIVABLE_FEE' }]
 const createRule = (fallback = true) => ({ fallback, sourceCurrency: '', settlementCurrency: fallback ? 'CNY' : '', accountName: '', accountNo: '', accountEditorOpen: false })
+const snapshot = props.config.refundSnapshot || {}
+const refundModeFromLabel = value => value === '签收返款' ? 'SIGNED' : 'RECEIVED'
 const form = reactive({
-  enabled: props.config.status !== '停用', refundMode: 'RECEIVED', billingPeriodType: props.config.cycle?.includes('半周') ? 'HALF_WEEK' : 'WEEK',
-  startDays: props.config.cycle?.includes('半周') ? ['2', '5'] : [], sendAfterDays: Number.parseInt(props.config.sentRule) || 2,
-  requiredFees: ['FEE0024'], directDeductFees: ['COD_SERVICE_FEE', 'OVERSIZE_FEE', 'REISSUE_FEE'],
-  currencyRules: [createRule()], negativePolicy: 'NEXT_REFUND_BILL', effectPeriod: ['2026-08-01', '2027-07-31'],
+  enabled: snapshot.enabled ?? props.config.status !== '停用', refundMode: snapshot.refundMode || refundModeFromLabel(props.config.mode), billingPeriodType: snapshot.billingPeriodType || (props.config.cycle?.includes('半周') ? 'HALF_WEEK' : 'WEEK'),
+  startDays: [...(snapshot.startDays || (props.config.cycle?.includes('半周') ? ['2', '5'] : []))], sendAfterDays: snapshot.sendAfterDays ?? (Number.parseInt(props.config.sentRule) || 2),
+  requiredFees: [...(snapshot.requiredFees || ['FEE0024'])], directDeductFees: [...(snapshot.directDeductFees || ['COD_SERVICE_FEE', 'OVERSIZE_FEE', 'REISSUE_FEE'])],
+  currencyRules: snapshot.currencyRules?.length ? snapshot.currencyRules.map(row => ({ ...row, accountEditorOpen:false })) : [createRule()], negativePolicy: snapshot.negativePolicy || 'NEXT_REFUND_BILL', effectPeriod: [...(snapshot.effectPeriod || [props.config.effectStart || '2026-08-01', props.config.effectEnd === '长期' ? '2027-07-31' : props.config.effectEnd || '2027-07-31'])],
 })
 const previewNo = computed(() => props.config.no && props.config.no !== '新配置' ? props.config.no : '保存后自动生成')
 const fallbackLabel = computed(() => form.currencyRules.length === 1 ? '全部' : '其他')
@@ -51,15 +53,29 @@ function validate() {
   }
   return true
 }
+function getRefundSnapshot() {
+  return {
+    enabled:form.enabled,
+    refundMode:form.refundMode,
+    billingPeriodType:form.billingPeriodType,
+    startDays:[...form.startDays],
+    sendAfterDays:form.sendAfterDays,
+    requiredFees:[...form.requiredFees],
+    directDeductFees:[...form.directDeductFees],
+    currencyRules:form.currencyRules.map(({ accountEditorOpen: _accountEditorOpen, ...row }) => ({ ...row })),
+    negativePolicy:form.negativePolicy,
+    effectPeriod:[...form.effectPeriod],
+  }
+}
 function warn(message) { ElMessage.warning(message); return false }
-defineExpose({ validate })
+defineExpose({ validate, getRefundSnapshot })
 </script>
 
 <template>
   <div class="config-editor refund-editor">
     <section class="rule-card">
       <header class="rule-head"><strong>COD包裹货款代收条款</strong><el-switch v-model="form.enabled" /></header>
-      <div class="config-no-bar"><span>配置编号</span><b>{{ previewNo }}</b><small>{{ config.no === '新配置' ? '首次保存将生成返款配置 v1' : '当前版本保存后自动递增' }}</small></div>
+      <div class="config-no-bar"><span>配置编号</span><b>{{ previewNo }}</b><small>{{ config.no === '新配置' ? '首次保存生成编号和 V1' : '保存后生成新版本，配置编号保持不变' }}</small></div>
       <div class="setting-row"><div class="setting-meta"><b>返款模式 <i>*</i></b></div><el-select v-model="form.refundMode"><el-option label="回款返款" value="RECEIVED" /><el-option label="签收返款" value="SIGNED" /></el-select></div>
       <div class="setting-row"><div class="setting-meta"><b>账期类型 <i>*</i></b></div><el-select v-model="form.billingPeriodType"><el-option label="周" value="WEEK" /><el-option label="半周" value="HALF_WEEK" /></el-select></div>
       <div class="setting-row"><div class="setting-meta"><b>账期起始日 <i v-if="form.billingPeriodType==='HALF_WEEK'">*</i></b><small>半周账期需选择每周两个起始日，两个独立账期均不得少于 3 天</small></div><el-select v-model="form.startDays" multiple :multiple-limit="2" :disabled="form.billingPeriodType!=='HALF_WEEK'" :placeholder="form.billingPeriodType==='HALF_WEEK'?'请选择两个起始日':'仅半周账期需要配置'"><el-option v-for="item in weekdays" :key="item.value" :label="item.label" :value="item.value" /></el-select></div>

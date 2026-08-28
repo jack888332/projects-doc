@@ -22,35 +22,59 @@ const creditRatings = ['A', 'B', 'C', 'D']
 const creditTerms = [{ label: '0 天', value: 0 }, { label: '3 天', value: 3 }, { label: '5 天', value: 5 }, { label: '7 天', value: 7 }, { label: '15 天', value: 15 }, { label: '30 天', value: 30 }]
 const overdueOptions = [{ label: '0%', value: 0 }, { label: '0.03%/天', value: 0.0003 }, { label: '0.05%/天', value: 0.0005 }, { label: '0.1%/天', value: 0.001 }]
 
+const clone = value => JSON.parse(JSON.stringify(value))
+const periodFromCycle = (cycle = '') => {
+  if (cycle.includes('半月')) return 'HALF_MONTH'
+  if (cycle.includes('月')) return 'MONTH'
+  if (cycle.includes('10')) return 'DAY_10'
+  if (cycle.includes('15')) return 'DAY_15'
+  if (cycle.includes('7')) return 'DAY_7'
+  if (cycle.includes('1')) return 'DAY_1'
+  return 'WEEK'
+}
 let schemeSeed = 1
-const createScheme = () => {
-  const sourceCurrency = props.config.currency || 'CNY'
+const existingBranchNumbers = (props.config.schemeSnapshot?.branches || [])
+  .map(scheme => Number(String(scheme.schemeKey || '').replace('BRANCH-', '')) || 0)
+let branchKeySeed = Math.max(Number(props.config.schemeSnapshot?.branchKeyCeiling) || 0, ...existingBranchNumbers)
+const nextBranchKey = () => `BRANCH-${String(++branchKeySeed).padStart(2, '0')}`
+const createScheme = (snapshot = {}, fallbackKey = '') => {
+  const sourceCurrency = snapshot.sourceCurrency || props.config.currency || 'CNY'
   return {
-    id: schemeSeed++, folded: false, businessTypes: [], targetCountries: [], warehouses: [],
-    sourceCurrency, feeRules: [{ feeCode: 'FALLBACK', fallback: true, settlementCurrency: 'SOURCE_CURRENCY' }],
-    template: '', node: 'WEIGHT_OUTBOUND',
-    period: props.config.cycle?.includes('7') ? 'DAY_7' : 'WEEK', sendAfterDays: Number.parseInt(props.config.sentRule) || 3,
-    effectPeriod: ['2026-08-01', '2027-07-31'],
+    id: schemeSeed++, folded: false,
+    schemeKey: snapshot.schemeKey || fallbackKey,
+    enabled: snapshot.enabled !== false,
+    businessTypes: [...(snapshot.businessTypes || [])],
+    targetCountries: [...(snapshot.targetCountries || [])],
+    warehouses: [...(snapshot.warehouses || [])],
+    sourceCurrency,
+    feeRules: snapshot.feeRules?.length
+      ? clone(snapshot.feeRules)
+      : [{ feeCode: 'FALLBACK', fallback: true, settlementCurrency: 'SOURCE_CURRENCY' }],
+    template: '',
+    node: snapshot.node || 'WEIGHT_OUTBOUND',
+    period: snapshot.period || periodFromCycle(props.config.cycle),
+    sendAfterDays: snapshot.sendAfterDays ?? (Number.parseInt(props.config.sentRule) || 3),
+    effectPeriod: [...(snapshot.effectPeriod || [props.config.effectStart || '2026-08-01', props.config.effectEnd === '长期' ? '2027-07-31' : props.config.effectEnd || '2027-07-31'])],
   }
 }
-const defaultScheme = createScheme()
+const defaultScheme = createScheme(props.config.schemeSnapshot?.defaultScheme, 'DEFAULT')
 const form = reactive({
   defaultScheme,
-  branches: [],
+  branches: (props.config.schemeSnapshot?.branches || []).map(snapshot => createScheme(snapshot, snapshot.schemeKey || nextBranchKey())),
   creditRating: 'A', creditTerm: 7, overdueFee: 0, advanceLimit: '500000',
   contractNo: 'HT-SCHEME-2026', contractFiles: [],
 })
 const allFolded = computed(() => form.branches.length > 0 && form.branches.every(item => item.folded))
 const previewNo = computed(() => {
-  if (!props.config.no || props.config.no === '新配置') return 'ARB-SCHEME-{时间戳}-v1'
-  return props.config.no.replace(/-v(\d+)$/, (_, n) => `-v${Number(n) + 1}`)
+  if (!props.config.no || props.config.no === '新配置') return '保存后自动生成'
+  return props.config.no
 })
 
 function toggleAll() {
   const next = !allFolded.value
   form.branches.forEach(item => { item.folded = next })
 }
-function addBranch() { form.branches.push(createScheme()) }
+function addBranch() { form.branches.push(createScheme({}, nextBranchKey())) }
 function handleFile(file) { form.contractFiles = [{ name: file.name, url: '#' }] }
 function overlaps(a, b, key) {
   if (!a[key].length || !b[key].length) return true
@@ -90,7 +114,31 @@ function validate() {
   if (error) { ElMessage.warning(error); return false }
   return true
 }
-defineExpose({ validate })
+function snapshotScheme(scheme, branch = false) {
+  return {
+    schemeKey: scheme.schemeKey,
+    enabled: scheme.enabled,
+    ...(branch ? {
+      businessTypes: [...scheme.businessTypes],
+      targetCountries: [...scheme.targetCountries],
+      warehouses: [...scheme.warehouses],
+    } : {}),
+    sourceCurrency: scheme.sourceCurrency,
+    feeRules: clone(scheme.feeRules),
+    node: scheme.node,
+    period: scheme.period,
+    sendAfterDays: scheme.sendAfterDays,
+    effectPeriod: [...scheme.effectPeriod],
+  }
+}
+function getSchemeSnapshot() {
+  return {
+    branchKeyCeiling: branchKeySeed,
+    defaultScheme: snapshotScheme(form.defaultScheme),
+    branches: form.branches.map(scheme => snapshotScheme(scheme, true)),
+  }
+}
+defineExpose({ validate, getSchemeSnapshot })
 </script>
 
 <template>
@@ -100,7 +148,7 @@ defineExpose({ validate })
         <div><strong>应收账单结算条款</strong><el-button link type="primary" @click="toggleAll">{{ allFolded ? '展开所有方案' : '折叠所有方案' }}</el-button></div>
         <el-switch :model-value="allFolded" @change="toggleAll" />
       </header>
-      <div class="config-no-bar"><span>配置编号</span><el-tooltip content="格式：ARB-SCHEME-{创建时间戳}-v{版本号}。前段创建后不可变，仅版本号随保存递增。"><b>{{ previewNo }}</b></el-tooltip><small>{{ config.no === '新配置' ? '首次保存将生成 v1' : '保存后版本号自动递增' }}</small></div>
+      <div class="config-no-bar"><span>配置编号</span><el-tooltip content="配置编号创建后不变，内容变更通过独立版本号形成新快照。"><b>{{ previewNo }}</b></el-tooltip><small>{{ config.no === '新配置' ? '首次保存生成编号和 V1' : '保存后生成新版本，配置编号保持不变' }}</small></div>
 
       <div class="scheme-section">
         <div class="scheme-title"><strong>默认方案</strong><span>不包含限制条件，默认直接生效</span></div>

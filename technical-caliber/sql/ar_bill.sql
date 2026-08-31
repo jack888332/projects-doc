@@ -1477,3 +1477,55 @@ CREATE TABLE `revenue_export_task` (
   KEY `idx_revenue_export_task_scope` (`sc_id`,`shop_id`,`user_id`),
   KEY `idx_revenue_export_task_page` (`sc_id`,`user_id`,`task_status`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='营收总览异步导出任务';
+
+-- 账单生成任务清理批次
+CREATE TABLE `bill_generate_task_cleanup_batch` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `batch_no` varchar(64) NOT NULL COMMENT '清理批次号',
+  `sc_id` bigint(20) NOT NULL COMMENT '供应链/组织ID',
+  `shop_id` bigint(20) NOT NULL DEFAULT '0' COMMENT '店铺ID；批次可能跨店铺，按明细隔离，0表示跨店',
+  `user_id` bigint(20) NOT NULL COMMENT '用户ID',
+  `total_count` int(11) NOT NULL DEFAULT '0' COMMENT '任务总数',
+  `processed_count` int(11) NOT NULL DEFAULT '0' COMMENT '已处理数',
+  `success_count` int(11) NOT NULL DEFAULT '0' COMMENT '成功数',
+  `fail_count` int(11) NOT NULL DEFAULT '0' COMMENT '失败数',
+  `task_status` varchar(32) NOT NULL DEFAULT 'WAITING' COMMENT '状态：WAITING/RUNNING/SUCCESS/PARTIAL_SUCCESS/FAILED',
+  `include_related_tasks` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否一并清理共享账单相关任务',
+  `clear_external_links` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否解除外部费用挂靠',
+  `failure_reason` varchar(2000) DEFAULT NULL COMMENT '批次级失败原因',
+  `operator_id` varchar(64) DEFAULT NULL COMMENT '操作人ID',
+  `operator_name` varchar(128) DEFAULT NULL COMMENT '操作人名称',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0正常 1删除',
+  `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_cleanup_batch_no` (`batch_no`),
+  KEY `idx_cleanup_batch_sc` (`sc_id`, `task_status`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+  ROW_FORMAT=DYNAMIC COMMENT='账单生成任务清理批次';
+
+-- 账单生成任务清理批次明细
+CREATE TABLE `bill_generate_task_cleanup_item` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `batch_id` bigint(20) unsigned NOT NULL COMMENT '批次ID',
+  `task_id` bigint(20) unsigned NOT NULL COMMENT '生成任务ID',
+  `task_no` varchar(64) NOT NULL COMMENT '任务编号',
+  `sc_id` bigint(20) NOT NULL COMMENT '供应链/组织ID',
+  `shop_id` bigint(20) NOT NULL COMMENT '店铺ID',
+  `user_id` bigint(20) NOT NULL COMMENT '用户ID',
+  `bill_type` varchar(32) NOT NULL COMMENT '账单类型：MEMBER_AR/COD_REFUND',
+  `task_status` varchar(32) NOT NULL COMMENT '单任务结果：WAITING/SUCCESS/FAILED',
+  `deleted_counts_json` json DEFAULT NULL COMMENT '各表删除数量JSON',
+  `error_message` varchar(2000) DEFAULT NULL COMMENT '失败原因',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0正常 1删除',
+  `created_by` varchar(64) DEFAULT NULL COMMENT '创建人',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_cleanup_item` (`batch_id`, `task_id`),
+  KEY `idx_cleanup_item_task` (`task_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+  ROW_FORMAT=DYNAMIC COMMENT='账单生成任务清理批次明细';

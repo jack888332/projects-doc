@@ -59,6 +59,7 @@ OFP 源表
 7. 在 `bill_source_collect_mark` 中记录 `PENDING -> MARKED / FAILED` 的跨库打标轨迹。
 8. 通过任务监控入口创建 `RETRY` 触发的重试任务。
 9. 支持 `非费项` 类型：来源被拉取后写 `bms_billed_flag = 1` 和 `NON_FEE_FETCH` 轨迹，但不写 `fee_detail`、不关联应收账单，也不进入账单汇总和核销金额。
+10. 支持 `FEE0022 代收货款` 按 `e.recovery_time` 独立采集，与普通费项履约节点采集解耦，使用 `COD_COLLECTION` 独立防重。
 
 ### 2.4 当前尚未支持
 
@@ -205,6 +206,8 @@ sc_id
 1. `order_source_sql` 保存主订单宽表查询快照。
 2. `additional_source_sql` 会保存应收附加费独立采集 SQL、理赔来源 SQL 和记账单附加费 SQL 快照。
 3. 应收附加费独立采集 SQL 不再包含本期订单 ID 集合，固定按 `a.create_time` 窗口扫描。
+4. 代收货款独立采集 SQL 以 `cod_collection_source` 段落追加到 `additional_source_sql`，
+   固定按 `e.recovery_time` 窗口扫描，collectType 为 `COD_COLLECTION`。
 
 ### 4.3 领取任务
 
@@ -337,6 +340,21 @@ bill_config_id
 
 应收附加费已从 `executeBillGroup()` 中拆出，由独立的 `executeAdditionalFeeGroups()` 按附加费创建时间建账或追加，不再随主订单分组查询。
 
+`FEE0022 代收货款` 同样已从主订单 `executeBillGroup()` 中拆出，由独立的
+`assignCodCollectionOrdersToConfigGroup() -> executeCodCollectionGroups()` 链路按
+`sale_order_header_extend.recovery_time` 建账或追加：
+
+```text
+主链路：按履约节点扫描普通费项，跳过 FEE0022
+代收货款链路：按 e.recovery_time 独立扫描，过滤 collection_price > 0
+  -> 分支配置优先、默认配置兜底
+  -> 同账期同分组可追加同一账单
+  -> main_order 已存在时不覆盖 billing_node_time
+  -> fee_detail.source_fee_time = recovery_time
+  -> bill_source_collect_mark.collect_type = COD_COLLECTION
+  -> 不更新 sale_order_header_extend.bms_billed_flag / bms_bill_no
+```
+
 ### 4.9 应收附加费与理赔的当前过滤条件
 
 应收附加费独立采集核心条件：
@@ -395,6 +413,8 @@ bms_bill_no 为空
 3. `bill_source_collect_mark` 当前唯一维度已包含 `bill_type`。
 4. 正常打标状态流转是 `PENDING -> MARKED / FAILED`。
 5. 账单重跑时，旧轨迹还会被额外更新为 `REGENERATED`。
+6. `COD_COLLECTION` 是仅本地轨迹：打标时不写源表，清理/失败恢复时也不据此清空或恢复
+   `sale_order_header_extend.bms_billed_flag / bms_bill_no`。
 
 ### 4.11 任务完成
 
@@ -701,6 +721,9 @@ POST /api/bms/ar-bill/regenerate-order
 | 任务领取与分流 | `BillGenerateServiceImpl.executeTask()` |
 | 会员应收主编排 | `BillGenerateServiceImpl.executeTaskInternal()` |
 | 订单归属到默认/分支配置 | `BillGenerateServiceImpl.assignOrdersToConfigGroup()` |
+| 代收货款归属到默认/分支配置 | `BillGenerateServiceImpl.assignCodCollectionOrdersToConfigGroup()` |
+| 代收货款独立建账/追加 | `BillGenerateServiceImpl.executeCodCollectionGroups()` |
+| 代收货款仅本地打标 | `BillGenerateServiceImpl.markCodCollectionSource()` |
 | 应收附加费归属到默认/分支配置 | `BillGenerateServiceImpl.assignAdditionalFeesToConfigGroup()` |
 | 单账单分组生成 | `BillGenerateServiceImpl.executeBillGroup()` |
 | 应收附加费独立归集 | `BillGenerateServiceImpl.executeAdditionalFeeGroups()` |

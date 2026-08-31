@@ -1,26 +1,41 @@
 import { describe, expect, it } from 'vitest'
-import { buildConfigGenerationScopes, configReferenceStats, createConfigBatchTaskRows, taskOverlapsReferenceStart } from '../src/domain/configGeneration.js'
+import { buildConfigGenerationScopes, configReferenceStats, createConfigBatchTaskRows, createReceivableConfigNo, numberReceivableSchemes, taskOverlapsReferenceStart } from '../src/domain/configGeneration.js'
 
 const config = {
-  id: 'AR-CFG-001', type: 'AR', no: 'ARB-001', version: 'V2',
+  id: 'AR-CFG-001', type: 'AR', no: 'ARB-SCHEME-20260801101800123', version: 'V2',
   effectStart: '2026-08-01', effectEnd: '长期',
   schemeSnapshot: {
-    defaultScheme: { schemeKey:'DEFAULT', period:'MONTH', effectPeriod:['2026-08-01', '2027-07-31'] },
-    branches: [{ schemeKey:'BRANCH-01', enabled:true, period:'HALF_MONTH', effectPeriod:['2026-08-01', '2027-07-31'] }],
+    defaultScheme: { schemeKey:'ARB-SCHEME-20260801101800123', period:'MONTH', effectPeriod:['2026-08-01', '2027-07-31'] },
+    branches: [{ schemeKey:'ARB-SCHEME-20260801101800123-BRANCH-1', enabled:true, period:'HALF_MONTH', effectPeriod:['2026-08-01', '2027-07-31'] }],
   },
 }
 
 const reference = (overrides = {}) => ({
-  id: 'AR-R-001', configId: 'AR-CFG-001', configNo: 'ARB-001', version: 'V2', status:'启用',
+  id: 'AR-R-001', configId: 'AR-CFG-001', configNo: 'ARB-SCHEME-20260801101800123', version: 'V2', status:'启用',
   customerCode: 'OG0271', customerName: '客户一', memberCode: 'M-001', store: '店铺一', group: '客户组一',
   referenceNo: 'AR-REF-001', effectStart: '2026-08-01', effectEnd: '长期', ...overrides,
 })
 
 describe('reusable configuration generation', () => {
+  it('numbers the default scheme from its creation timestamp and derives monotonic branch numbers', () => {
+    const configNo = createReceivableConfigNo('2026-08-28 13:45:12.345')
+    const numbered = numberReceivableSchemes({
+      branchKeyCeiling:4,
+      defaultScheme:{ schemeKey:'DEFAULT' },
+      branches:[{ schemeKey:'BRANCH-2' }, { schemeKey:'ARB-OLD-BRANCH-5' }],
+    }, configNo)
+
+    expect(configNo).toBe('ARB-SCHEME-20260828134512345')
+    expect(numbered.defaultScheme.schemeKey).toBe(configNo)
+    expect(numbered.branches.map(row => row.schemeKey)).toEqual([`${configNo}-BRANCH-2`, `${configNo}-BRANCH-5`])
+    expect(numbered.branchKeyCeiling).toBe(5)
+    expect(createReceivableConfigNo('2026-08-28 13:45:12.345', [configNo])).toBe('ARB-SCHEME-20260828134512346')
+  })
+
   it('derives unused, exclusive and shared labels from active references', () => {
     expect(configReferenceStats(config, [])).toMatchObject({ usageType:'UNUSED', total:0 })
     expect(configReferenceStats(config, [reference()])).toMatchObject({ usageType:'EXCLUSIVE', total:1, exact:1 })
-    expect(configReferenceStats(config, [reference(), reference({ id:'AR-R-002', customerCode:'OG0347', version:'V1' })])).toMatchObject({ usageType:'SHARED', total:2, exact:1, label:'共享配置（2）' })
+    expect(configReferenceStats(config, [reference(), reference({ id:'AR-R-002', customerCode:'OG0347', version:'V1' })])).toMatchObject({ usageType:'SHARED', total:2, exact:2, label:'共享配置' })
     expect(configReferenceStats(config, [reference(), reference({ id:'AR-R-DUPLICATE' })])).toMatchObject({ usageType:'EXCLUSIVE', total:1, exact:1 })
   })
 
@@ -34,7 +49,7 @@ describe('reusable configuration generation', () => {
     expect(configReferenceStats(config, [active, future], '2026-09-01')).toMatchObject({ usageType:'SHARED', total:2 })
   })
 
-  it('expands only exact-version references into customer and scheme scopes', () => {
+  it('expands all current configuration references with the current version and scheme numbers', () => {
     const result = buildConfigGenerationScopes({
       config,
       references: [reference(), reference({ id:'AR-R-002', customerCode:'OG0347', version:'V1' })],
@@ -42,17 +57,19 @@ describe('reusable configuration generation', () => {
       cutoff: '2026-08-27 16:45:00',
     })
 
-    expect(result.exactCustomerCount).toBe(1)
-    expect(result.otherVersionCount).toBe(1)
-    expect(result.rows.map(row => row.schemeKey)).toEqual(['DEFAULT', 'BRANCH-01'])
-    expect(result.rows.find(row => row.schemeKey === 'BRANCH-01')).toMatchObject({
+    expect(result.referenceCustomerCount).toBe(2)
+    expect(result.rows.map(row => row.schemeKey)).toEqual([
+      'ARB-SCHEME-20260801101800123', 'ARB-SCHEME-20260801101800123-BRANCH-1',
+      'ARB-SCHEME-20260801101800123', 'ARB-SCHEME-20260801101800123-BRANCH-1',
+    ])
+    expect(result.rows.find(row => row.schemeKey === 'ARB-SCHEME-20260801101800123-BRANCH-1')).toMatchObject({
       customerCode: 'OG0271', periodStart: '2026-08-01', periodEnd: '2026-08-15', blocked: false,
     })
   })
 
   it('does not include a customer before its accurate-version reference becomes effective', () => {
     const result = buildConfigGenerationScopes({ config, references:[reference({ effectStart:'2026-09-01' })], tasks:[], cutoff:'2026-08-27 16:45:00' })
-    expect(result).toMatchObject({ rows:[], exactCustomerCount:0, otherVersionCount:0 })
+    expect(result).toMatchObject({ rows:[], referenceCustomerCount:0 })
   })
 
   it('uses confirmation time rather than an editable data cutoff to resolve references', () => {
@@ -63,30 +80,30 @@ describe('reusable configuration generation', () => {
       cutoff:'2026-09-30 23:59:59',
       referenceAt:'2026-08-27 16:45:00',
     })
-    expect(result).toMatchObject({ rows:[], exactCustomerCount:0, otherVersionCount:0 })
+    expect(result).toMatchObject({ rows:[], referenceCustomerCount:0 })
   })
 
   it('uses a version-independent business lock and ignores deleted failures', () => {
     const baseTask = {
-      taskNo: 'BMS-OLD', status: 'FAILED', customerNo: 'OG0271', schemeKey: 'BRANCH-01',
+      taskNo: 'BMS-OLD', status: 'FAILED', customerNo: 'OG0271', schemeKey: 'ARB-SCHEME-20260801101800123-BRANCH-1',
       periodStart: '2026-08-01', periodEnd: '2026-08-15',
-      lockKey: 'OG0271|AR|BRANCH-01|2026-08-01/2026-08-15|BILL_GENERATE',
+      lockKey: 'OG0271|AR|ARB-SCHEME-20260801101800123-BRANCH-1|2026-08-01/2026-08-15|BILL_GENERATE',
     }
     const blocked = buildConfigGenerationScopes({ config, references:[reference()], tasks:[baseTask], cutoff:'2026-08-27 16:45:00' })
     const released = buildConfigGenerationScopes({ config, references:[reference()], tasks:[{ ...baseTask, deletedAt:'2026-08-27 17:05:00' }], cutoff:'2026-08-27 16:45:00' })
 
-    expect(blocked.rows.find(row => row.schemeKey === 'BRANCH-01').reason).toContain('BMS-OLD')
-    expect(released.rows.find(row => row.schemeKey === 'BRANCH-01').blocked).toBe(false)
+    expect(blocked.rows.find(row => row.schemeKey === 'ARB-SCHEME-20260801101800123-BRANCH-1').reason).toContain('BMS-OLD')
+    expect(released.rows.find(row => row.schemeKey === 'ARB-SCHEME-20260801101800123-BRANCH-1').blocked).toBe(false)
   })
 
   it('blocks generation while a recalculation owns the same business range', () => {
     const recalculation = {
-      taskNo:'BMS-RECALCULATE', taskType:'BILL_RECALCULATE', status:'RUNNING', customerNo:'OG0271', billType:'AR', schemeKey:'BRANCH-01',
+      taskNo:'BMS-RECALCULATE', taskType:'BILL_RECALCULATE', status:'RUNNING', customerNo:'OG0271', billType:'AR', schemeKey:'ARB-SCHEME-20260801101800123-BRANCH-1',
       periodStart:'2026-08-01', periodEnd:'2026-08-15',
-      lockKey:'OG0271|AR|BRANCH-01|2026-08-01/2026-08-15|BILL_RECALCULATE',
+      lockKey:'OG0271|AR|ARB-SCHEME-20260801101800123-BRANCH-1|2026-08-01/2026-08-15|BILL_RECALCULATE',
     }
     const result = buildConfigGenerationScopes({ config, references:[reference()], tasks:[recalculation], cutoff:'2026-08-27 16:45:00' })
-    expect(result.rows.find(row => row.schemeKey === 'BRANCH-01').reason).toContain('BMS-RECALCULATE')
+    expect(result.rows.find(row => row.schemeKey === 'ARB-SCHEME-20260801101800123-BRANCH-1').reason).toContain('BMS-RECALCULATE')
   })
 
   it('blocks unfinished tasks anywhere in the new reference effective window', () => {
@@ -102,7 +119,7 @@ describe('reusable configuration generation', () => {
 
     expect(result.batchNo).toMatch(/^BMSB-20260827-/)
     expect(result.rows).toHaveLength(1)
-    expect(result.rows[0]).toMatchObject({ batchNo:result.batchNo, customerNo:'OG0271', schemeKey:'BRANCH-01', configVersion:'V2', configSource:'CONFIG', status:'PENDING' })
+    expect(result.rows[0]).toMatchObject({ batchNo:result.batchNo, customerNo:'OG0271', schemeKey:'ARB-SCHEME-20260801101800123-BRANCH-1', configVersion:'V2', configSource:'CONFIG', status:'PENDING' })
     expect(result.rows[0]).not.toHaveProperty('parentTaskNo')
   })
 

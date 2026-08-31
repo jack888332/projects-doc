@@ -129,7 +129,7 @@ function runQuery() {
     <div class="summary-dimension-heading"><strong>店铺</strong></div>
     <section class="condition-query-panel summary-scope-row">
       <div class="condition-filter-bar">
-        <ConditionFilter v-model="shopQuery.shop" label="店铺" :options="shops" @change="linkedQuery.touch('shop')" />
+        <ConditionFilter v-model="shopQuery.shop" label="所属店铺" :options="shops" @change="linkedQuery.touch('shop')" />
         <ConditionFilter v-model="shopQuery.period" label="账期范围" type="period-range" :popover-width="380" @change="linkedQuery.touch('shop')" />
         <div v-if="linkedQuery.isSubmitArea('shop')" class="condition-filter-actions linked-query-actions">
           <el-button type="primary" @click="runQuery">查询</el-button>
@@ -155,7 +155,7 @@ function runQuery() {
 
     <section class="module-panel summary-table-panel">
       <DataTableFrame :total="filteredRecords.length" :page-size="10">
-      <template #actions><DownloadButton title="下载营收汇总" :options="[{ label: '客户汇总', value: 'customer', description: '按当前客户筛选结果下载' }, { label: '店铺汇总', value: 'shop', description: '按当前店铺范围下载' }]" /></template>
+      <template #actions><DownloadButton title="下载营收汇总" file-name="营收汇总" :rows="{ customer: filteredRecords, shop: shopRecords }" :options="[{ label: '客户汇总', value: 'customer', description: '按当前客户筛选结果下载' }, { label: '店铺汇总', value: 'shop', description: '按当前店铺范围下载' }]" /></template>
 <el-table
         :data="filteredRecords"
         class="clean-table receivable-summary-table"

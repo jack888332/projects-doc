@@ -1,8 +1,8 @@
 <script setup>
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
-import { Lock, Rank, RefreshLeft } from '@element-plus/icons-vue'
-import { applyTableColumnOrder, applyTableSort, readTableColumns } from './tableColumns'
+import { Lock, Rank, RefreshLeft, Search } from '@element-plus/icons-vue'
+import { applyTableColumnOrder, applyTableSort, filterTableColumnsByKeyword, readTableColumns } from './tableColumns'
 import SortDirectionIcon from './SortDirectionIcon.vue'
 
 const props = defineProps({
@@ -13,7 +13,13 @@ const visible = ref(false)
 const triggerRef = ref(null)
 const columns = ref([])
 const defaultColumns = ref([])
-const draggingIndex = ref(-1)
+const columnSearch = ref('')
+const draggingLabel = ref(null)
+const dropLabel = ref(null)
+
+const filteredColumns = computed(() => filterTableColumnsByKeyword(columns.value, columnSearch.value))
+const dragIndex = computed(() => columns.value.findIndex((column) => column.label === draggingLabel.value))
+const dropIndex = computed(() => columns.value.findIndex((column) => column.label === dropLabel.value))
 
 function resolveTableRoot() {
   const trigger = triggerRef.value?.$el || triggerRef.value
@@ -42,21 +48,36 @@ function readColumns() {
 }
 
 async function handleOpen() {
+  columnSearch.value = ''
   await nextTick()
   readColumns()
 }
 
-function handleDragStart(index) {
-  if (!columns.value[index]?.reorderable) return
-  draggingIndex.value = index
+function handleDragStart(column) {
+  if (!column.reorderable) return
+  draggingLabel.value = column.label
+  dropLabel.value = column.label
 }
 
-function handleDrop(index) {
-  if (draggingIndex.value < 0 || draggingIndex.value === index || !columns.value[index]?.reorderable) return
+function handleDragOver(column) {
+  if (draggingLabel.value == null || !column.reorderable) return
+  dropLabel.value = column.label
+}
+
+function resetDragState() {
+  draggingLabel.value = null
+  dropLabel.value = null
+}
+
+function handleDrop(column) {
+  if (draggingLabel.value == null || draggingLabel.value === column.label || !column.reorderable) return
+  const from = columns.value.findIndex((item) => item.label === draggingLabel.value)
+  const to = columns.value.findIndex((item) => item.label === column.label)
+  if (from < 0 || to < 0) return
   const next = [...columns.value]
-  const [item] = next.splice(draggingIndex.value, 1)
-  next.splice(index, 0, item)
-  draggingIndex.value = -1
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  resetDragState()
   commitColumns(next)
 }
 
@@ -136,16 +157,31 @@ function commitColumns(nextColumns) {
         <strong>排序</strong>
         <el-button link :icon="RefreshLeft" title="恢复默认" aria-label="恢复默认" @click="resetColumns" />
       </div>
+      <div class="column-sort-filter">
+        <el-input
+          v-model="columnSearch"
+          :prefix-icon="Search"
+          placeholder="搜索列名"
+          clearable
+          aria-label="搜索列名"
+        />
+      </div>
       <div class="column-sort-list">
         <div
-          v-for="(column, index) in columns"
+          v-for="column in filteredColumns"
           :key="column.label"
-          :class="['column-sort-item', { 'is-position-locked': !column.reorderable }]"
+          :class="['column-sort-item', {
+            'is-position-locked': !column.reorderable,
+            'is-dragging': draggingLabel === column.label,
+            'is-drop-target': dropLabel === column.label && draggingLabel !== column.label,
+            'is-drop-before': dropLabel === column.label && dragIndex > dropIndex,
+            'is-drop-after': dropLabel === column.label && dragIndex >= 0 && dragIndex < dropIndex,
+          }]"
           :draggable="column.reorderable"
-          @dragstart="handleDragStart(index)"
-          @dragend="draggingIndex = -1"
-          @dragover.prevent
-          @drop="handleDrop(index)"
+          @dragstart="handleDragStart(column)"
+          @dragend="resetDragState"
+          @dragover.prevent="handleDragOver(column)"
+          @drop="handleDrop(column)"
         >
           <el-tooltip content="列位置排序" placement="top" :show-after="0" :hide-after="0">
             <el-icon v-if="column.reorderable"><Rank /></el-icon>
@@ -168,6 +204,7 @@ function commitColumns(nextColumns) {
             </el-tooltip>
           </div>
         </div>
+        <div v-if="!filteredColumns.length" class="column-sort-empty">未找到匹配项</div>
       </div>
     </div>
   </el-popover>

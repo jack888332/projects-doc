@@ -28,12 +28,8 @@ export interface BillingTaskFixture {
   customerName: string
   customerNo: string
   memberCode: string
-  memberCodes: string[]
   shop: string
-  shops: string[]
   customerGroup: string
-  customerGroups: string[]
-  customerRelations: Array<{ store:string; group:string; memberCode:string }>
   sourceShopSnapshots: string[]
   periodStart: string
   periodEnd: string
@@ -85,12 +81,8 @@ const baseTask: Omit<BillingTaskFixture, 'id' | 'taskNo' | 'periodStart' | 'peri
   customerName: '-',
   customerNo: '-',
   memberCode: '-',
-  memberCodes: [],
   shop: '-',
-  shops: [],
   customerGroup: '-',
-  customerGroups: [],
-  customerRelations: [],
   sourceShopSnapshots: [],
   dataCutoff: '-',
   createdAt: '-',
@@ -122,16 +114,12 @@ function task(input: Pick<BillingTaskFixture, 'id' | 'taskNo' | 'periodStart' | 
   const merged = { ...baseTask, ...input }
   return {
     ...merged,
-    memberCodes:input.memberCodes || (merged.memberCode === '-' ? [] : [merged.memberCode]),
-    shops:input.shops || (merged.shop === '-' ? [] : [merged.shop]),
-    customerGroups:input.customerGroups || (merged.customerGroup === '-' ? [] : [merged.customerGroup]),
-    customerRelations:input.customerRelations || (merged.shop === '-' && merged.customerGroup === '-' && merged.memberCode === '-' ? [] : [{ store:merged.shop, group:merged.customerGroup, memberCode:merged.memberCode }]),
     sourceShopSnapshots:input.sourceShopSnapshots || (merged.status === 'SUCCESS' && merged.shop !== '-' ? [merged.shop] : []),
     period: `${input.periodStart} 至 ${input.periodEnd}`,
   }
 }
 
-export const billingTaskSeedVersion = 20260829
+export const billingTaskSeedVersion = 2026082801
 
 export const billingTaskFixtures: BillingTaskFixture[] = [
   task({
@@ -141,8 +129,6 @@ export const billingTaskFixtures: BillingTaskFixture[] = [
     configVersion: 'V2', schemeKey: 'BRANCH-02', schemeName: '分支方案 2', schemeType: '分支方案',
     customerReferenceNo: 'AR-REF-OG0271-0002', customerName: '渣渣辉3号', customerNo: 'OG0271',
     memberCode: 'M-700127', shop: '星际货运(中转)', customerGroup: '台湾大客户组',
-    memberCodes: ['M-700127', 'M-700129'], shops: ['星际货运(中转)', '台湾集运店'], customerGroups: ['台湾大客户组', '美国电商组'],
-    customerRelations: [{ store:'星际货运(中转)', group:'台湾大客户组', memberCode:'M-700127' },{ store:'台湾集运店', group:'美国电商组', memberCode:'M-700129' }],
     sourceShopSnapshots: ['STORE-XJZY / 星际货运(中转)'],
     periodStart: '2026-08-01', periodEnd: '2026-08-15', dataCutoff: '2026-08-16 09:30:00',
     createdAt: '2026-08-16 09:30:01', startedAt: '2026-08-16 09:30:08', finishedAt: '2026-08-16 09:31:39',

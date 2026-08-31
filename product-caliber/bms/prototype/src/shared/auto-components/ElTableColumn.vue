@@ -1,6 +1,8 @@
 <script>
 import { defineComponent, h, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElTableColumn as ElementTableColumn, ElTooltip } from 'element-plus'
+import { canResizeTableColumn, independentColumnWidth } from '../components/tableSizing.js'
+import { resolveTableColumnSorting, tableHeaderSortState } from '../components/tableSortability.js'
 import SortDirectionIcon from '../components/SortDirectionIcon.vue'
 
 const NON_DATA_TYPES = new Set(['selection', 'index', 'expand'])
@@ -81,7 +83,7 @@ const PrototypeTableHeaderLabel = defineComponent({
   name: 'PrototypeTableHeaderLabel',
   props: {
     label: { type: String, required: true },
-    sortable: { type: Boolean, default: false },
+    column: { type: Object, default: null },
   },
   setup(props) {
     const labelElement = ref(null)
@@ -119,17 +121,15 @@ const PrototypeTableHeaderLabel = defineComponent({
           ref: labelElement,
           class: 'prototype-table-header-label',
         }, props.label),
-        props.sortable
-          ? h('button', {
-              type: 'button',
-              class: 'prototype-table-header-sort-button',
-              title: '列数据排序',
-              'aria-label': `${props.label}列数据排序`,
-            }, [
-              h(SortDirectionIcon, {
-                class: 'prototype-table-header-sort-indicator',
-              }),
-            ])
+        tableHeaderSortState(props.column?.order)
+          ? h('span', {
+              class: [
+                'prototype-table-header-sort-state',
+                tableHeaderSortState(props.column.order).className,
+              ],
+              role: 'img',
+              'aria-label': tableHeaderSortState(props.column.order).ariaLabel,
+            }, [h(SortDirectionIcon)])
           : null,
       ]),
     })
@@ -144,8 +144,8 @@ function estimatedTextWidth(value) {
   }, 0)
 }
 
-function estimatedHeaderWidth(label, sortable) {
-  return Math.ceil(estimatedTextWidth(label) + 28 + (sortable ? 18 : 0))
+function estimatedHeaderWidth(label) {
+  return Math.ceil(estimatedTextWidth(label) + 28)
 }
 
 function displayText(value) {
@@ -190,6 +190,10 @@ function numericWidth(value) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+function mergeClassName(value, className) {
+  return [value, className].filter(Boolean).join(' ')
+}
+
 function sortKeysFor(label) {
   if (LABEL_SORT_KEYS[label]) return LABEL_SORT_KEYS[label]
   return DYNAMIC_LABEL_SORT_KEYS.find(([pattern]) => pattern.test(label))?.[1] || []
@@ -229,6 +233,7 @@ export default defineComponent({
   props: {
     sortKey: { type: [String, Function], default: '' },
     autoWidthKey: { type: [String, Function], default: '' },
+    panelSortable: { type: Boolean, default: true },
   },
   setup(props, { attrs, slots }) {
     const columnDataSort = inject('prototypeTableColumnDataSort', null)
@@ -248,19 +253,23 @@ export default defineComponent({
     return () => {
       const label = typeof attrs.label === 'string' ? attrs.label : ''
       const excluded = NON_DATA_TYPES.has(attrs.type) || label === '操作'
-      const explicitlyDisabled = attrs.sortable === false || attrs.sortable === 'false'
       const frameSortingDisabled = columnDataSort?.value === false
-      const sortable = excluded || explicitlyDisabled || frameSortingDisabled ? false : (attrs.sortable ?? true)
-      const forwarded = { ...attrs, sortable }
+      const sorting = resolveTableColumnSorting({
+        excluded,
+        frameSortingDisabled,
+        panelSortable: props.panelSortable,
+      })
+      const forwarded = { ...attrs, sortable: sorting.headerSortable }
+      const resizable = canResizeTableColumn({ excluded, fixed: attrs.fixed, resizable: attrs.resizable })
 
-      if (label === '操作') forwarded.resizable = false
+      forwarded.resizable = resizable
 
       if (!excluded) {
-        const headerWidth = estimatedHeaderWidth(label, sortable)
+        const headerWidth = estimatedHeaderWidth(label)
         const declaredWidth = numericWidth(attrs.width)
         const declaredMinWidth = numericWidth(attrs.minWidth)
         const autoWidthConfig = tableAutoWidth?.value
-        const measuredContentWidth = autoWidthConfig?.enabled && autoWidthConfig.rows?.length
+        const measuredContentWidth = autoWidthConfig?.enabled !== false && autoWidthConfig?.rows?.length
           ? contentWidth(
               autoWidthConfig.rows,
               attrs.prop,
@@ -271,11 +280,24 @@ export default defineComponent({
           : 0
 
         forwarded.showOverflowTooltip = attrs.showOverflowTooltip ?? true
-        if (declaredWidth) forwarded.width = Math.max(declaredWidth, headerWidth)
-        else forwarded.minWidth = Math.max(declaredMinWidth, headerWidth, measuredContentWidth)
+        forwarded.width = independentColumnWidth({
+          declaredWidth,
+          declaredMinWidth,
+          headerWidth,
+          contentWidth: measuredContentWidth,
+        })
+        if (declaredWidth) delete forwarded.minWidth
+        else forwarded.minWidth = Math.max(declaredMinWidth, headerWidth)
+        const sizingClass = resizable && !declaredWidth ? 'prototype-auto-width-column' : ''
+        const resizeClass = resizable ? 'prototype-resizable-column' : ''
+        const panelSortClass = sorting.panelSortable ? '' : 'prototype-panel-sort-disabled'
+        forwarded.labelClassName = mergeClassName(
+          attrs.labelClassName,
+          [resizeClass, sizingClass, panelSortClass].filter(Boolean).join(' '),
+        )
       }
 
-      if (sortable && !attrs.prop && !attrs.sortMethod) {
+      if (sorting.panelSortable && !attrs.prop && !attrs.sortMethod) {
         forwarded.prop = syntheticSortProperty(label)
         forwarded.sortMethod = (left, right) => compareValues(
           rowValue(left, label, props.sortKey),
@@ -286,9 +308,9 @@ export default defineComponent({
       const forwardedSlots = label && !slots.header
         ? {
             ...slots,
-            header: () => h(PrototypeTableHeaderLabel, {
+            header: ({ column }) => h(PrototypeTableHeaderLabel, {
               label,
-              sortable: Boolean(sortable),
+              column,
             }),
           }
         : slots

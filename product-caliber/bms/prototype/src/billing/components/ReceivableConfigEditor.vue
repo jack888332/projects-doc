@@ -33,10 +33,11 @@ const periodFromCycle = (cycle = '') => {
   return 'WEEK'
 }
 let schemeSeed = 1
+const schemeBaseNo = computed(() => (!props.config.no || props.config.no === '新配置') ? 'ARB-SCHEME-发布时生成' : props.config.no)
 const existingBranchNumbers = (props.config.schemeSnapshot?.branches || [])
-  .map(scheme => Number(String(scheme.schemeKey || '').replace('BRANCH-', '')) || 0)
+  .map(scheme => Number(String(scheme.schemeKey || '').match(/(?:^|-)BRANCH-(\d+)$/)?.[1]) || 0)
 let branchKeySeed = Math.max(Number(props.config.schemeSnapshot?.branchKeyCeiling) || 0, ...existingBranchNumbers)
-const nextBranchKey = () => `BRANCH-${String(++branchKeySeed).padStart(2, '0')}`
+const nextBranchKey = () => `${schemeBaseNo.value}-BRANCH-${++branchKeySeed}`
 const createScheme = (snapshot = {}, fallbackKey = '') => {
   const sourceCurrency = snapshot.sourceCurrency || props.config.currency || 'CNY'
   return {
@@ -57,16 +58,19 @@ const createScheme = (snapshot = {}, fallbackKey = '') => {
     effectPeriod: [...(snapshot.effectPeriod || [props.config.effectStart || '2026-08-01', props.config.effectEnd === '长期' ? '2027-07-31' : props.config.effectEnd || '2027-07-31'])],
   }
 }
-const defaultScheme = createScheme(props.config.schemeSnapshot?.defaultScheme, 'DEFAULT')
+const defaultScheme = createScheme({ ...props.config.schemeSnapshot?.defaultScheme, schemeKey:schemeBaseNo.value }, schemeBaseNo.value)
 const form = reactive({
   defaultScheme,
-  branches: (props.config.schemeSnapshot?.branches || []).map(snapshot => createScheme(snapshot, snapshot.schemeKey || nextBranchKey())),
+  branches: (props.config.schemeSnapshot?.branches || []).map((snapshot, index) => {
+    const sequence = Number(String(snapshot.schemeKey || '').match(/(?:^|-)BRANCH-(\d+)$/)?.[1]) || index + 1
+    return createScheme({ ...snapshot, schemeKey:`${schemeBaseNo.value}-BRANCH-${sequence}` }, `${schemeBaseNo.value}-BRANCH-${sequence}`)
+  }),
   creditRating: 'A', creditTerm: 7, overdueFee: 0, advanceLimit: '500000',
   contractNo: 'HT-SCHEME-2026', contractFiles: [],
 })
 const allFolded = computed(() => form.branches.length > 0 && form.branches.every(item => item.folded))
 const previewNo = computed(() => {
-  if (!props.config.no || props.config.no === '新配置') return '保存后自动生成'
+  if (!props.config.no || props.config.no === '新配置') return '发布时自动生成'
   return props.config.no
 })
 
@@ -148,21 +152,21 @@ defineExpose({ validate, getSchemeSnapshot })
         <div><strong>应收账单结算条款</strong><el-button link type="primary" @click="toggleAll">{{ allFolded ? '展开所有方案' : '折叠所有方案' }}</el-button></div>
         <el-switch :model-value="allFolded" @change="toggleAll" />
       </header>
-      <div class="config-no-bar"><span>配置编号</span><el-tooltip content="配置编号创建后不变，内容变更通过独立版本号形成新快照。"><b>{{ previewNo }}</b></el-tooltip><small>{{ config.no === '新配置' ? '首次保存生成编号和 V1' : '保存后生成新版本，配置编号保持不变' }}</small></div>
+      <div class="config-no-bar"><span>配置版本编号</span><el-tooltip content="页面合并展示配置编号和版本号，任务与账单快照仍分别记录。"><b>{{ config.no === '新配置' ? `${previewNo}-V1` : `${previewNo}-${config.publishVersion || config.version}` }}</b></el-tooltip><small>{{ config.no === '新配置' ? '首次发布生成配置编号和 V1' : '发布后形成新版本，配置编号保持不变' }}</small></div>
 
       <div class="scheme-section">
-        <div class="scheme-title"><strong>默认方案</strong><span>不包含限制条件，默认直接生效</span></div>
+        <div class="scheme-title"><strong>默认方案</strong><small class="scheme-code">{{ form.defaultScheme.schemeKey }}</small><span>不包含限制条件，默认直接生效</span></div>
         <div class="scheme-body">
           <FeeCurrencyRules :scheme="form.defaultScheme" :currencies="currencies" :fee-items="feeItems" :templates="templates" />
           <div class="setting-row"><div class="setting-meta"><b>履约节点</b></div><el-select v-model="form.defaultScheme.node"><el-option v-for="item in nodes" :key="item.value" :label="item.label" :value="item.value" /></el-select></div>
-          <div class="setting-row"><div class="setting-meta"><b>账期类型</b><small>同时作为账单草稿生成周期</small></div><el-select v-model="form.defaultScheme.period"><el-option v-for="item in periods" :key="item.value" :label="item.label" :value="item.value" /></el-select></div>
+          <div class="setting-row"><div class="setting-meta"><b>账期类型</b><small>同时作为账单生成周期</small></div><el-select v-model="form.defaultScheme.period"><el-option v-for="item in periods" :key="item.value" :label="item.label" :value="item.value" /></el-select></div>
           <div class="setting-row"><div class="setting-meta"><b>账单发出时间</b><small>账期结束后第 N 天</small></div><el-input-number v-model="form.defaultScheme.sendAfterDays" :min="0" controls-position="right" /></div>
           <div class="setting-row"><div class="setting-meta"><b>方案生效周期</b></div><el-date-picker v-model="form.defaultScheme.effectPeriod" type="daterange" value-format="YYYY-MM-DD" range-separator="~" start-placeholder="开始日期" end-placeholder="结束日期" /></div>
         </div>
       </div>
 
       <div v-for="(scheme,index) in form.branches" :key="scheme.id" :class="['scheme-section','branch-section',{conflict:hasConflict(scheme)}]">
-        <div class="branch-head"><button type="button" class="fold-button" @click="scheme.folded=!scheme.folded">{{ scheme.folded ? '▶' : '▼' }}</button><strong>分支方案 ({{ index+1 }})</strong><span v-if="hasConflict(scheme)">与其他分支方案限定情形存在交集</span><el-button link type="danger" @click="form.branches.splice(index,1)">移除</el-button></div>
+        <div class="branch-head"><button type="button" class="fold-button" @click="scheme.folded=!scheme.folded">{{ scheme.folded ? '▶' : '▼' }}</button><strong>分支方案 ({{ index+1 }})</strong><small class="scheme-code">{{ scheme.schemeKey }}</small><span v-if="hasConflict(scheme)">与其他分支方案限定情形存在交集</span><el-button link type="danger" @click="form.branches.splice(index,1)">移除</el-button></div>
         <div v-show="!scheme.folded" class="scheme-body">
           <div class="scope-block"><h4>限定情形</h4><div class="setting-row"><div class="setting-meta"><b>订单类型 <i>*</i></b></div><el-select v-model="scheme.businessTypes" multiple collapse-tags><el-option v-for="item in businessTypes" :key="item.value" :label="item.label" :value="item.value" /></el-select></div><div class="setting-row"><div class="setting-meta"><b>目的国 <i>*</i></b></div><el-select v-model="scheme.targetCountries" multiple filterable collapse-tags><el-option v-for="item in countries" :key="item.value" :label="item.label" :value="item.value" /></el-select></div><div class="setting-row"><div class="setting-meta"><b>集运仓</b></div><el-select v-model="scheme.warehouses" multiple collapse-tags><el-option v-for="item in warehouses" :key="item.value" :label="item.label" :value="item.value" /></el-select></div></div>
           <FeeCurrencyRules :scheme="scheme" :currencies="currencies" :fee-items="feeItems" :templates="templates" />
@@ -187,6 +191,6 @@ defineExpose({ validate, getSchemeSnapshot })
 </template>
 
 <style scoped>
-.config-editor{padding:0 var(--space-1) var(--space-6);color:#303746}.rule-card{border:1px solid #dfe4ec;background:#fff}.rule-head{height:54px;padding:0 var(--space-4);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e7eaf0;background:#f8f9fb}.rule-head>div{display:flex;align-items:center;gap:18px}.rule-head strong{font-size: var(--font-size-lg)}.config-no-bar{min-height:42px;padding:var(--space-2) var(--space-4);display:flex;align-items:center;gap:14px;background:#fff8e8;border-bottom:1px solid #f0dfb6}.config-no-bar span,.config-no-bar small{color:#767e8d}.config-no-bar b{color:#25334b}.scheme-section{border-bottom:1px solid #dfe4ec}.scheme-title,.branch-head{height:46px;padding:0 var(--space-4);display:flex;align-items:center;gap:14px;background:#f4f6f9}.scheme-title span,.add-branch span{font-size: var(--font-size-sm);color:#8a93a2}.scheme-body{padding:0 var(--space-4)}.setting-row{min-height:66px;display:grid;grid-template-columns:280px minmax(280px,400px);gap:22px;align-items:center;border-bottom:1px solid #edf0f4}.setting-meta{display:flex;flex-direction:column;gap:5px}.setting-meta b{font-size: var(--section-title-font-size);font-weight: var(--font-weight-semibold)}.setting-meta small{font-size: var(--font-size-sm);color:#8992a1;line-height: var(--line-height-base)}.setting-meta i{color:#e34d59;font-style:normal}.branch-head{border-left:3px solid var(--primary)}.branch-head .fold-button{border:0;background:transparent;color:#596579;cursor:pointer}.branch-head .el-button{margin-left:auto}.branch-head span{font-size: var(--font-size-sm);color:#c84751}.branch-section.conflict{box-shadow:inset 3px 0 #d94a55}.scope-block{margin:var(--space-3) 0;border:1px solid #e4e8ef;background:#fafbfc}.scope-block h4{margin:0;padding:var(--space-2) var(--space-3);border-bottom:1px solid #e4e8ef;font-size: var(--section-title-font-size)}.scope-block .setting-row{padding:0 var(--space-3);grid-template-columns:246px minmax(280px,400px)}.add-branch{padding:var(--space-4);display:flex;align-items:center;gap:14px;border-bottom:1px solid #e4e8ef}.footer-terms{padding:0 var(--space-4)}.footer-terms .setting-row:last-child{border-bottom:0}
+.config-editor{padding:0 var(--space-1) var(--space-6);color:#303746}.rule-card{border:1px solid #dfe4ec;background:#fff}.rule-head{height:54px;padding:0 var(--space-4);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e7eaf0;background:#f8f9fb}.rule-head>div{display:flex;align-items:center;gap:18px}.rule-head strong{font-size: var(--font-size-lg)}.config-no-bar{min-height:42px;padding:var(--space-2) var(--space-4);display:flex;align-items:center;gap:14px;background:#fff8e8;border-bottom:1px solid #f0dfb6}.config-no-bar span,.config-no-bar small{color:#767e8d}.config-no-bar b{color:#25334b}.scheme-section{border-bottom:1px solid #dfe4ec}.scheme-title,.branch-head{height:46px;padding:0 var(--space-4);display:flex;align-items:center;gap:14px;background:#f4f6f9}.scheme-title span,.add-branch span{font-size: var(--font-size-sm);color:#8a93a2}.scheme-code{color:#687386;font-size:var(--font-size-sm);font-weight:var(--font-weight-regular)}.scheme-body{padding:0 var(--space-4)}.setting-row{min-height:66px;display:grid;grid-template-columns:280px minmax(280px,400px);gap:22px;align-items:center;border-bottom:1px solid #edf0f4}.setting-meta{display:flex;flex-direction:column;gap:5px}.setting-meta b{font-size: var(--section-title-font-size);font-weight: var(--font-weight-semibold)}.setting-meta small{font-size: var(--font-size-sm);color:#8992a1;line-height: var(--line-height-base)}.setting-meta i{color:#e34d59;font-style:normal}.branch-head{border-left:3px solid var(--primary)}.branch-head .fold-button{border:0;background:transparent;color:#596579;cursor:pointer}.branch-head .el-button{margin-left:auto}.branch-head span{font-size: var(--font-size-sm);color:#c84751}.branch-section.conflict{box-shadow:inset 3px 0 #d94a55}.scope-block{margin:var(--space-3) 0;border:1px solid #e4e8ef;background:#fafbfc}.scope-block h4{margin:0;padding:var(--space-2) var(--space-3);border-bottom:1px solid #e4e8ef;font-size: var(--section-title-font-size)}.scope-block .setting-row{padding:0 var(--space-3);grid-template-columns:246px minmax(280px,400px)}.add-branch{padding:var(--space-4);display:flex;align-items:center;gap:14px;border-bottom:1px solid #e4e8ef}.footer-terms{padding:0 var(--space-4)}.footer-terms .setting-row:last-child{border-bottom:0}
 @media(max-width:760px){.config-editor{padding:0}.rule-head{height:auto;min-height:54px}.config-no-bar{align-items:flex-start;flex-direction:column;gap:4px}.scheme-body,.footer-terms{padding:0 var(--space-3)}.setting-row,.scope-block .setting-row{grid-template-columns:1fr;gap:8px;padding:var(--space-3) 0;align-items:start}.setting-row>.el-select,.setting-row>.el-input,.setting-row>.el-date-editor,.setting-row>.el-input-number{width:100%!important}.branch-head{padding:0 var(--space-2)}.branch-head span{display:none}}
 </style>

@@ -55,14 +55,14 @@ function openDetail(row) {
     <el-alert title="批次只记录发起范围和汇总结果，不参与执行；重试、删除和查看结果均作用于单条客户任务。" type="info" :closable="false" show-icon />
     <div v-if="batch?.batchSkipSummary" class="batch-skip-summary">{{ batch.batchSkipSummary }}</div>
 
-    <DataTableFrame class="batch-task-table" :total="rows.length" :pagination="false" :column-sort="false">
+    <DataTableFrame class="batch-task-table" :total="rows.length" :page-size="10" :column-sort="false">
       <el-table :data="rows" border row-key="taskNo">
         <el-table-column prop="taskNo" label="任务编号" width="180" />
         <el-table-column label="状态" width="98"><template #default="scope"><StatusTag :label="scope.row.deletedAt ? '已删除' : status(scope.row).label" :tone="scope.row.deletedAt ? 'neutral' : status(scope.row).tone" /></template></el-table-column>
         <el-table-column label="客户" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="`${scope.row.customerNo} · ${scope.row.customerReferenceNo}`" /></template></el-table-column>
-        <el-table-column label="客户归属快照" min-width="210"><template #default="scope"><StackedCell :primary="(scope.row.shops || [scope.row.shop]).join('、')" :secondary="`${(scope.row.customerGroups || [scope.row.customerGroup]).join('、')} · ${(scope.row.memberCodes || [scope.row.memberCode]).join('、')}`" /></template></el-table-column>
+        <el-table-column label="客户 / 会员归属快照" min-width="230"><template #default="scope"><StackedCell :primary="scope.row.shop" :secondary="`${scope.row.customerGroup} · ${scope.row.memberCode}`" /></template></el-table-column>
         <el-table-column label="账单配置" min-width="175"><template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="`${configSourceMeta[scope.row.configSource] || scope.row.configSource} · ${scope.row.configVersion}`" /></template></el-table-column>
-        <el-table-column label="方案名称 / 标识" min-width="165"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="`${scope.row.schemeKey} · ${scope.row.schemeType}`" /></template></el-table-column>
+        <el-table-column label="方案名称 / 编号" min-width="220"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="`${scope.row.schemeKey} · ${scope.row.schemeType}`" /></template></el-table-column>
         <el-table-column prop="period" label="实际账期" width="190" />
         <TableActionColumn>
           <template #default="scope">

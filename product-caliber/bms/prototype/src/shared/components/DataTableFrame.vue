@@ -1,7 +1,8 @@
 <script setup>
-import { computed, provide, ref } from 'vue'
+import { computed, provide, ref, watch } from 'vue'
 import TablePagination from './TablePagination.vue'
 import TableFieldSortButton from './TableFieldSortButton.vue'
+import { clampPage, normalizedPageSize } from './tablePagination.js'
 
 const props = defineProps({
   total: { type: Number, default: 0 },
@@ -17,7 +18,7 @@ const props = defineProps({
   stickyPagination: { type: Boolean, default: true },
   columnSort: { type: Boolean, default: true },
   columnDataSort: { type: Boolean, default: true },
-  autoContentWidth: { type: Boolean, default: false },
+  autoContentWidth: { type: Boolean, default: true },
   autoWidthRows: { type: Array, default: () => [] },
   autoWidthMax: { type: Number, default: 260 },
   autoWidthDenseThreshold: { type: Number, default: 10 },
@@ -28,6 +29,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:pageSize', 'update:currentPage', 'column-order-change'])
 const frameRef = ref(null)
+const currentPage = ref(1)
+const currentPageSize = ref(normalizedPageSize(props.pageSize))
 const autoWidthColumnCount = ref(0)
 const autoWidthColumnIds = new Set()
 
@@ -42,6 +45,12 @@ function unregisterAutoWidthColumn(columnId) {
 }
 
 provide('prototypeTableColumnDataSort', computed(() => props.columnDataSort))
+provide('prototypeTablePagination', computed(() => ({
+  enabled: props.pagination && props.showPagination,
+  currentPage: currentPage.value,
+  pageSize: currentPageSize.value,
+  reset: () => updateCurrentPage(1),
+})))
 provide('prototypeTableAutoWidth', computed(() => ({
   enabled: props.autoContentWidth,
   rows: props.autoWidthRows,
@@ -52,6 +61,27 @@ provide('prototypeTableAutoWidth', computed(() => ({
   registerColumn: registerAutoWidthColumn,
   unregisterColumn: unregisterAutoWidthColumn,
 })))
+
+function updateCurrentPage(value) {
+  const next = clampPage(value, props.total, currentPageSize.value)
+  currentPage.value = next
+  emit('update:currentPage', next)
+}
+
+function updatePageSize(value) {
+  currentPageSize.value = normalizedPageSize(value)
+  emit('update:pageSize', currentPageSize.value)
+  updateCurrentPage(1)
+}
+
+watch(() => props.pageSize, value => {
+  currentPageSize.value = normalizedPageSize(value)
+  currentPage.value = clampPage(currentPage.value, props.total, currentPageSize.value)
+})
+
+watch(() => props.total, value => {
+  currentPage.value = clampPage(currentPage.value, value, currentPageSize.value)
+})
 </script>
 
 <template>
@@ -85,11 +115,12 @@ provide('prototypeTableAutoWidth', computed(() => ({
     <TablePagination
       v-if="pagination && showPagination"
       :total="total"
-      :page-size="pageSize"
+      :current-page="currentPage"
+      :page-size="currentPageSize"
       :page-sizes="pageSizes"
       :sticky="stickyPagination"
-      @update:page-size="$emit('update:pageSize', $event)"
-      @update:current-page="$emit('update:currentPage', $event)"
+      @update:page-size="updatePageSize"
+      @update:current-page="updateCurrentPage"
     />
   </div>
 </template>

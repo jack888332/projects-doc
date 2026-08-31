@@ -9,12 +9,13 @@ const emit = defineEmits(['view'])
 
 <template>
   <el-table :data="props.rows" class="clean-table rate-table" border height="100%" row-key="id">
-    <el-table-column label="客户" min-width="185"><template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="scope.row.customerCode" /></template></el-table-column>
-    <el-table-column label="全部当前归属（店铺 / 客户组 / 会员）" min-width="290"><template #default="scope"><span class="relation-text" :title="scope.row.allRelationText">{{ scope.row.allRelationText }}</span></template></el-table-column>
-    <el-table-column label="引用标签" width="128"><template #default="scope"><StatusTag :label="scope.row.referenceLabel" :tone="scope.row.referenceTone" /></template></el-table-column>
-    <el-table-column label="采用配置" min-width="215"><template #default="scope"><StackedCell :primary="scope.row.configName" :secondary="scope.row.configNo" /></template></el-table-column>
-    <el-table-column prop="configVersion" label="准确版本" width="88" />
-    <el-table-column label="生效期间" min-width="155"><template #default="scope">{{ scope.row.effectiveFrom ? `${scope.row.effectiveFrom} 至 ${scope.row.effectiveTo}` : '-' }}</template></el-table-column>
+    <el-table-column label="客户（会员）" min-width="185"><template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="scope.row.customerCode" /></template></el-table-column>
+    <el-table-column prop="memberCode" label="会员编码" min-width="125" show-overflow-tooltip />
+    <el-table-column prop="store" label="所属店铺" min-width="145" show-overflow-tooltip />
+    <el-table-column prop="group" label="所属客户组" min-width="145" show-overflow-tooltip />
+    <el-table-column label="配置标签" width="128"><template #default="scope"><StatusTag :label="scope.row.referenceLabel" :tone="scope.row.referenceTone" /></template></el-table-column>
+    <el-table-column label="引用配置" min-width="245" show-overflow-tooltip><template #default="scope">{{ scope.row.config ? scope.row.configNo : '未配置' }}</template></el-table-column>
+    <el-table-column label="生效期间" min-width="155"><template #default="scope">{{ scope.row.effectiveFrom ? `${scope.row.effectiveFrom} 至 ${scope.row.effectiveTo}` : '--' }}</template></el-table-column>
     <el-table-column prop="ruleCount" label="规则数" width="75" />
     <el-table-column label="规则摘要 / 默认汇率预览" min-width="245"><template #default="scope"><span class="rule-summary" :title="scope.row.ruleSummary">{{ scope.row.ruleSummary }}</span></template></el-table-column>
     <el-table-column label="状态" width="82"><template #default="scope"><StatusTag :label="scope.row.status" :tone="scope.row.status === '未配置' ? 'warning' : ''" /></template></el-table-column>

@@ -136,14 +136,15 @@ function closeDatePicker() {
       ref="referenceRef"
       class="condition-filter-reference"
       role="button"
-      tabindex="0"
+      :tabindex="disabled ? -1 : 0"
       :aria-label="label"
+      :aria-disabled="disabled"
       @click="openPanel"
       @keydown.enter.space.prevent="openPanel"
     >
       <span class="condition-filter-label">{{ label }}</span>
-      <span class="condition-filter-value">{{ displayValue }}</span>
-      <el-icon v-if="hasValue" class="condition-filter-clear" title="清除" @click="clear"><CircleClose /></el-icon>
+      <span class="condition-filter-value" :title="hasValue ? displayValue : undefined">{{ displayValue }}</span>
+      <el-icon v-if="hasValue" class="condition-filter-clear" role="button" :tabindex="disabled ? -1 : 0" :aria-label="`清除${label}`" title="清除" @click.stop="clear" @keydown.enter.space.stop.prevent="clear"><CircleClose /></el-icon>
       <el-icon v-else class="condition-filter-arrow"><ArrowDown /></el-icon>
     </div>
     <el-date-picker
@@ -157,6 +158,7 @@ function closeDatePicker() {
       :value-format="isMonth ? 'YYYY-MM' : undefined"
       popper-class="condition-date-popper"
       :editable="false"
+      :disabled="disabled"
       tabindex="-1"
       aria-hidden="true"
       @change="closeDatePicker"
@@ -165,6 +167,7 @@ function closeDatePicker() {
     <el-popover
       v-else
       v-model:visible="panelVisible"
+    :disabled="disabled"
     placement="bottom-start"
     :width="popoverWidth"
     trigger="click"
@@ -179,14 +182,15 @@ function closeDatePicker() {
           ref="referenceRef"
           class="condition-filter-reference"
           role="button"
-          tabindex="0"
+          :tabindex="disabled ? -1 : 0"
           :aria-label="label"
+          :aria-disabled="disabled"
           @click="preparePanel"
           @keydown.enter.space.prevent="openPanel"
         >
           <span class="condition-filter-label">{{ label }}</span>
-          <span class="condition-filter-value">{{ displayValue }}</span>
-          <el-icon v-if="hasValue" class="condition-filter-clear" title="清除" @click="clear"><CircleClose /></el-icon>
+          <span class="condition-filter-value" :title="hasValue ? displayValue : undefined">{{ displayValue }}</span>
+          <el-icon v-if="hasValue" class="condition-filter-clear" role="button" :tabindex="disabled ? -1 : 0" :aria-label="`清除${label}`" title="清除" @click.stop="clear" @keydown.enter.space.stop.prevent="clear"><CircleClose /></el-icon>
           <el-icon v-else class="condition-filter-arrow"><ArrowDown /></el-icon>
         </div>
       </template>
@@ -252,6 +256,7 @@ function closeDatePicker() {
 .condition-filter:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-focus-ring); }
 .condition-filter.active { border-color: var(--primary); background: var(--primary-soft); }
 .condition-filter.disabled { opacity: .5; cursor: not-allowed; }
+.condition-filter.disabled .condition-filter-reference { cursor: not-allowed; }
 .condition-filter-label { flex: 0 0 auto; white-space: nowrap; }
 .condition-filter-reference { width: max-content; min-width: 0; max-width: 100%; min-height: 30px; padding: 0 var(--space-3); display: flex; flex: 1 1 auto; align-items: center; gap: var(--space-3); overflow: hidden; outline: none; cursor: pointer; }
 .condition-filter-value { min-width: 0; flex: 0 1 auto; overflow: hidden; color: #7b8494; text-overflow: ellipsis; white-space: nowrap; }

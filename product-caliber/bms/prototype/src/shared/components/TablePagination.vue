@@ -1,15 +1,14 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const props = defineProps({
   total: { type: Number, default: 0 },
+  currentPage: { type: Number, default: 1 },
   pageSize: { type: Number, default: 20 },
   pageSizes: { type: Array, default: () => [10, 20, 50, 100] },
   sticky: { type: Boolean, default: true },
 })
 const emit = defineEmits(['update:pageSize', 'update:currentPage'])
-const currentPage = ref(1)
-const currentPageSize = ref(props.pageSize)
 const anchor = ref(null)
 const docked = ref(false)
 const dockStyle = ref({})
@@ -39,13 +38,13 @@ function syncDock() {
   })
 }
 
-watch(() => props.pageSize, (value) => {
-  currentPageSize.value = value
+const currentPageModel = computed({
+  get: () => props.currentPage,
+  set: value => emit('update:currentPage', value),
 })
-
-watch(() => props.total, () => {
-  currentPage.value = 1
-  nextTick(syncDock)
+const pageSizeModel = computed({
+  get: () => props.pageSize,
+  set: value => emit('update:pageSize', value),
 })
 
 onMounted(() => {
@@ -64,8 +63,6 @@ onBeforeUnmount(() => {
   }
 })
 
-const handlePageSizeChange = (value) => emit('update:pageSize', value)
-const handleCurrentPageChange = (value) => emit('update:currentPage', value)
 </script>
 
 <template>
@@ -74,16 +71,15 @@ const handleCurrentPageChange = (value) => emit('update:currentPage', value)
       <div class="table-pagination-left">
         <el-pagination
           class="table-pagination-pager"
-          v-model:current-page="currentPage"
+          v-model:current-page="currentPageModel"
           layout="prev, pager, next"
           :total="total"
-          @update:current-page="handleCurrentPageChange"
+          :page-size="pageSize"
         />
       </div>
       <el-select
         class="table-pagination-size"
-        v-model="currentPageSize"
-        @change="handlePageSizeChange"
+        v-model="pageSizeModel"
       >
         <el-option
           v-for="size in pageSizes"

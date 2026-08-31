@@ -11,6 +11,7 @@ const props = defineProps({
   forkReason: { type:String, default:'' },
   currencyPairs: { type:Array, default:() => [] },
   referenceCount: { type:Number, default:0 },
+  nextVersion: { type:String, default:'' },
 })
 const emit = defineEmits(['update:modelValue', 'update:forkSwitchDate', 'update:forkReason', 'updateRule', 'addRule', 'removeRule', 'save'])
 
@@ -25,9 +26,9 @@ function directionUsed(direction, index) { return props.draft?.rules?.some((rule
 </script>
 
 <template>
-  <el-dialog :model-value="props.modelValue" class="module-dialog module-dialog-large" width="980px" align-center append-to-body destroy-on-close :close-on-click-modal="false" @update:model-value="emit('update:modelValue', $event)">
-    <template #header><div class="drawer-title"><span>{{ props.editingId ? '发布配置新版本' : props.forkCustomer ? '另存为新配置' : '新建特调汇率配置' }}</span><small>{{ props.draft?.no }}</small></div></template>
-    <el-form v-if="props.draft" label-position="top"><el-form-item label="配置名称" required><el-input :model-value="props.draft.name" @update:model-value="updateName" /></el-form-item></el-form>
+  <el-dialog :model-value="props.modelValue" class="module-dialog module-dialog-large" align-center append-to-body destroy-on-close :close-on-click-modal="false" @update:model-value="emit('update:modelValue', $event)">
+    <template #header><div class="drawer-title"><span>{{ props.editingId ? '编辑并发布新版本' : props.forkCustomer ? '另存为新配置' : '新建特调汇率配置' }}</span><small>{{ props.editingId ? `${props.draft?.no}-${props.nextVersion}` : props.draft?.no }}</small></div></template>
+    <el-form v-if="props.draft" label-position="top"><el-form-item label="配置名称"><el-input :model-value="props.draft.name" placeholder="选填；未填写时展示配置版本编号" @update:model-value="updateName" /></el-form-item></el-form>
     <div class="rule-toolbar"><strong>货币对规则（{{ props.draft?.rules?.length || 0 }}）</strong><el-button :icon="Plus" @click="emit('addRule')">新增规则</el-button></div>
     <div class="rule-table">
       <div class="rule-row rule-head"><span>货币对 / 汇兑方向</span><span>调整方式</span><span>调整方向</span><span>调整值</span><span>当前基准</span><span>默认汇率预览</span><span>操作</span></div>
@@ -47,10 +48,10 @@ function directionUsed(direction, index) { return props.draft?.rules?.some((rule
         <el-form-item label="切换日期" required><el-date-picker :model-value="props.forkSwitchDate" type="date" value-format="YYYY-MM-DD" @update:model-value="emit('update:forkSwitchDate', $event)" /></el-form-item>
         <el-form-item label="变更原因" required><el-input :model-value="props.forkReason" placeholder="请说明该客户需要独立配置的原因" @update:model-value="emit('update:forkReason', $event)" /></el-form-item>
       </el-form>
-      <el-alert title="新配置从该客户当前引用的准确版本复制；提交后只切换该客户，原配置和其他客户不变。" type="info" :closable="false" show-icon />
+      <el-alert title="新配置从该客户当前配置的生效版本复制；提交后只切换该客户，原配置和其他客户不变。" type="info" :closable="false" show-icon />
     </template>
-    <el-alert v-if="props.editingId" :title="`当前有 ${props.referenceCount} 个客户引用该配置；保存后需确认哪些客户升级到新版本。`" :type="props.referenceCount > 1 ? 'warning' : 'info'" :closable="false" show-icon />
-    <template #footer><div class="dialog-footer"><el-button @click="emit('update:modelValue', false)">取消</el-button><el-button type="primary" @click="emit('save')">{{ props.editingId ? '下一步' : props.forkCustomer ? '创建并切换该客户' : '创建配置' }}</el-button></div></template>
+    <el-alert v-if="props.editingId" :title="`当前有 ${props.referenceCount} 个客户引用该配置；新版生效时全部引用客户将统一采用新版，编辑过程不保存草稿。`" :type="props.referenceCount > 1 ? 'warning' : 'info'" :closable="false" show-icon />
+    <template #footer><div class="dialog-footer"><el-button @click="emit('update:modelValue', false)">取消</el-button><el-button type="primary" @click="emit('save')">{{ props.editingId ? '下一步：确认发布' : props.forkCustomer ? '创建并切换该客户' : '创建配置' }}</el-button></div></template>
   </el-dialog>
 </template>
 

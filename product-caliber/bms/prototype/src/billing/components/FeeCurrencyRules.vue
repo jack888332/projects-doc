@@ -56,7 +56,7 @@ function applyTemplate(value) {
   <div class="setting-row matrix-row">
     <div class="setting-meta"><b>费项结算币种</b><small>末行规则用于承接未明确配置的费项</small></div>
     <div class="matrix-wrap">
-      <DataTableFrame :total="scheme.feeRules.length" :page-size="10" :pagination="false" :sticky-toolbar="false" :column-sort="false" :column-data-sort="false">
+      <DataTableFrame :total="scheme.feeRules.length" :page-size="10" :sticky-toolbar="false" :column-sort="false" :column-data-sort="false">
         <template #actions>
           <el-dropdown trigger="click" placement="bottom-end" @command="applyTemplate">
             <el-button :icon="DocumentCopy" :disabled="!templates.length">引用模版</el-button>

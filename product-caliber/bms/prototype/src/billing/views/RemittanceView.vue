@@ -111,6 +111,8 @@ async function openBill(row) {
         <template #actions>
           <DownloadButton
             title="导出"
+            file-name="回款返款明细"
+            :rows="rows"
             :options="[
               { label: '回款明细', value: 'remittance', description: '导出当前筛选范围内的回款与返款明细' },
             ]"

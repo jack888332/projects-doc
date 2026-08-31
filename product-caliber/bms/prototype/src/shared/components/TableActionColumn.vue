@@ -1,8 +1,9 @@
 <template>
   <el-table-column
     label="操作"
-    :width="columnWidth"
-    :fixed="fixed"
+    :width="52"
+    :min-width="52"
+    fixed="right"
     :resizable="false"
     class-name="table-operation-column"
     label-class-name="table-operation-column"
@@ -16,13 +17,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+defineOptions({ inheritAttrs: false })
 
-const props = defineProps({
+defineProps({
   compact: { type: Boolean, default: false },
-  fixed: { type: [String, Boolean], default: 'right' },
-  width: { type: Number, default: 0 },
+  width: { type: [Number, String], default: 0 },
 })
-
-const columnWidth = computed(() => props.width || (props.compact ? 52 : 84))
 </script>

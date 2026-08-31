@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
 import { Download, RefreshRight, View } from '@element-plus/icons-vue'
 import ConditionFilter from '../../shared/components/ConditionFilter.vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
@@ -108,7 +109,13 @@ function openDetail(row) {
   const parentPath = isReceivable.value ? BILLING_PATHS.receivable : BILLING_PATHS.refund
   router.push(`${parentPath}/${encodeURIComponent(row.billNo)}`)
 }
-function action(name) { ElMessage.success(`${name}已提交`) }
+async function recalculateBill(row) {
+  await ElMessageBox.confirm(`确认重新计算账单 ${row.billNo}？`, '账单重算', { type: 'warning' })
+  row.processingState = '等待重算'
+  row.taskNo = `BMS-RECALC-${dayjs().format('YYYYMMDDHHmmss')}`
+  selectedRows.value = selectedRows.value.filter((item) => item.billNo !== row.billNo)
+  ElMessage.success('已创建重算任务，处理状态已更新')
+}
 function openExport() {
   exportPurpose.value = isReceivable.value ? 'CUSTOMER' : 'CUSTOMER'
   exportFormat.value = 'SPLIT'
@@ -140,7 +147,7 @@ function confirmExport() {
 
     <MetricGrid class="reference-kpis" :items="summary" />
 
-    <div class="status-tabs-row"><button v-for="status in statuses" :key="status" :class="{ active: activeStatus === status }" @click="activeStatus = status">{{ status }}</button></div>
+    <SegmentedControl v-model="activeStatus" :options="statuses" aria-label="账单状态" />
 
     <section class="module-panel">
       <DataTableFrame :total="filteredBills.length" :selected-count="selectedRows.length" selection-summary>
@@ -150,17 +157,17 @@ function confirmExport() {
         <el-table-column prop="billNo" label="账单编号" width="205" fixed />
         <el-table-column label="账单状态" width="100"><template #default="scope"><StatusTag :label="scope.row.status" /></template></el-table-column>
         <el-table-column prop="closeStatus" label="账期收口" width="90"><template #default="scope"><StatusTag :label="scope.row.closeStatus" /></template></el-table-column>
-        <el-table-column prop="processingState" label="处理状态" width="125"><template #default="scope">{{ scope.row.processingState || '-' }}</template></el-table-column>
+        <el-table-column prop="processingState" label="处理状态" width="125"><template #default="scope">{{ scope.row.processingState || '--' }}</template></el-table-column>
         <el-table-column v-if="!isReceivable" prop="refundMode" label="返款模式" width="100" />
         <el-table-column :label="isReceivable ? '费项结算币种金额' : '货款结算币种金额'" width="250"><template #default="scope"><div class="amount-lines"><span>{{ isReceivable ? '应收' : '原始货款' }} <b>{{ money(isReceivable ? scope.row.amount : scope.row.original) }} {{ scope.row.currency }}</b></span><span>{{ isReceivable ? '已核销' : '扣除费项' }} {{ money(isReceivable ? scope.row.paid : scope.row.deduction) }} {{ scope.row.currency }}</span><span>{{ isReceivable ? '未核销' : '待返货款' }} <b>{{ money(scope.row.amount - scope.row.paid) }} {{ scope.row.currency }}</b></span></div></template></el-table-column>
         <el-table-column prop="periodType" label="账期类型" width="90" /><el-table-column prop="periodStart" label="账期起始日" width="112" /><el-table-column prop="periodEnd" label="账期结束日" width="112" />
         <el-table-column v-if="isReceivable" prop="sector" label="业务板块" width="125" /><el-table-column prop="country" :label="isReceivable ? '运抵国' : '目的国'" width="100" /><el-table-column prop="customer" label="客户名称" width="160" show-overflow-tooltip /><el-table-column prop="shop" label="所属店铺" width="155" show-overflow-tooltip /><el-table-column prop="group" label="所属客户组" width="130" show-overflow-tooltip /><el-table-column prop="batchNo" label="生成批次编号" width="210" show-overflow-tooltip /><el-table-column prop="taskNo" label="任务编号" width="200" show-overflow-tooltip />
         <el-table-column label="账单配置" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="`${configSourceMeta[scope.row.configSource] || scope.row.configSource} · ${scope.row.configVersion}`" /></template></el-table-column>
         <el-table-column prop="customerReferenceNo" label="客户配置引用" width="190" show-overflow-tooltip />
-        <el-table-column label="方案名称 / 标识" min-width="160"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="`${scope.row.schemeKey} · ${scope.row.schemeType}`" /></template></el-table-column>
+        <el-table-column label="方案名称 / 编号" min-width="220"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="`${scope.row.schemeKey} · ${scope.row.schemeType}`" /></template></el-table-column>
         <el-table-column prop="sentAt" label="账单发出日" width="112" />
         <el-table-column v-if="isReceivable" prop="dueAt" label="信用期结束日" width="120" /><el-table-column v-if="isReceivable" prop="overdueDays" label="逾期天数" width="90" /><el-table-column prop="notice" label="通知状态" width="95" />
-        <TableActionColumn><template #default="scope"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="openDetail(scope.row)" /><HoverActionMenu v-if="!['已结清','已作废'].includes(scope.row.status) && !scope.row.processingState"><el-dropdown-item :icon="RefreshRight" @click="action('账单重算')">账单重算</el-dropdown-item></HoverActionMenu></div></template></TableActionColumn>
+        <TableActionColumn><template #default="scope"><div class="row-action-cell"><el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="openDetail(scope.row)" /><HoverActionMenu v-if="!['已结清','已作废'].includes(scope.row.status) && !scope.row.processingState"><el-dropdown-item :icon="RefreshRight" @click="recalculateBill(scope.row)">账单重算</el-dropdown-item></HoverActionMenu></div></template></TableActionColumn>
       </el-table>
       </DataTableFrame>
     </section>

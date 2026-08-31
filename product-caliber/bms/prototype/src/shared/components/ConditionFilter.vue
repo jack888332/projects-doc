@@ -11,6 +11,7 @@ const props = defineProps({
   placeholder: { type: String, default: '请填入' },
   searchPlaceholder: { type: String, default: '' },
   disabled: { type: Boolean, default: false },
+  clearable: { type: Boolean, default: true },
   popoverWidth: { type: Number, default: 320 },
 })
 
@@ -144,7 +145,7 @@ function closeDatePicker() {
     >
       <span class="condition-filter-label">{{ label }}</span>
       <span class="condition-filter-value" :title="hasValue ? displayValue : undefined">{{ displayValue }}</span>
-      <el-icon v-if="hasValue" class="condition-filter-clear" role="button" :tabindex="disabled ? -1 : 0" :aria-label="`清除${label}`" title="清除" @click.stop="clear" @keydown.enter.space.stop.prevent="clear"><CircleClose /></el-icon>
+      <el-icon v-if="hasValue && clearable" class="condition-filter-clear" role="button" :tabindex="disabled ? -1 : 0" :aria-label="`清除${label}`" title="清除" @click.stop="clear" @keydown.enter.space.stop.prevent="clear"><CircleClose /></el-icon>
       <el-icon v-else class="condition-filter-arrow"><ArrowDown /></el-icon>
     </div>
     <el-date-picker
@@ -190,7 +191,7 @@ function closeDatePicker() {
         >
           <span class="condition-filter-label">{{ label }}</span>
           <span class="condition-filter-value" :title="hasValue ? displayValue : undefined">{{ displayValue }}</span>
-          <el-icon v-if="hasValue" class="condition-filter-clear" role="button" :tabindex="disabled ? -1 : 0" :aria-label="`清除${label}`" title="清除" @click.stop="clear" @keydown.enter.space.stop.prevent="clear"><CircleClose /></el-icon>
+          <el-icon v-if="hasValue && clearable" class="condition-filter-clear" role="button" :tabindex="disabled ? -1 : 0" :aria-label="`清除${label}`" title="清除" @click.stop="clear" @keydown.enter.space.stop.prevent="clear"><CircleClose /></el-icon>
           <el-icon v-else class="condition-filter-arrow"><ArrowDown /></el-icon>
         </div>
       </template>

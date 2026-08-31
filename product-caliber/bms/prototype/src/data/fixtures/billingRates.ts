@@ -21,28 +21,28 @@ export const billingRateConfigFixtures = [
       { version:'V2', rules:[
         { direction:'USD -> CNY', method:'百分比缩放', adjustDirection:'上浮', adjustValue:1.5 },
         { direction:'GBP -> CNY', method:'固定汇率差', adjustDirection:'下浮', adjustValue:0.02 },
-      ], publishedAt:'2026-08-01 10:18' },
-      { version:'V1', rules:[{ direction:'CAD -> CNY', method:'固定汇率差', adjustDirection:'上浮', adjustValue:0.01 }], publishedAt:'2026-06-01 09:20' },
+      ], publishedAt:'2026-08-01 10:18', effectiveAt:'2026-08-01', changeReason:'调整台湾客户货币对规则' },
+      { version:'V1', rules:[{ direction:'CAD -> CNY', method:'固定汇率差', adjustDirection:'上浮', adjustValue:0.01 }], publishedAt:'2026-06-01 09:20', effectiveAt:'2026-06-01', changeReason:'首次发布' },
     ],
   },
   {
     id:'RC-002', no:'RATE-CONFIG-20260701-02', name:'日本同行结算特调', currentVersion:'V3', status:'启用', updatedAt:'2026-08-12 14:06',
     versions:[
-      { version:'V3', rules:[{ direction:'GBP -> CNY', method:'固定汇率差', adjustDirection:'下浮', adjustValue:0.02 }], publishedAt:'2026-08-12 14:06' },
-      { version:'V2', rules:[{ direction:'GBP -> CNY', method:'固定汇率差', adjustDirection:'下浮', adjustValue:0.01 }], publishedAt:'2026-07-18 11:30' },
-      { version:'V1', rules:[{ direction:'GBP -> CNY', method:'百分比缩放', adjustDirection:'下浮', adjustValue:0.1 }], publishedAt:'2026-07-01 08:55' },
+      { version:'V3', rules:[{ direction:'GBP -> CNY', method:'固定汇率差', adjustDirection:'下浮', adjustValue:0.02 }], publishedAt:'2026-08-12 14:06', effectiveAt:'2026-08-12', changeReason:'调整英镑固定汇率差' },
+      { version:'V2', rules:[{ direction:'GBP -> CNY', method:'固定汇率差', adjustDirection:'下浮', adjustValue:0.01 }], publishedAt:'2026-07-18 11:30', effectiveAt:'2026-07-18', changeReason:'百分比调整改为固定汇率差' },
+      { version:'V1', rules:[{ direction:'GBP -> CNY', method:'百分比缩放', adjustDirection:'下浮', adjustValue:0.1 }], publishedAt:'2026-07-01 08:55', effectiveAt:'2026-07-01', changeReason:'首次发布' },
     ],
   },
   {
     id:'RC-003', no:'RATE-CONFIG-20260715-03', name:'固定约定汇率', currentVersion:'V1', status:'启用', updatedAt:'2026-07-15 11:05',
     versions:[
-      { version:'V1', rules:[{ direction:'GBP -> CNY', method:'固定汇率值', adjustDirection:'直接指定', adjustValue:9.6 }], publishedAt:'2026-07-15 11:05' },
+      { version:'V1', rules:[{ direction:'GBP -> CNY', method:'固定汇率值', adjustDirection:'直接指定', adjustValue:9.6 }], publishedAt:'2026-07-15 11:05', effectiveAt:'2026-07-15', changeReason:'首次发布' },
     ],
   },
   {
     id:'RC-004', no:'RATE-CONFIG-20260820-04', name:'美元反向结算特调', currentVersion:'V1', status:'启用', updatedAt:'2026-08-20 16:40',
     versions:[
-      { version:'V1', rules:[{ direction:'CNY -> USD', method:'百分比缩放', adjustDirection:'下浮', adjustValue:0.5 }], publishedAt:'2026-08-20 16:40' },
+      { version:'V1', rules:[{ direction:'CNY -> USD', method:'百分比缩放', adjustDirection:'下浮', adjustValue:0.5 }], publishedAt:'2026-08-20 16:40', effectiveAt:'2026-08-20', changeReason:'首次发布' },
     ],
   },
 ]

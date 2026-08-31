@@ -1,9 +1,31 @@
-export const DEFAULT_TABLE_COLUMN_WIDTH = 120
+import { UI_DEFAULTS } from '../config/uiDefaults.js'
+
+export const TABLE_AUTO_WIDTH_CONFIG = UI_DEFAULTS.table.autoWidth
+
+export const DEFAULT_TABLE_COLUMN_WIDTH = TABLE_AUTO_WIDTH_CONFIG.fallbackWidth
+
+const TABLE_COLUMN_ATTR_ALIASES = Object.freeze([
+  ['minWidth', 'min-width'],
+  ['showOverflowTooltip', 'show-overflow-tooltip'],
+  ['labelClassName', 'label-class-name'],
+  ['sortMethod', 'sort-method'],
+])
 
 function numericWidth(value) {
   if (value == null || value === '') return 0
   const parsed = Number.parseFloat(value)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+export function normalizeTableColumnAttrs(attrs = {}) {
+  const normalized = { ...attrs }
+  TABLE_COLUMN_ATTR_ALIASES.forEach(([camelName, kebabName]) => {
+    if (normalized[camelName] === undefined && Object.prototype.hasOwnProperty.call(normalized, kebabName)) {
+      normalized[camelName] = normalized[kebabName]
+    }
+    delete normalized[kebabName]
+  })
+  return normalized
 }
 
 export function independentTableProps(attrs = {}) {
@@ -37,7 +59,7 @@ export function independentColumnWidth({
 export function fittedContentWidth({
   measuredWidth,
   minimumWidth,
-  maximumWidth = 260,
+  maximumWidth = TABLE_AUTO_WIDTH_CONFIG.maxWidth,
   fallbackWidth = DEFAULT_TABLE_COLUMN_WIDTH,
 } = {}) {
   const maximum = numericWidth(maximumWidth)

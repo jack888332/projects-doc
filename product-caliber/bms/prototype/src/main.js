@@ -4,8 +4,12 @@ import { router } from './router/index.js'
 import { initializePrototypeData } from './data/prototypeDataService.js'
 import TableFieldSortButton from './shared/components/TableFieldSortButton.vue'
 import TableActionColumn from './shared/components/TableActionColumn.vue'
+import { applyUiDefaults, bindViewportMode } from './shared/config/uiDefaults.js'
 import '../styles.css'
 import '../billing-embedded.css'
+
+applyUiDefaults()
+bindViewportMode()
 
 async function bootstrap() {
   try {

@@ -3,6 +3,7 @@ import { computed, provide, ref, watch } from 'vue'
 import TablePagination from './TablePagination.vue'
 import TableFieldSortButton from './TableFieldSortButton.vue'
 import { clampPage, normalizedPageSize } from './tablePagination.js'
+import { TABLE_AUTO_WIDTH_CONFIG } from './tableSizing.js'
 
 const props = defineProps({
   total: { type: Number, default: 0 },
@@ -18,12 +19,10 @@ const props = defineProps({
   stickyPagination: { type: Boolean, default: true },
   columnSort: { type: Boolean, default: true },
   columnDataSort: { type: Boolean, default: true },
-  autoContentWidth: { type: Boolean, default: true },
+  autoContentWidth: { type: Boolean, default: TABLE_AUTO_WIDTH_CONFIG.enabled },
   autoWidthRows: { type: Array, default: () => [] },
-  autoWidthMax: { type: Number, default: 260 },
-  autoWidthDenseThreshold: { type: Number, default: 10 },
-  autoWidthDenseMax: { type: Number, default: 180 },
-  autoWidthSampleSize: { type: Number, default: 100 },
+  autoWidthMax: { type: Number, default: TABLE_AUTO_WIDTH_CONFIG.maxWidth },
+  autoWidthSampleSize: { type: Number, default: TABLE_AUTO_WIDTH_CONFIG.sampleSize },
   summary: { type: String, default: '' },
 })
 
@@ -31,18 +30,6 @@ const emit = defineEmits(['update:pageSize', 'update:currentPage', 'column-order
 const frameRef = ref(null)
 const currentPage = ref(1)
 const currentPageSize = ref(normalizedPageSize(props.pageSize))
-const autoWidthColumnCount = ref(0)
-const autoWidthColumnIds = new Set()
-
-function registerAutoWidthColumn(columnId) {
-  autoWidthColumnIds.add(columnId)
-  autoWidthColumnCount.value = autoWidthColumnIds.size
-}
-
-function unregisterAutoWidthColumn(columnId) {
-  autoWidthColumnIds.delete(columnId)
-  autoWidthColumnCount.value = autoWidthColumnIds.size
-}
 
 provide('prototypeTableColumnDataSort', computed(() => props.columnDataSort))
 provide('prototypeTablePagination', computed(() => ({
@@ -54,12 +41,8 @@ provide('prototypeTablePagination', computed(() => ({
 provide('prototypeTableAutoWidth', computed(() => ({
   enabled: props.autoContentWidth,
   rows: props.autoWidthRows,
-  maxWidth: autoWidthColumnCount.value >= props.autoWidthDenseThreshold
-    ? Math.min(props.autoWidthMax, props.autoWidthDenseMax)
-    : props.autoWidthMax,
+  maxWidth: props.autoWidthMax,
   sampleSize: props.autoWidthSampleSize,
-  registerColumn: registerAutoWidthColumn,
-  unregisterColumn: unregisterAutoWidthColumn,
 })))
 
 function updateCurrentPage(value) {

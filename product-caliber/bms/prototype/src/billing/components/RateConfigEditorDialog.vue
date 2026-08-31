@@ -51,7 +51,8 @@ function directionUsed(direction, index) { return props.draft?.rules?.some((rule
       <el-alert title="新配置从该客户当前配置的生效版本复制；提交后只切换该客户，原配置和其他客户不变。" type="info" :closable="false" show-icon />
     </template>
     <el-alert v-if="props.editingId" :title="`当前有 ${props.referenceCount} 个客户引用该配置；新版生效时全部引用客户将统一采用新版，编辑过程不保存草稿。`" :type="props.referenceCount > 1 ? 'warning' : 'info'" :closable="false" show-icon />
-    <template #footer><div class="dialog-footer"><el-button @click="emit('update:modelValue', false)">取消</el-button><el-button type="primary" @click="emit('save')">{{ props.editingId ? '下一步：确认发布' : props.forkCustomer ? '创建并切换该客户' : '创建配置' }}</el-button></div></template>
+    <el-alert v-if="!props.editingId && !props.forkCustomer" title="下一步指定适用客户，可按店铺和客户组筛选；跳过该步骤将创建未引用配置。" type="info" :closable="false" show-icon />
+    <template #footer><div class="dialog-footer"><el-button @click="emit('update:modelValue', false)">取消</el-button><el-button type="primary" @click="emit('save')">{{ props.editingId ? '下一步：确认发布' : props.forkCustomer ? '创建并切换该客户' : '下一步：指定适用客户' }}</el-button></div></template>
   </el-dialog>
 </template>
 

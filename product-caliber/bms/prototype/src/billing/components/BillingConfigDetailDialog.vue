@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
-import ConfigSchemeOverview from './ConfigSchemeOverview.vue'
+import BillingConfigSnapshotDetail from './BillingConfigSnapshotDetail.vue'
 import ReceivableConfigEditor from './ReceivableConfigEditor.vue'
 import RefundConfigEditor from './RefundConfigEditor.vue'
 
@@ -62,14 +62,7 @@ defineExpose({
 
       <template v-if="props.detailMode === 'view'">
         <section class="exact-version-view">
-          <ConfigSchemeOverview v-if="props.config.type === 'AR'" :snapshot="props.config.schemeSnapshot" />
-          <dl v-else class="inline-detail-grid">
-            <div><dt>返款模式</dt><dd>{{ props.config.mode }}</dd></div>
-            <div><dt>账期类型</dt><dd>{{ props.config.cycle }}</dd></div>
-            <div><dt>发出规则</dt><dd>{{ props.config.sentRule }}</dd></div>
-            <div><dt>默认结算币种</dt><dd>{{ props.config.currency }}</dd></div>
-          </dl>
-          <div class="config-version-meta">本页读取任务或历史引用锁定的版本快照，不随配置当前生效版本变化。</div>
+          <BillingConfigSnapshotDetail :config="props.config" />
         </section>
       </template>
 
@@ -91,7 +84,7 @@ defineExpose({
             <el-form-item label="指定生效日期" :required="props.config.publishEffectMode === 'SCHEDULED'"><el-date-picker :model-value="props.config.publishEffectDate" value-format="YYYY-MM-DD" type="date" :disabled="props.config.publishEffectMode !== 'SCHEDULED'" :disabled-date="date => !dayjs(date).isAfter('2026-08-27', 'day')" @update:model-value="updateConfig('publishEffectDate', $event)" /></el-form-item>
             <el-form-item label="变更原因"><el-input :model-value="props.config.changeReason" @update:model-value="updateConfig('changeReason', $event)" /></el-form-item>
           </el-form>
-          <div class="config-version-meta">编辑过程不保存草稿。新版生效时，全部引用此配置的客户统一采用新版；已创建任务和已有账单继续使用其锁定的历史版本。</div>
+          <div class="config-version-meta">{{ props.config.no === '新配置' ? '编辑过程不保存草稿。下一步指定适用客户，可按店铺和客户组筛选；跳过该步骤将创建未引用配置，后续可在配置库分配客户。' : '编辑过程不保存草稿。新版生效时，全部引用此配置的客户统一采用新版；已创建任务和已有账单继续使用其锁定的历史版本。' }}</div>
         </section>
         <ReceivableConfigEditor v-if="props.config.type === 'AR'" :key="props.config.id" ref="editorRef" :config="props.config" />
         <RefundConfigEditor v-else :key="props.config.id" ref="editorRef" :config="props.config" />
@@ -101,7 +94,7 @@ defineExpose({
     <template #footer>
       <div class="config-drawer-footer">
         <el-button @click="emit('update:modelValue', false)">{{ props.detailMode === 'view' ? '关闭' : '取消' }}</el-button>
-        <el-button v-if="props.detailMode !== 'view'" type="primary" @click="emit('save')">{{ props.config?.publishEffectMode === 'SCHEDULED' ? '发布并预约生效' : '发布并立即生效' }}</el-button>
+        <el-button v-if="props.detailMode !== 'view'" type="primary" @click="emit('save')">{{ props.config?.no === '新配置' ? '下一步：指定适用客户' : props.config?.publishEffectMode === 'SCHEDULED' ? '发布并预约生效' : '发布并立即生效' }}</el-button>
       </div>
     </template>
   </el-dialog>

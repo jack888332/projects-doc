@@ -14,16 +14,24 @@ const periodFromCycle = (cycle = '') => {
 
 const rollingDays = period => Number(period?.replace('DAY_', '')) || 0
 
-export function createReceivableConfigNo(createdAt = dayjs(), existingNos = []) {
+export function createBillingConfigNo(prefix, createdAt = dayjs(), existingNos = []) {
   let timestamp = dayjs(createdAt)
-  if (!timestamp.isValid()) throw new Error('应收配置创建时间无效')
+  if (!timestamp.isValid()) throw new Error('账单配置创建时间无效')
   const used = new Set(existingNos)
-  let configNo = `ARB-SCHEME-${timestamp.format('YYYYMMDDHHmmssSSS')}`
+  let configNo = `${prefix}-${timestamp.format('YYYYMMDDHHmmssSSS')}`
   while (used.has(configNo)) {
     timestamp = timestamp.add(1, 'millisecond')
-    configNo = `ARB-SCHEME-${timestamp.format('YYYYMMDDHHmmssSSS')}`
+    configNo = `${prefix}-${timestamp.format('YYYYMMDDHHmmssSSS')}`
   }
   return configNo
+}
+
+export function createReceivableConfigNo(createdAt = dayjs(), existingNos = []) {
+  return createBillingConfigNo('ARB-SCHEME', createdAt, existingNos)
+}
+
+export function createRefundConfigNo(createdAt = dayjs(), existingNos = []) {
+  return createBillingConfigNo('RFB-SCHEME', createdAt, existingNos)
 }
 
 export function numberReceivableSchemes(snapshot, configNo) {

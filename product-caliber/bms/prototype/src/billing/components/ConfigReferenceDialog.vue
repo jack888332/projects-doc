@@ -15,8 +15,9 @@ const props = defineProps({
   referenceHistory: { type: Array, default: () => [] },
   focusCustomerCode: { type: String, default: '' },
   tasks: { type: Array, default: () => [] },
+  creating: { type: Boolean, default: false },
 })
-const emit = defineEmits(['update:modelValue', 'confirm'])
+const emit = defineEmits(['update:modelValue', 'confirm', 'skip'])
 
 const selectionRef = ref(null)
 const selectedRows = ref([])
@@ -81,7 +82,7 @@ watch(() => query.store, () => { if (!groups.value.includes(query.group)) query.
 
 watch(() => props.modelValue, async (open) => {
   if (!open) return
-  form.effectiveAt = '2026-09-01'
+  form.effectiveAt = props.creating ? '2026-08-27' : '2026-09-01'
   form.forceConfirmed = false
   form.reason = ''
   selectedRows.value = []
@@ -107,14 +108,14 @@ function confirm() {
 
 <template>
   <el-dialog v-model="visible" class="module-dialog module-dialog-large reference-dialog" align-center append-to-body destroy-on-close :close-on-click-modal="false">
-    <template #header><div class="drawer-title"><span>管理客户引用</span><small>{{ config?.name ? `${config.name} · ` : '' }}{{ config?.no }}-{{ config?.version }}</small></div></template>
+    <template #header><div class="drawer-title"><span>{{ creating ? '指定适用客户' : '管理客户引用' }}</span><small v-if="!creating">{{ config?.name ? `${config.name} · ` : '' }}{{ config?.no }}-{{ config?.version }}</small><small v-else>发布后生成-{{ config?.publishVersion || config?.version || 'V1' }}</small></div></template>
     <div class="reference-summary">
       <div><span>候选客户</span><strong>{{ allRows.length }}</strong></div>
       <div><span>当前配置引用</span><strong>{{ allRows.filter(row => row.category === '已引用当前配置').length }}</strong></div>
       <div><span>已选客户</span><strong>{{ selectedRows.length }}</strong></div>
       <div><span>强制替换</span><strong :class="{ danger:riskCount }">{{ riskCount }}</strong></div>
     </div>
-    <el-alert title="客户与会员为同一主体；所属店铺和所属客户组只用于本次筛选。确认后客户引用配置编号，后续新版生效时自动统一采用新版。" type="info" :closable="false" show-icon />
+    <el-alert :title="creating ? '客户与会员为同一主体；可按所属店铺和客户组筛选客户。跳过此步将创建未引用配置，后续可在配置库分配客户。' : '客户与会员为同一主体；所属店铺和所属客户组只用于本次筛选。确认后客户引用配置编号，后续新版生效时自动统一采用新版。'" type="info" :closable="false" show-icon />
     <div class="reference-filters">
       <ConditionFilter v-model="query.customer" label="客户" type="text" />
       <ConditionFilter v-model="query.store" label="所属店铺" :options="stores" />
@@ -134,11 +135,11 @@ function confirm() {
       </el-table>
     </DataTableFrame>
     <el-form label-position="top" class="reference-form">
-      <el-form-item label="配置切换日期" required><el-date-picker v-model="form.effectiveAt" type="date" value-format="YYYY-MM-DD" :disabled-date="date => dayjs(date).isBefore('2026-08-27', 'day')" /></el-form-item>
+      <el-form-item :label="creating ? '引用生效日期' : '配置切换日期'" required><el-date-picker v-model="form.effectiveAt" type="date" value-format="YYYY-MM-DD" :disabled-date="date => dayjs(date).isBefore('2026-08-27', 'day')" /></el-form-item>
       <el-form-item label="变更原因" :required="riskCount > 0"><el-input v-model="form.reason" placeholder="强制替换时必填" /></el-form-item>
       <el-form-item class="force-confirm"><el-checkbox v-model="form.forceConfirmed" :disabled="riskCount === 0">确认强制替换 {{ riskCount }} 个正在使用其它配置的客户</el-checkbox></el-form-item>
     </el-form>
-    <template #footer><div class="config-drawer-footer"><el-button @click="visible = false">取消</el-button><el-button type="primary" @click="confirm">确认引用</el-button></div></template>
+    <template #footer><div class="config-drawer-footer"><el-button @click="visible = false">取消</el-button><el-button v-if="creating" @click="emit('skip')">跳过此步</el-button><el-button type="primary" @click="confirm">{{ creating ? '确认创建' : '确认引用' }}</el-button></div></template>
   </el-dialog>
 </template>
 

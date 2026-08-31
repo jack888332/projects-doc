@@ -97,6 +97,6 @@ function applyTemplate(value) {
 </template>
 
 <style scoped>
-.matrix-row{grid-template-columns:280px minmax(0,1fr);align-items:start;padding:var(--space-4) 0}.setting-meta{display:flex;flex-direction:column;gap:5px}.setting-meta b{font-size: var(--section-title-font-size);font-weight: var(--font-weight-semibold)}.setting-meta small{font-size: var(--font-size-sm);color:#8992a1;line-height: var(--line-height-base)}.matrix-wrap{min-width:0}
-@media(max-width:760px){.matrix-row{grid-template-columns:1fr}}
+.setting-row.matrix-row{grid-template-columns:280px minmax(0,1fr);align-items:start;padding:var(--space-4) 0}.setting-meta{display:flex;flex-direction:column;gap:5px}.setting-meta b{font-size: var(--section-title-font-size);font-weight: var(--font-weight-semibold)}.setting-meta small{font-size: var(--font-size-sm);color:#8992a1;line-height: var(--line-height-base)}.matrix-wrap{min-width:0}
+@media(max-width:760px){.setting-row.matrix-row{grid-template-columns:1fr}}
 </style>

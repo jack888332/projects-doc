@@ -11,6 +11,7 @@ import MetricGrid from '../../shared/components/MetricGrid.vue'
 import SegmentedControl from '../../shared/components/SegmentedControl.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
+import ConfigVersionTag from '../../shared/components/ConfigVersionTag.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
 import { createBillListSchema } from '../schemas/billListSchema.ts'
@@ -162,7 +163,8 @@ function confirmExport() {
         <el-table-column :label="isReceivable ? '费项结算币种金额' : '货款结算币种金额'" width="250"><template #default="scope"><div class="amount-lines"><span>{{ isReceivable ? '应收' : '原始货款' }} <b>{{ money(isReceivable ? scope.row.amount : scope.row.original) }} {{ scope.row.currency }}</b></span><span>{{ isReceivable ? '已核销' : '扣除费项' }} {{ money(isReceivable ? scope.row.paid : scope.row.deduction) }} {{ scope.row.currency }}</span><span>{{ isReceivable ? '未核销' : '待返货款' }} <b>{{ money(scope.row.amount - scope.row.paid) }} {{ scope.row.currency }}</b></span></div></template></el-table-column>
         <el-table-column prop="periodType" label="账期类型" width="90" /><el-table-column prop="periodStart" label="账期起始日" width="112" /><el-table-column prop="periodEnd" label="账期结束日" width="112" />
         <el-table-column v-if="isReceivable" prop="sector" label="业务板块" width="125" /><el-table-column prop="country" :label="isReceivable ? '运抵国' : '目的国'" width="100" /><el-table-column prop="customer" label="客户名称" width="160" show-overflow-tooltip /><el-table-column prop="shop" label="所属店铺" width="155" show-overflow-tooltip /><el-table-column prop="group" label="所属客户组" width="130" show-overflow-tooltip /><el-table-column prop="batchNo" label="生成批次编号" width="210" show-overflow-tooltip /><el-table-column prop="taskNo" label="任务编号" width="200" show-overflow-tooltip />
-        <el-table-column label="账单配置" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="`${configSourceMeta[scope.row.configSource] || scope.row.configSource} · ${scope.row.configVersion}`" /></template></el-table-column>
+        <el-table-column label="配置编号" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="configSourceMeta[scope.row.configSource] || scope.row.configSource" /></template></el-table-column>
+        <el-table-column label="配置版本" width="100"><template #default="scope"><ConfigVersionTag :version="scope.row.configVersion" /></template></el-table-column>
         <el-table-column prop="customerReferenceNo" label="客户配置引用" width="190" show-overflow-tooltip />
         <el-table-column label="方案名称 / 编号" min-width="220"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="`${scope.row.schemeKey} · ${scope.row.schemeType}`" /></template></el-table-column>
         <el-table-column prop="sentAt" label="账单发出日" width="112" />

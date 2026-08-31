@@ -71,7 +71,5 @@ function submit() {
 .import-dialog-row strong { color: var(--ink); font-size: var(--content-font-size); }
 .import-dialog-row span { overflow-wrap: anywhere; color: var(--muted); font-size: var(--secondary-font-size); }
 .import-file-row :deep(.el-upload-list) { margin: var(--space-2) 0 0; }
-@media (max-width: 760px) {
-  .import-dialog-row { padding: var(--space-3) 0; align-items: stretch; flex-direction: column; }
-}
+:global(:root[data-ui-layout="narrow"]) .import-dialog-row { padding: var(--space-3) 0; align-items: stretch; flex-direction: column; }
 </style>

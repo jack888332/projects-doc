@@ -59,14 +59,15 @@ const createScheme = (snapshot = {}, fallbackKey = '') => {
   }
 }
 const defaultScheme = createScheme({ ...props.config.schemeSnapshot?.defaultScheme, schemeKey:schemeBaseNo.value }, schemeBaseNo.value)
+const savedTerms = props.config.schemeSnapshot?.terms || {}
 const form = reactive({
   defaultScheme,
   branches: (props.config.schemeSnapshot?.branches || []).map((snapshot, index) => {
     const sequence = Number(String(snapshot.schemeKey || '').match(/(?:^|-)BRANCH-(\d+)$/)?.[1]) || index + 1
     return createScheme({ ...snapshot, schemeKey:`${schemeBaseNo.value}-BRANCH-${sequence}` }, `${schemeBaseNo.value}-BRANCH-${sequence}`)
   }),
-  creditRating: 'A', creditTerm: 7, overdueFee: 0, advanceLimit: '500000',
-  contractNo: 'HT-SCHEME-2026', contractFiles: [],
+  creditRating:savedTerms.creditRating || 'A', creditTerm:savedTerms.creditTerm ?? 7, overdueFee:savedTerms.overdueFee ?? 0, advanceLimit:savedTerms.advanceLimit || '500000',
+  contractNo:savedTerms.contractNo || 'HT-SCHEME-2026', contractFiles:clone(savedTerms.contractFiles || []),
 })
 const allFolded = computed(() => form.branches.length > 0 && form.branches.every(item => item.folded))
 const previewNo = computed(() => {
@@ -140,6 +141,14 @@ function getSchemeSnapshot() {
     branchKeyCeiling: branchKeySeed,
     defaultScheme: snapshotScheme(form.defaultScheme),
     branches: form.branches.map(scheme => snapshotScheme(scheme, true)),
+    terms: {
+      creditRating:form.creditRating,
+      creditTerm:form.creditTerm,
+      overdueFee:form.overdueFee,
+      advanceLimit:form.advanceLimit,
+      contractNo:form.contractNo,
+      contractFiles:clone(form.contractFiles),
+    },
   }
 }
 defineExpose({ validate, getSchemeSnapshot })

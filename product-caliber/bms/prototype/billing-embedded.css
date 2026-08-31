@@ -382,7 +382,7 @@
 .el-overlay .el-drawer.detail-drawer .el-drawer__body,
 .el-overlay .el-drawer.billing-config-drawer .el-drawer__body { overflow: auto; }
 .el-overlay-dialog { display: flex; align-items: center; justify-content: center; }
-.el-overlay-dialog .el-dialog {
+.el-overlay-dialog .el-dialog:not(.module-dialog) {
   width: min(960px, calc(100vw - 48px)) !important;
   max-height: calc(100vh - 48px);
   margin: 0 !important;
@@ -430,5 +430,5 @@
   .detail-drawer .detail-grid { grid-template-columns: 1fr; }
   .el-overlay .el-drawer.detail-drawer,
   .el-overlay .el-drawer.billing-config-drawer,
-  .el-overlay-dialog .el-dialog { width: calc(100vw - 16px) !important; max-height: calc(100vh - 16px); }
+  .el-overlay-dialog .el-dialog:not(.module-dialog) { width: calc(100vw - 16px) !important; max-height: calc(100vh - 16px); }
 }

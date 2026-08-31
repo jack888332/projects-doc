@@ -1,7 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { canResizeTableColumn, fittedContentWidth, independentColumnWidth, independentTableProps, tableFillerWidth } from '../src/shared/components/tableSizing.js'
+import { canResizeTableColumn, fittedContentWidth, independentColumnWidth, independentTableProps, normalizeTableColumnAttrs, TABLE_AUTO_WIDTH_CONFIG, tableFillerWidth } from '../src/shared/components/tableSizing.js'
 
 describe('independent table sizing', () => {
+  it('keeps list content sizing defaults in one shared configuration', () => {
+    expect(TABLE_AUTO_WIDTH_CONFIG).toEqual({ enabled: true, maxWidth: 260, sampleSize: 100, fallbackWidth: 120 })
+    expect(fittedContentWidth({ measuredWidth: 420, minimumWidth: 80 })).toBe(TABLE_AUTO_WIDTH_CONFIG.maxWidth)
+  })
+
+  it('normalizes template attribute aliases before calculating column widths', () => {
+    const sortMethod = () => 0
+    expect(normalizeTableColumnAttrs({
+      label: '费项',
+      'min-width': '180',
+      'show-overflow-tooltip': false,
+      'label-class-name': 'custom-header',
+      'sort-method': sortMethod,
+    })).toEqual({
+      label: '费项',
+      minWidth: '180',
+      showOverflowTooltip: false,
+      labelClassName: 'custom-header',
+      sortMethod,
+    })
+  })
+
   it('keeps fit disabled even when a page attempts to enable it', () => {
     expect(independentTableProps({ fit: true, border: false, stripe: true })).toEqual({
       fit: false,

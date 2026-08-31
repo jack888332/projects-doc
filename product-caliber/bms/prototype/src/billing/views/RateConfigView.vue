@@ -11,6 +11,7 @@ import RateConfigAssignmentDialog from '../components/RateConfigAssignmentDialog
 import RateConfigEditorDialog from '../components/RateConfigEditorDialog.vue'
 import RateConfigLibraryTable from '../components/RateConfigLibraryTable.vue'
 import RateConfigPublishDialog from '../components/RateConfigPublishDialog.vue'
+import ConfigVersionHistoryDialog from '../components/ConfigVersionHistoryDialog.vue'
 import RateCustomerReferenceTable from '../components/RateCustomerReferenceTable.vue'
 import RateSnapshotDialog from '../components/RateSnapshotDialog.vue'
 import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
@@ -30,19 +31,21 @@ import { useDemoDataset } from '../data/useDemoDataset.js'
 const AS_OF_DATE = '2026-08-27'
 const baseRates = useDemoDataset('billingBaseRates', billingBaseRateFixtures)
 const referenceRows = useDemoDataset('billingRateCustomerReferences', billingRateFixtures, 2026082802)
-const rateConfigs = useDemoDataset('billingRateConfigs', billingRateConfigFixtures, 2026082802)
-const activeView = ref('references')
+const rateConfigs = useDemoDataset('billingRateConfigs', billingRateConfigFixtures, 2026083101)
+const activeView = ref('configs')
 const importVisible = ref(false)
 const editorVisible = ref(false)
 const snapshotVisible = ref(false)
 const publishingVisible = ref(false)
 const assignmentVisible = ref(false)
+const versionHistoryVisible = ref(false)
 const editingId = ref(null)
 const selectedConfig = ref(null)
 const draft = ref(null)
 const viewingReference = ref(null)
 const viewingConfig = ref(null)
 const viewingVersionCode = ref('')
+const versionHistoryConfig = ref(null)
 const forkCustomer = ref(null)
 const forkSwitchDate = ref(AS_OF_DATE)
 const forkReason = ref('')
@@ -55,6 +58,7 @@ const assignmentReason = ref('')
 const assignmentStore = ref([])
 const assignmentGroup = ref([])
 const assignmentVersion = ref('')
+const pendingNewConfig = ref(null)
 const initialQuery = { keyword:'', store:'', group:'', shareType:'', status:'' }
 const { query, appliedQuery, applyQuery, resetQuery } = useStagedQuery(initialQuery)
 const shareTypes = [{ label:'未引用配置', value:'UNREFERENCED' }, { label:'独享配置', value:'EXCLUSIVE' }, { label:'共享配置', value:'SHARED' }]
@@ -91,6 +95,12 @@ const assignmentGroups = computed(() => [...new Set(customerDirectory.value
 watch(activeView, resetQuery)
 watch(() => query.store, () => { if (query.group && !groups.value.includes(query.group)) query.group = '' })
 watch(assignmentStore, () => { assignmentGroup.value = assignmentGroup.value.filter(group => assignmentGroups.value.includes(group)) })
+watch(assignmentVisible, (open) => {
+  if (!open && pendingNewConfig.value && !rateConfigs.value.includes(pendingNewConfig.value)) {
+    pendingNewConfig.value = null
+    selectedConfig.value = null
+  }
+})
 
 const formatDirection = direction => direction?.replace('->', '→') || '--'
 const formatRate = (rate) => { if (rate === null || rate === undefined || rate === '--') return '--'; const value = Number(rate); return Number.isNaN(value) ? '--' : value.toFixed(6) }
@@ -135,18 +145,25 @@ function enrichReference(row) {
     ruleSummary:ruleSummary(rules),
   }
 }
-const viewingVersion = computed(() => versionOf(viewingConfig.value, viewingVersionCode.value))
+const versionStatusOf = (config, version) => version?.version === config?.currentVersion ? '生效' : version?.version === config?.pendingVersion ? '待生效' : version?.versionStatus || '历史'
+const viewingVersion = computed(() => {
+  const version = versionOf(viewingConfig.value, viewingVersionCode.value)
+  return version ? { ...version, versionStatus:versionStatusOf(viewingConfig.value, version) } : null
+})
 const viewingRules = computed(() => calculatedRulesOf(viewingVersion.value))
-const customerRows = computed(() => customerDirectory.value.map(customer => {
-  const reference = activeReferenceFor(customer.customerCode)
-  return enrichReference({ ...(reference || { id:`EMPTY-${customer.customerCode}`, status:'未配置' }), ...customer })
-}))
+const customerRows = computed(() => customerDirectory.value
+  .map(customer => {
+    const reference = activeReferenceFor(customer.customerCode)
+    if (!reference) return null
+    return enrichReference({ ...reference, ...customer })
+  })
+  .filter(Boolean))
 const filteredReferences = computed(() => customerRows.value.filter(row => (!appliedQuery.keyword || `${row.customerCode}${row.customerName}${row.configNo}${row.configName}`.includes(appliedQuery.keyword)) && matchCustomerRelations(row, { stores:appliedQuery.store, groups:appliedQuery.group }).matches && (!appliedQuery.status || row.status === appliedQuery.status)))
 const filteredConfigs = computed(() => rateConfigs.value.filter(config => (!appliedQuery.keyword || `${config.no}${config.name}`.includes(appliedQuery.keyword)) && (!appliedQuery.shareType || shareTypeOf(config) === appliedQuery.shareType) && (!appliedQuery.status || config.status === appliedQuery.status)))
 const displayConfigs = computed(() => filteredConfigs.value.map((config) => {
   const displayVersions = config.versions.map((version) => {
     const rules = calculatedRulesOf(version)
-    return { ...version, configVersionNo:`${config.no}-${version.version}`, rules, ruleCount:rules.length, ruleSummary:ruleSummary(rules), versionStatus:version.version === config.currentVersion ? '生效' : config.pendingVersion === version.version ? '待生效' : version.versionStatus || '历史' }
+    return { ...version, configVersionNo:`${config.no}-${version.version}`, rules, ruleCount:rules.length, ruleSummary:ruleSummary(rules), versionStatus:versionStatusOf(config, version) }
   })
   const current = displayVersions.find(version => version.version === config.currentVersion) || displayVersions[0]
   return { ...config, referenceLabel:referenceLabel(config), referenceTone:referenceTone(config), referenceCount:referenceCount(config), ruleCount:current?.ruleCount || 0, ruleSummary:current?.ruleSummary || '--', displayVersions }
@@ -228,6 +245,15 @@ function viewConfigVersion(config, version) {
   viewingVersionCode.value = version.version
   snapshotVisible.value = true
 }
+function openVersionHistory(config) {
+  versionHistoryConfig.value = config
+  versionHistoryVisible.value = true
+}
+function viewVersionFromHistory(version) {
+  const config = versionHistoryConfig.value
+  versionHistoryVisible.value = false
+  if (config) viewConfigVersion(config, version)
+}
 function openForkFromReference(row = viewingReference.value) {
   const version = versionOf(row?.config, row?.configVersion)
   if (!row?.config || !version) return ElMessage.warning('未找到客户当前配置版本快照')
@@ -265,8 +291,8 @@ function saveRate() {
       versionStatus:'生效',
       effectiveAt:AS_OF_DATE,
     }
-    let nextReferences = referenceRows.value
     if (forkCustomer.value) {
+      let nextReferences = referenceRows.value
       const referenceSequence = Math.max(0, ...referenceRows.value.map(row => Number(row.id.replace('RR-', '')) || 0)) + 1
       try {
         nextReferences = switchRateReference(referenceRows.value, {
@@ -280,8 +306,22 @@ function saveRate() {
       } catch (error) {
         return ElMessage.warning(error.message)
       }
+      rateConfigs.value.unshift({
+        id,
+        no,
+        name:draft.value.name?.trim() || '',
+        currentVersion:'V1',
+        status:'启用',
+        updatedAt:'2026-08-27 16:50',
+        versions:[version],
+      })
+      referenceRows.value.splice(0, referenceRows.value.length, ...nextReferences)
+      editorVisible.value = false
+      ElMessage.success(`已另存为 ${no}-V1，仅切换 ${forkCustomer.value.customerName}`)
+      forkCustomer.value = null
+      return
     }
-    rateConfigs.value.unshift({
+    pendingNewConfig.value = {
       id,
       no,
       name:draft.value.name?.trim() || '',
@@ -289,13 +329,16 @@ function saveRate() {
       status:'启用',
       updatedAt:'2026-08-27 16:50',
       versions:[version],
-    })
-    if (forkCustomer.value) referenceRows.value.splice(0, referenceRows.value.length, ...nextReferences)
+    }
+    selectedConfig.value = pendingNewConfig.value
+    assignmentVersion.value = 'V1'
+    assignmentCodes.value = []
+    assignmentDate.value = AS_OF_DATE
+    assignmentReason.value = ''
+    assignmentStore.value = []
+    assignmentGroup.value = []
     editorVisible.value = false
-    ElMessage.success(forkCustomer.value
-      ? `已另存为 ${no}-V1，仅切换 ${forkCustomer.value.customerName}`
-      : '特调汇率配置已创建并立即生效，当前为未引用配置')
-    forkCustomer.value = null
+    assignmentVisible.value = true
     return
   }
   selectedConfig.value = configById(editingId.value)
@@ -385,6 +428,58 @@ function confirmAssignment() {
   if (failures.length) return ElMessage.warning(`${switchedCount} 个客户切换成功，${failures.length} 个失败`)
   ElMessage.success(`已为 ${switchedCount} 个客户建立 ${config.no}-${targetVersion} 配置引用`)
 }
+function confirmNewConfig() {
+  const config = pendingNewConfig.value
+  if (!config) return
+  if (!selectedAssignmentChanges.value.length) return ElMessage.warning('请至少选择一个需要建立引用的客户')
+  if (!assignmentDate.value) return ElMessage.warning('请选择切换日期')
+  if (assignmentDate.value < AS_OF_DATE) return ElMessage.warning('切换日期不能早于当前日期')
+  if (replacementCount.value && !assignmentReason.value.trim()) return ElMessage.warning('替换客户现有配置必须填写变更原因')
+  const targetVersion = 'V1'
+  let nextReferences = referenceRows.value
+  let sequence = Math.max(0, ...referenceRows.value.map(row => Number(row.id.replace('RR-', '')) || 0)) + 1
+  const failures = []
+  let switchedCount = 0
+  selectedAssignmentChanges.value.forEach((customer) => {
+    try {
+      const switched = switchRateReference(nextReferences, {
+        customer,
+        configId:config.id,
+        configVersion:targetVersion,
+        effectiveFrom:assignmentDate.value,
+        changeReason:assignmentReason.value.trim(),
+        referenceId:`RR-${String(sequence).padStart(3, '0')}`,
+      })
+      nextReferences = switched.references
+      if (switched.changed) {
+        sequence += 1
+        switchedCount += 1
+      }
+    } catch (error) {
+      failures.push(`${customer.customerName}：${error.message}`)
+    }
+  })
+  rateConfigs.value.unshift(config)
+  if (nextReferences !== referenceRows.value) referenceRows.value.splice(0, referenceRows.value.length, ...nextReferences)
+  pendingNewConfig.value = null
+  selectedConfig.value = null
+  assignmentVisible.value = false
+  if (failures.length) return ElMessage.warning(`${config.no}-V1 已创建；${switchedCount} 个客户引用成功，${failures.length} 个失败`)
+  ElMessage.success(`${config.no}-V1 已创建，已为 ${switchedCount} 个客户建立配置引用`)
+}
+function skipNewConfig() {
+  const config = pendingNewConfig.value
+  if (!config) return
+  rateConfigs.value.unshift(config)
+  pendingNewConfig.value = null
+  selectedConfig.value = null
+  assignmentVisible.value = false
+  ElMessage.success(`${config.no}-V1 已创建，当前为未引用配置`)
+}
+function handleAssignmentConfirm() {
+  if (pendingNewConfig.value) confirmNewConfig()
+  else confirmAssignment()
+}
 async function editBaseRate(row) {
   try {
     const result = await ElMessageBox.prompt(`请输入 ${formatDirection(row.direction)} 的新汇率`, '编辑基准汇率', { inputValue:String(row.rate), inputPattern:/^\d+(\.\d+)?$/, inputErrorMessage:'请输入大于 0 的数字' })
@@ -421,7 +516,7 @@ async function removeBaseRate(row) {
       <section class="rate-panel rate-panel-wide">
         <header class="rate-panel-head rate-panel-head-stack">
           <div><h2>客户特调汇率</h2></div>
-          <el-tabs v-model="activeView" class="rate-source-tabs"><el-tab-pane label="客户引用" name="references" /><el-tab-pane label="配置库" name="configs" /></el-tabs>
+          <el-tabs v-model="activeView" class="rate-source-tabs"><el-tab-pane label="配置库" name="configs" /><el-tab-pane label="客户引用配置情况" name="references" /></el-tabs>
           <div class="rate-panel-filters">
             <ConditionFilter v-model="query.keyword" :label="activeView === 'references' ? '客户/配置' : '配置'" type="text" />
             <template v-if="activeView === 'references'">
@@ -429,7 +524,7 @@ async function removeBaseRate(row) {
               <ConditionFilter v-model="query.group" label="所属客户组" :options="groups" />
             </template>
             <ConditionFilter v-else v-model="query.shareType" label="配置标签" :options="shareTypes" />
-            <ConditionFilter v-model="query.status" label="状态" :options="activeView === 'references' ? ['启用','未配置'] : ['启用','停用']" />
+            <ConditionFilter v-if="activeView === 'configs'" v-model="query.status" label="状态" :options="['启用','停用']" />
             <div class="condition-filter-actions linked-query-actions"><el-button type="primary" @click="applyQuery">查询</el-button><el-button @click="resetQuery">重置</el-button></div>
           </div>
         </header>
@@ -437,7 +532,7 @@ async function removeBaseRate(row) {
         <DataTableFrame class="rate-table-frame" :total="activeView === 'references' ? filteredReferences.length : filteredConfigs.length" :page-size="20" :column-sort="false">
           <template #actions><el-button v-if="activeView === 'configs'" type="primary" :icon="Plus" @click="openNew">新建配置</el-button></template>
           <RateCustomerReferenceTable v-if="activeView === 'references'" :rows="filteredReferences" @view="viewConfig" />
-          <RateConfigLibraryTable v-else :rows="displayConfigs" @edit="openEdit" @assign="openAssignment" @view-version="viewConfigVersion" @cancel-pending="cancelPendingVersion" />
+          <RateConfigLibraryTable v-else :rows="displayConfigs" @edit="openEdit" @assign="openAssignment" @view-history="openVersionHistory" @cancel-pending="cancelPendingVersion" />
         </DataTableFrame>
       </section>
     </div>
@@ -451,6 +546,13 @@ async function removeBaseRate(row) {
       :version="viewingVersion"
       :rules="viewingRules"
       @fork="openForkFromReference"
+    />
+    <ConfigVersionHistoryDialog
+      v-model="versionHistoryVisible"
+      kind="rate"
+      :config="versionHistoryConfig"
+      :versions="versionHistoryConfig?.displayVersions || []"
+      @view="viewVersionFromHistory"
     />
     <RateConfigEditorDialog
       v-model="editorVisible"
@@ -492,8 +594,10 @@ async function removeBaseRate(row) {
       :rows="assignmentRows"
       :selected-codes="assignmentCodes"
       :replacement-count="replacementCount"
+      :creating="Boolean(pendingNewConfig)"
       @toggle-assignment="toggleAssignment"
-      @confirm="confirmAssignment"
+      @confirm="handleAssignmentConfirm"
+      @skip="skipNewConfig"
     />
   </div>
 </template>

@@ -14,6 +14,7 @@ import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
 import MetricGrid from '../../shared/components/MetricGrid.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
+import ConfigVersionTag from '../../shared/components/ConfigVersionTag.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 import { useStagedQuery } from '../../shared/composables/useStagedQuery.js'
 import { billingTaskFixtures, billingTaskSeedVersion, sourceScansByTaskId } from '../../data/fixtures/billingTasks.ts'
@@ -261,9 +262,10 @@ function viewResult(row) {
             <el-table-column label="任务类型" width="100"><template #default="scope">{{ display(taskTypeMeta, scope.row.taskType) }}</template></el-table-column>
             <el-table-column label="账单生成方式" width="116"><template #default="scope">{{ display(generationModeMeta, scope.row.generationMode) }}</template></el-table-column>
             <el-table-column label="触发方式" width="112"><template #default="scope">{{ display(triggerMeta, scope.row.triggerType) }}</template></el-table-column>
-            <el-table-column label="账单配置" min-width="185">
-              <template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="`${configSourceMeta[scope.row.configSource] || scope.row.configSource} · ${scope.row.configVersion}`" /></template>
+            <el-table-column label="配置编号" min-width="185">
+              <template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="configSourceMeta[scope.row.configSource] || scope.row.configSource" /></template>
             </el-table-column>
+            <el-table-column label="配置版本" width="100"><template #default="scope"><ConfigVersionTag :version="scope.row.configVersion" /></template></el-table-column>
             <el-table-column label="方案名称 / 编号" min-width="220"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="`${scope.row.schemeKey} · ${scope.row.schemeType}`" /></template></el-table-column>
             <el-table-column label="客户" min-width="190">
               <template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="`${scope.row.customerNo} / ${scope.row.memberCode}`" /></template>

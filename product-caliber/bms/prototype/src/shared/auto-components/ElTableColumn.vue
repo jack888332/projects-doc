@@ -1,7 +1,7 @@
 <script>
 import { defineComponent, h, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElTableColumn as ElementTableColumn, ElTooltip } from 'element-plus'
-import { canResizeTableColumn, independentColumnWidth } from '../components/tableSizing.js'
+import { canResizeTableColumn, independentColumnWidth, normalizeTableColumnAttrs } from '../components/tableSizing.js'
 import { resolveTableColumnSorting, tableHeaderSortState } from '../components/tableSortability.js'
 import SortDirectionIcon from '../components/SortDirectionIcon.vue'
 
@@ -238,48 +238,38 @@ export default defineComponent({
   setup(props, { attrs, slots }) {
     const columnDataSort = inject('prototypeTableColumnDataSort', null)
     const tableAutoWidth = inject('prototypeTableAutoWidth', null)
-    const autoWidthColumnId = Symbol('prototype-table-column')
-
-    onMounted(() => {
-      const label = typeof attrs.label === 'string' ? attrs.label : ''
-      const excluded = NON_DATA_TYPES.has(attrs.type) || label === '操作'
-      if (!excluded) tableAutoWidth?.value?.registerColumn?.(autoWidthColumnId)
-    })
-
-    onBeforeUnmount(() => {
-      tableAutoWidth?.value?.unregisterColumn?.(autoWidthColumnId)
-    })
 
     return () => {
-      const label = typeof attrs.label === 'string' ? attrs.label : ''
-      const excluded = NON_DATA_TYPES.has(attrs.type) || label === '操作'
+      const columnAttrs = normalizeTableColumnAttrs(attrs)
+      const label = typeof columnAttrs.label === 'string' ? columnAttrs.label : ''
+      const excluded = NON_DATA_TYPES.has(columnAttrs.type) || label === '操作'
       const frameSortingDisabled = columnDataSort?.value === false
       const sorting = resolveTableColumnSorting({
         excluded,
         frameSortingDisabled,
         panelSortable: props.panelSortable,
       })
-      const forwarded = { ...attrs, sortable: sorting.headerSortable }
-      const resizable = canResizeTableColumn({ excluded, fixed: attrs.fixed, resizable: attrs.resizable })
+      const forwarded = { ...columnAttrs, sortable: sorting.headerSortable }
+      const resizable = canResizeTableColumn({ excluded, fixed: columnAttrs.fixed, resizable: columnAttrs.resizable })
 
       forwarded.resizable = resizable
 
       if (!excluded) {
         const headerWidth = estimatedHeaderWidth(label)
-        const declaredWidth = numericWidth(attrs.width)
-        const declaredMinWidth = numericWidth(attrs.minWidth)
+        const declaredWidth = numericWidth(columnAttrs.width)
+        const declaredMinWidth = numericWidth(columnAttrs.minWidth)
         const autoWidthConfig = tableAutoWidth?.value
         const measuredContentWidth = autoWidthConfig?.enabled !== false && autoWidthConfig?.rows?.length
           ? contentWidth(
               autoWidthConfig.rows,
-              attrs.prop,
+              columnAttrs.prop,
               props.autoWidthKey,
               autoWidthConfig.maxWidth,
               autoWidthConfig.sampleSize,
             )
           : 0
 
-        forwarded.showOverflowTooltip = attrs.showOverflowTooltip ?? true
+        forwarded.showOverflowTooltip = columnAttrs.showOverflowTooltip ?? true
         forwarded.width = independentColumnWidth({
           declaredWidth,
           declaredMinWidth,
@@ -292,12 +282,12 @@ export default defineComponent({
         const resizeClass = resizable ? 'prototype-resizable-column' : ''
         const panelSortClass = sorting.panelSortable ? '' : 'prototype-panel-sort-disabled'
         forwarded.labelClassName = mergeClassName(
-          attrs.labelClassName,
+          columnAttrs.labelClassName,
           [resizeClass, sizingClass, panelSortClass].filter(Boolean).join(' '),
         )
       }
 
-      if (sorting.panelSortable && !attrs.prop && !attrs.sortMethod) {
+      if (sorting.panelSortable && !columnAttrs.prop && !columnAttrs.sortMethod) {
         forwarded.prop = syntheticSortProperty(label)
         forwarded.sortMethod = (left, right) => compareValues(
           rowValue(left, label, props.sortKey),

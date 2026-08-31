@@ -6,10 +6,10 @@ defineProps({
 
 <template>
   <el-dropdown
-    trigger="hover"
+    trigger="click"
     placement="bottom-end"
-    :show-timeout="120"
-    :hide-timeout="160"
+    :show-timeout="0"
+    :hide-timeout="0"
     :disabled="disabled"
     popper-class="row-action-popper"
   >

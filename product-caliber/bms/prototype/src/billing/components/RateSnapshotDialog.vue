@@ -2,6 +2,7 @@
 import { CopyDocument } from '@element-plus/icons-vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
+import StatusTag from '../../shared/components/StatusTag.vue'
 
 const props = defineProps({
   modelValue: { type:Boolean, default:false },
@@ -28,8 +29,13 @@ const formatRate = (rate) => {
       <el-descriptions-item v-if="props.reference?.customerCode" label="生效期间">{{ props.reference.effectiveFrom }} 至 {{ props.reference.effectiveTo }}</el-descriptions-item>
       <el-descriptions-item label="配置">{{ props.config?.name || props.config?.no || props.reference?.configName || props.reference?.configNo }}</el-descriptions-item>
       <el-descriptions-item label="配置版本编号">{{ props.config?.no || props.reference?.configNo }}-{{ props.version.version || props.reference?.configVersion }}</el-descriptions-item>
-      <el-descriptions-item label="发布时间">{{ props.version.publishedAt || '--' }}</el-descriptions-item>
+      <el-descriptions-item label="版本状态"><StatusTag :label="props.version.versionStatus || '历史'" /></el-descriptions-item>
+      <el-descriptions-item label="发布时间">{{ props.version.publishedAt || '未记录' }}</el-descriptions-item>
+      <el-descriptions-item label="生效时间">{{ props.version.versionStatus === '已取消' ? '未生效' : props.version.effectiveAt || '未记录' }}</el-descriptions-item>
       <el-descriptions-item label="规则数量">{{ props.rules.length }}</el-descriptions-item>
+      <el-descriptions-item label="变更原因" :span="2">{{ props.version.changeReason || '未记录' }}</el-descriptions-item>
+      <el-descriptions-item v-if="props.version.versionStatus === '已取消'" label="取消时间">{{ props.version.cancelledAt || '未记录' }}</el-descriptions-item>
+      <el-descriptions-item v-if="props.version.versionStatus === '已取消'" label="取消原因">{{ props.version.cancelReason || '未记录' }}</el-descriptions-item>
     </el-descriptions>
     <DataTableFrame class="rule-table" :total="props.rules.length" :page-size="10" :column-sort="false">
       <el-table :data="props.rules" border>

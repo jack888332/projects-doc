@@ -4,6 +4,7 @@ import { RefreshRight, View } from '@element-plus/icons-vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
 import StackedCell from '../../shared/components/StackedCell.vue'
 import StatusTag from '../../shared/components/StatusTag.vue'
+import ConfigVersionTag from '../../shared/components/ConfigVersionTag.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -61,7 +62,8 @@ function openDetail(row) {
         <el-table-column label="状态" width="98"><template #default="scope"><StatusTag :label="scope.row.deletedAt ? '已删除' : status(scope.row).label" :tone="scope.row.deletedAt ? 'neutral' : status(scope.row).tone" /></template></el-table-column>
         <el-table-column label="客户" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="`${scope.row.customerNo} · ${scope.row.customerReferenceNo}`" /></template></el-table-column>
         <el-table-column label="客户 / 会员归属快照" min-width="230"><template #default="scope"><StackedCell :primary="scope.row.shop" :secondary="`${scope.row.customerGroup} · ${scope.row.memberCode}`" /></template></el-table-column>
-        <el-table-column label="账单配置" min-width="175"><template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="`${configSourceMeta[scope.row.configSource] || scope.row.configSource} · ${scope.row.configVersion}`" /></template></el-table-column>
+        <el-table-column label="配置编号" min-width="175"><template #default="scope"><StackedCell :primary="scope.row.configNo" :secondary="configSourceMeta[scope.row.configSource] || scope.row.configSource" /></template></el-table-column>
+        <el-table-column label="配置版本" width="100"><template #default="scope"><ConfigVersionTag :version="scope.row.configVersion" /></template></el-table-column>
         <el-table-column label="方案名称 / 编号" min-width="220"><template #default="scope"><StackedCell :primary="scope.row.schemeName" :secondary="`${scope.row.schemeKey} · ${scope.row.schemeType}`" /></template></el-table-column>
         <el-table-column prop="period" label="实际账期" width="190" />
         <TableActionColumn>

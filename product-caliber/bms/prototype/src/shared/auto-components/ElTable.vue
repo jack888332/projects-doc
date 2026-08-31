@@ -4,7 +4,7 @@ import { ElTable as ElementTable, ElTableColumn as ElementTableColumn } from 'el
 import 'element-plus/es/components/table/style/css'
 import { paginateRows, sortRows } from '../components/tablePagination.js'
 import { fitOperationColumn } from '../components/tableOperationColumn.js'
-import { fittedContentWidth, independentTableProps, tableFillerWidth } from '../components/tableSizing.js'
+import { fittedContentWidth, independentTableProps, TABLE_AUTO_WIDTH_CONFIG, tableFillerWidth } from '../components/tableSizing.js'
 
 function callListener(listener, ...args) {
   if (Array.isArray(listener)) listener.forEach(item => item?.(...args))
@@ -69,7 +69,7 @@ function measuredColumnContentWidth(root, column) {
   if (!cells.length) return 0
 
   return Math.ceil(Math.max(...cells.map((cell) => {
-    return intrinsicContentWidth(cell) + horizontalPadding(cell) + 1
+    return intrinsicContentWidth(cell) + horizontalPadding(cell) + 2
   })))
 }
 
@@ -148,7 +148,7 @@ export default defineComponent({
       const autoWidthColumns = columns.filter(column => isAutoWidthColumn(column) && !column._prototypeUserSized)
       if (!autoWidthColumns.length) return false
 
-      const maximumWidth = autoWidthConfig?.maxWidth || 260
+      const maximumWidth = autoWidthConfig?.maxWidth || TABLE_AUTO_WIDTH_CONFIG.maxWidth
       let changed = false
 
       autoWidthColumns.forEach((column) => {

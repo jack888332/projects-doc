@@ -379,11 +379,12 @@ function confirmGeneration(payload) {
   if (!payload.scopes.length) {
     const auditNo = `BMSV-${Date.now()}`
     generationAudits.value.unshift({ auditNo, configNo:targetConfig.value.no, configVersion:targetConfig.value.version, candidateCustomerCount:payload.candidateCustomerCount, blockedCount:payload.blockedCount, unselectedCount:payload.unselectedCount, cutoff:payload.cutoff, reason:payload.reason, createdAt:'2026-08-27 16:45:00', operator:'财务管理员' })
-    return ElMessage.warning(`未创建批次或任务；校验审计 ${auditNo} 已保存`)
+    return ElMessage.warning(payload.mode === 'SINGLE' ? `未生成账单任务；校验审计 ${auditNo} 已保存` : `未创建批次或任务；校验审计 ${auditNo} 已保存`)
   }
   const { batchNo, rows:createdTasks } = createConfigBatchTaskRows({ config:targetConfig.value, scopes:payload.scopes, skippedCount:payload.skippedCount, frozenCustomerCount:payload.frozenCustomerCount, cutoff:payload.cutoff, existingTasks:taskRecords.value })
   taskRecords.value.unshift(...createdTasks)
-  ElMessage.success(`批次 ${batchNo} 已创建，生成 ${createdTasks.length} 条客户任务`)
+  if (payload.mode === 'SINGLE') ElMessage.success(`已为 ${payload.customerName}（${payload.customerCode}）生成 ${createdTasks.length} 条账单任务`)
+  else ElMessage.success(`批次 ${batchNo} 已创建，生成 ${createdTasks.length} 条客户任务`)
 }
 function generate(reference) { const snapshot = configFromReference(reference); if (snapshot) openGeneration(snapshot, reference.customerCode) }
 </script>
@@ -409,7 +410,7 @@ function generate(reference) { const snapshot = configFromReference(reference); 
           <el-table-column prop="store" label="所属店铺" min-width="150" show-overflow-tooltip />
           <el-table-column prop="group" label="所属客户组" min-width="150" show-overflow-tooltip />
           <el-table-column v-if="referenceType === 'ALL'" label="配置类型" width="135"><template #default="scope">{{ referenceTypeLabel(scope.row.type) }}</template></el-table-column>
-          <el-table-column prop="configNo" label="引用配置" width="250" show-overflow-tooltip />
+          <el-table-column label="引用配置" min-width="250"><template #default="scope"><StackedCell :primary="scope.row.configNo && scope.row.configNo !== '-' ? scope.row.configNo : '未配置'" :secondary="scope.row.configName && scope.row.configName !== '未配置' ? scope.row.configName : '--'" :title="scope.row.configNo" /></template></el-table-column>
           <el-table-column label="配置版本" min-width="100"><template #default="scope"><ConfigVersionTag :version="scope.row.version" /></template></el-table-column>
           <el-table-column label="配置标签" width="125"><template #default="scope"><StatusTag :label="referenceUsage(scope.row).label" :tone="usageTone(referenceUsage(scope.row).usageType)" /></template></el-table-column>
           <el-table-column v-if="referenceType !== 'RF'" label="分支方案数量" width="125"><template #default="scope"><ConfigSchemeOverview v-if="scope.row.type === 'AR'" :snapshot="scope.row.schemeSnapshot" compact /><span v-else>--</span></template></el-table-column>
@@ -417,9 +418,9 @@ function generate(reference) { const snapshot = configFromReference(reference); 
           <TableActionColumn><template #default="scope"><HoverActionMenu><el-dropdown-item :icon="View" @click="viewConfig(scope.row)">查看配置</el-dropdown-item><el-dropdown-item :icon="CopyDocument" @click="forkForCustomer(scope.row)">另存为新配置</el-dropdown-item><el-dropdown-item :icon="Promotion" @click="chooseForCustomer(scope.row)">更换配置</el-dropdown-item><el-dropdown-item :icon="Tickets" @click="generate(scope.row)">生成账单</el-dropdown-item></HoverActionMenu></template></TableActionColumn>
         </el-table>
         <el-table v-else :data="rows" border row-key="id" class="clean-table">
-          <el-table-column prop="no" label="配置编号" min-width="235" show-overflow-tooltip /><el-table-column label="配置版本" width="190"><template #default="scope"><ConfigVersionCell :current-version="scope.row.version" :pending-version="scope.row.pendingVersion" :pending-effective-at="scope.row.pendingEffectiveAt" /></template></el-table-column>
+          <el-table-column label="配置编号" min-width="235"><template #default="scope"><StackedCell :primary="scope.row.no" :secondary="scope.row.name || '--'" /></template></el-table-column><el-table-column label="配置版本" width="190"><template #default="scope"><ConfigVersionCell :current-version="scope.row.version" :pending-version="scope.row.pendingVersion" :pending-effective-at="scope.row.pendingEffectiveAt" /></template></el-table-column>
           <el-table-column label="配置标签" width="145"><template #default="scope"><StatusTag :label="scope.row.referenceStats.label" :tone="usageTone(scope.row.referenceStats.usageType)" /></template></el-table-column>
-          <el-table-column label="有效引用客户" width="115"><template #default="scope"><strong>{{ scope.row.referenceStats.total }}</strong></template></el-table-column>
+          <el-table-column label="命中客户" width="115"><template #default="scope"><strong>{{ scope.row.referenceStats.total }}</strong></template></el-table-column>
           <el-table-column v-if="activeType === 'AR'" label="分支方案数量" width="125"><template #default="scope"><ConfigSchemeOverview :snapshot="scope.row.schemeSnapshot" compact /></template></el-table-column><template v-else><el-table-column prop="currency" label="默认结算币种" width="125" /><el-table-column prop="cycle" label="账期类型" width="110" /></template>
           <el-table-column label="发布时间" width="165"><template #default="scope">{{ currentPublishedAt(scope.row) }}</template></el-table-column><el-table-column label="状态" width="85"><template #default="scope"><StatusTag :label="scope.row.status" /></template></el-table-column>
           <TableActionColumn><template #default="scope"><HoverActionMenu><el-dropdown-item :icon="Clock" @click="openVersionHistory(scope.row)">查看版本记录</el-dropdown-item><el-dropdown-item :icon="EditPen" :disabled="scope.row.status === '停用' || Boolean(scope.row.pendingVersion)" @click="openDetail(scope.row)">编辑并发布新版本</el-dropdown-item><el-dropdown-item v-if="scope.row.pendingVersion" class="danger-action" :icon="CircleClose" @click="cancelPendingVersion(scope.row)">取消待生效版本</el-dropdown-item><el-dropdown-item :icon="Promotion" :disabled="scope.row.status === '停用'" @click="manageReferences(scope.row)">管理客户引用</el-dropdown-item><el-dropdown-item :icon="Tickets" @click="openGeneration(scope.row)">批量生成账单</el-dropdown-item></HoverActionMenu></template></TableActionColumn>
@@ -448,7 +449,7 @@ function generate(reference) { const snapshot = configFromReference(reference); 
 
     <el-dialog v-model="selectionVisible" class="module-dialog module-dialog-standard" align-center append-to-body destroy-on-close>
       <template #header><div class="drawer-title"><span>选择配置</span><small>{{ selectedCustomer?.customerCode }} {{ selectedCustomer?.customerName }}</small></div></template>
-      <DataTableFrame :total="configRowsWithStats.length" :selected-count="0" :page-size="10" :column-sort="false"><el-table :data="configRowsWithStats" border row-key="id"><el-table-column prop="no" label="配置编号" min-width="230" show-overflow-tooltip /><el-table-column label="配置版本" width="100"><template #default="scope"><ConfigVersionTag :version="scope.row.version" /></template></el-table-column><el-table-column label="配置标签" width="145"><template #default="scope"><StatusTag :label="scope.row.referenceStats.label" :tone="usageTone(scope.row.referenceStats.usageType)" /></template></el-table-column><TableActionColumn compact><template #default="scope"><el-button link type="primary" :disabled="scope.row.status === '停用'" @click="selectConfig(scope.row)">选择</el-button></template></TableActionColumn></el-table></DataTableFrame>
+      <DataTableFrame :total="configRowsWithStats.length" :selected-count="0" :page-size="10" :column-sort="false"><el-table :data="configRowsWithStats" border row-key="id"><el-table-column label="配置编号" min-width="230"><template #default="scope"><StackedCell :primary="scope.row.no" :secondary="scope.row.name || '--'" /></template></el-table-column><el-table-column label="配置版本" width="100"><template #default="scope"><ConfigVersionTag :version="scope.row.version" /></template></el-table-column><el-table-column label="配置标签" width="145"><template #default="scope"><StatusTag :label="scope.row.referenceStats.label" :tone="usageTone(scope.row.referenceStats.usageType)" /></template></el-table-column><TableActionColumn compact><template #default="scope"><el-button link type="primary" :disabled="scope.row.status === '停用'" @click="selectConfig(scope.row)">选择</el-button></template></TableActionColumn></el-table></DataTableFrame>
     </el-dialog>
 
     <ConfigReferenceDialog v-model="referenceVisible" :config="targetConfig" :customers="currentReferences" :reference-history="customerReferences" :tasks="taskRecords" :focus-customer-code="focusCustomerCode" :creating="Boolean(targetConfig?.isNew)" @confirm="handleReferenceConfirm" @skip="skipNewConfig" />

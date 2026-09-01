@@ -28,17 +28,17 @@ function directionUsed(direction, index) { return props.draft?.rules?.some((rule
 <template>
   <el-dialog :model-value="props.modelValue" class="module-dialog module-dialog-large" align-center append-to-body destroy-on-close :close-on-click-modal="false" @update:model-value="emit('update:modelValue', $event)">
     <template #header><div class="drawer-title"><span>{{ props.editingId ? '编辑并发布新版本' : props.forkCustomer ? '另存为新配置' : '新建特调汇率配置' }}</span><small>{{ props.editingId ? `${props.draft?.no}-${props.nextVersion}` : props.draft?.no }}</small></div></template>
-    <el-form v-if="props.draft" label-position="top"><el-form-item label="配置名称"><el-input :model-value="props.draft.name" placeholder="选填；未填写时展示配置版本编号" @update:model-value="updateName" /></el-form-item></el-form>
+    <el-form v-if="props.draft" label-position="top"><el-form-item label="配置备注"><el-input :model-value="props.draft.name" placeholder="选填；未填写时展示配置编号" @update:model-value="updateName" /></el-form-item></el-form>
     <div class="rule-toolbar"><strong>货币对规则（{{ props.draft?.rules?.length || 0 }}）</strong><el-button :icon="Plus" @click="emit('addRule')">新增规则</el-button></div>
     <div class="rule-table">
       <div class="rule-row rule-head"><span>货币对 / 汇兑方向</span><span>调整方式</span><span>调整方向</span><span>调整值</span><span>当前基准</span><span>默认汇率预览</span><span>操作</span></div>
       <div v-for="(rule, index) in props.draft?.rules || []" :key="index" class="rule-row">
         <el-select :model-value="rule.direction" @update:model-value="updateRule(index, 'direction', $event)"><el-option v-for="item in props.currencyPairs" :key="item.value" :label="item.label" :value="item.value" :disabled="directionUsed(item.value, index)" /></el-select>
         <el-select :model-value="rule.method" @update:model-value="updateRule(index, 'method', $event)"><el-option label="百分比缩放" value="百分比缩放" /><el-option label="固定汇率差" value="固定汇率差" /><el-option label="固定汇率值" value="固定汇率值" /></el-select>
-        <el-select :model-value="rule.adjustDirection" :disabled="rule.method === '固定汇率值'" @update:model-value="updateRule(index, 'adjustDirection', $event)"><el-option label="上浮" value="上浮" /><el-option label="下浮" value="下浮" /><el-option v-if="rule.method === '固定汇率值'" label="直接指定" value="直接指定" /></el-select>
+        <span v-if="rule.method === '固定汇率值'">--</span><el-select v-else :model-value="rule.adjustDirection" @update:model-value="updateRule(index, 'adjustDirection', $event)"><el-option label="上浮" value="上浮" /><el-option label="下浮" value="下浮" /></el-select>
         <el-input :model-value="rule.adjustValue" @update:model-value="updateRule(index, 'adjustValue', $event)" />
         <span class="rate-value">{{ formatRate(rule.base) }}</span>
-        <div><strong class="rate-value">{{ formatRate(rule.result) }}</strong><small v-if="rule.source === 'FALLBACK_CHAIN'">转店铺汇率 / 1</small></div>
+        <div><strong class="rate-value">{{ formatRate(rule.result) }}</strong></div>
         <el-button link type="danger" :icon="Delete" title="删除规则" aria-label="删除规则" :disabled="props.draft.rules.length <= 1" @click="emit('removeRule', index)" />
       </div>
     </div>

@@ -29,7 +29,7 @@
 .module-tabs { margin-bottom: var(--space-3); }.module-tabs > .el-tabs__header { margin-bottom: 0; }
 .rate-config-page { min-height: calc(100vh - 112px); }
 .rate-data-actions { margin-bottom: var(--space-3); }
-.rate-config-grid { min-height: calc(100vh - 142px); display: grid; grid-template-columns: minmax(350px, .72fr) minmax(650px, 2fr); gap: 16px; }
+.rate-config-grid { min-height: calc(100vh - 142px); display: grid; grid-template-columns: minmax(300px, .5fr) minmax(650px, 2fr); gap: 16px; }
 .rate-panel { min-width: 0; min-height: 560px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 7px; background: #fff; box-shadow: 0 1px 2px rgba(21,31,48,.04); }
 .rate-panel-head { min-height: 84px; padding: var(--space-4) var(--space-4); display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .rate-panel-head h2 { margin: 0; color: #202b3e; font-size: var(--panel-title-font-size); line-height: var(--line-height-base); }

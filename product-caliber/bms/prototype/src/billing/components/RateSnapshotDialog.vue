@@ -40,9 +40,9 @@ const formatRate = (rate) => {
     <DataTableFrame class="rule-table" :total="props.rules.length" :page-size="10" :column-sort="false">
       <el-table :data="props.rules" border>
         <el-table-column label="货币对" width="135"><template #default="scope"><strong>{{ formatDirection(scope.row.direction) }}</strong></template></el-table-column>
-        <el-table-column label="调整规则" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.method" :secondary="`${scope.row.adjustDirection} ${scope.row.adjustValue}`" /></template></el-table-column>
+        <el-table-column label="调整规则" min-width="210"><template #default="scope"><StackedCell :primary="scope.row.method" :secondary="scope.row.method === '固定汇率值' ? '' : `${scope.row.adjustDirection} ${scope.row.adjustValue}`" /></template></el-table-column>
         <el-table-column label="当前基准" width="125"><template #default="scope">{{ formatRate(scope.row.base) }}</template></el-table-column>
-        <el-table-column label="默认汇率预览" min-width="180"><template #default="scope"><StackedCell :primary="formatRate(scope.row.result)" :secondary="scope.row.source === 'FALLBACK_CHAIN' ? '账单侧转所属店铺汇率 / 1' : scope.row.source === 'FIXED_VALUE' ? '固定值' : '当前基准汇率派生'" /></template></el-table-column>
+        <el-table-column label="默认汇率预览" min-width="180"><template #default="scope"><StackedCell :primary="formatRate(scope.row.result)" :secondary="scope.row.source === 'FALLBACK_CHAIN' ? '当前基准为空，按 1 展示' : scope.row.source === 'FIXED_VALUE' ? '固定值' : '当前基准汇率派生'" /></template></el-table-column>
       </el-table>
     </DataTableFrame>
     <template #footer><div class="dialog-footer"><el-button @click="emit('update:modelValue', false)">关闭</el-button><el-button v-if="props.reference?.customerCode" type="primary" :icon="CopyDocument" :disabled="!props.version" @click="emit('fork')">另存为新配置</el-button></div></template>

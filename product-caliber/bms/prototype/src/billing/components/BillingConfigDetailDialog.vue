@@ -77,14 +77,14 @@ defineExpose({
         />
         <section class="config-version-panel">
           <el-form label-position="top" class="config-version-grid">
-            <el-form-item label="配置名称"><el-input :model-value="props.config.name" placeholder="选填；未填写时展示配置版本编号" @update:model-value="updateConfig('name', $event)" /></el-form-item>
+            <el-form-item label="配置备注"><el-input :model-value="props.config.name" placeholder="选填；未填写时展示配置编号" @update:model-value="updateConfig('name', $event)" /></el-form-item>
             <el-form-item label="发布生效方式">
               <el-radio-group :model-value="props.config.publishEffectMode" @update:model-value="updateConfig('publishEffectMode', $event)"><el-radio-button value="IMMEDIATE">立即生效</el-radio-button><el-radio-button value="SCHEDULED">指定日期生效</el-radio-button></el-radio-group>
             </el-form-item>
             <el-form-item label="指定生效日期" :required="props.config.publishEffectMode === 'SCHEDULED'"><el-date-picker :model-value="props.config.publishEffectDate" value-format="YYYY-MM-DD" type="date" :disabled="props.config.publishEffectMode !== 'SCHEDULED'" :disabled-date="date => !dayjs(date).isAfter('2026-08-27', 'day')" @update:model-value="updateConfig('publishEffectDate', $event)" /></el-form-item>
             <el-form-item label="变更原因"><el-input :model-value="props.config.changeReason" @update:model-value="updateConfig('changeReason', $event)" /></el-form-item>
           </el-form>
-          <div class="config-version-meta">{{ props.config.no === '新配置' ? '编辑过程不保存草稿。下一步指定适用客户，可按店铺和客户组筛选；跳过该步骤将创建未引用配置，后续可在配置库分配客户。' : '编辑过程不保存草稿。新版生效时，全部引用此配置的客户统一采用新版；已创建任务和已有账单继续使用其锁定的历史版本。' }}</div>
+          <div class="config-version-meta">{{ props.config.no === '新配置' ? '编辑过程不保存草稿。下一步指定适用客户，可按店铺和客户组筛选；跳过该步骤将创建未引用配置，后续可在配置清单分配客户。' : '编辑过程不保存草稿。新版生效时，全部引用此配置的客户统一采用新版；已创建任务和已有账单继续使用其锁定的历史版本。' }}</div>
         </section>
         <ReceivableConfigEditor v-if="props.config.type === 'AR'" :key="props.config.id" ref="editorRef" :config="props.config" />
         <RefundConfigEditor v-else :key="props.config.id" ref="editorRef" :config="props.config" />

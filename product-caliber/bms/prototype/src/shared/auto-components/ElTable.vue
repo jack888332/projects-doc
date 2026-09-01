@@ -1,5 +1,5 @@
 <script>
-import { computed, defineComponent, h, inject, nextTick, onBeforeUnmount, onMounted, ref, useAttrs } from 'vue'
+import { computed, defineComponent, h, inject, nextTick, onBeforeUnmount, onMounted, provide, ref, useAttrs } from 'vue'
 import { ElTable as ElementTable, ElTableColumn as ElementTableColumn } from 'element-plus'
 import 'element-plus/es/components/table/style/css'
 import { paginateRows, sortRows } from '../components/tablePagination.js'
@@ -33,11 +33,15 @@ function columnCells(root, column) {
   return [...root.querySelectorAll(`th.${column.id} > .cell, td.${column.id} > .cell`)]
 }
 
-function textContentWidth(element) {
-  if (!element || !element.textContent?.trim()) return 0
-  const range = document.createRange()
-  range.selectNodeContents(element)
-  return range.getBoundingClientRect().width
+let measureHost
+
+function ensureMeasureHost() {
+  if (measureHost) return measureHost
+  measureHost = document.createElement('div')
+  measureHost.setAttribute('aria-hidden', 'true')
+  measureHost.style.cssText = 'position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none;z-index:-1000'
+  document.body.appendChild(measureHost)
+  return measureHost
 }
 
 function horizontalPadding(element) {
@@ -46,30 +50,30 @@ function horizontalPadding(element) {
   return numeric(style.paddingLeft) + numeric(style.paddingRight)
 }
 
-function intrinsicContentWidth(element) {
-  if (!element || getComputedStyle(element).display === 'none') return 0
-  const children = [...element.children].filter(child => getComputedStyle(child).display !== 'none')
-  if (!children.length) return Math.max(textContentWidth(element), element.scrollWidth - element.clientWidth)
-
-  const style = getComputedStyle(element)
-  const childWidths = children.map(child => Math.max(
-    intrinsicContentWidth(child) + horizontalPadding(child),
-    child.scrollWidth - child.clientWidth,
-  ))
-  const rawGap = style.columnGap || style.gap
-  const gap = rawGap === 'normal' ? 0 : numeric(rawGap)
-  const horizontalFlow = style.display.includes('flex') && style.flexDirection !== 'column'
-  return horizontalFlow
-    ? childWidths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, childWidths.length - 1)
-    : Math.max(textContentWidth(element), ...childWidths)
+function measureNaturalCellWidth(cell) {
+  if (!cell) return 0
+  const host = ensureMeasureHost()
+  const clone = cell.cloneNode(true)
+  clone.style.cssText += ';width:max-content;min-width:0;max-width:none;white-space:nowrap;overflow:visible;text-overflow:clip;'
+  clone.querySelectorAll('*').forEach((node) => {
+    node.style.cssText += ';white-space:nowrap;overflow:visible;text-overflow:clip;'
+  })
+  host.appendChild(clone)
+  const width = Math.max(clone.scrollWidth, clone.offsetWidth)
+  host.removeChild(clone)
+  return width
 }
+
+const MAX_MEASURED_CELLS_PER_COLUMN = 60
 
 function measuredColumnContentWidth(root, column) {
   const cells = columnCells(root, column)
   if (!cells.length) return 0
-
-  return Math.ceil(Math.max(...cells.map((cell) => {
-    return intrinsicContentWidth(cell) + horizontalPadding(cell) + 2
+  const sampled = cells.length <= MAX_MEASURED_CELLS_PER_COLUMN
+    ? cells
+    : cells.slice(0, MAX_MEASURED_CELLS_PER_COLUMN)
+  return Math.ceil(Math.max(...sampled.map((cell) => {
+    return measureNaturalCellWidth(cell) + horizontalPadding(cell) + 2
   })))
 }
 
@@ -83,15 +87,27 @@ export default defineComponent({
     const tableAutoWidth = inject('prototypeTableAutoWidth', null)
     const sortState = ref(null)
     const fillerWidth = ref(0)
+    let fittedDataSignature
     let operationContentObserver
     let businessContentObserver
     let tableResizeObserver
     let mutationObserver
     let animationFrame = 0
-    let businessAnimationFrame = 0
     let fillerAnimationFrame = 0
     const observedOperationTargets = new Set()
     const observedBusinessTargets = new Set()
+
+    provide('prototypeTableRows', computed(() => attrs.data))
+
+    function currentDataSignature() {
+      const data = attrs.data
+      if (data == null) return ''
+      try {
+        return JSON.stringify(data)
+      } catch {
+        return `rows:${data.length ?? 0}`
+      }
+    }
 
     function operationContentTargets(root) {
       return [
@@ -148,6 +164,10 @@ export default defineComponent({
       const autoWidthColumns = columns.filter(column => isAutoWidthColumn(column) && !column._prototypeUserSized)
       if (!autoWidthColumns.length) return false
 
+      const signature = currentDataSignature()
+      if (signature === fittedDataSignature) return false
+      if (!autoWidthColumns.some(column => columnCells(root, column).length > 0)) return false
+
       const maximumWidth = autoWidthConfig?.maxWidth || TABLE_AUTO_WIDTH_CONFIG.maxWidth
       let changed = false
 
@@ -168,6 +188,7 @@ export default defineComponent({
         changed = true
       })
 
+      fittedDataSignature = signature
       if (!changed) return false
       store.updateColumns()
       store.scheduleLayout(false, true)
@@ -175,13 +196,10 @@ export default defineComponent({
     }
 
     function scheduleBusinessColumnFit() {
-      cancelAnimationFrame(businessAnimationFrame)
-      businessAnimationFrame = requestAnimationFrame(() => nextTick(() => {
-        const root = tableRef.value?.$el
-        observeBusinessContent(root)
-        fitBusinessColumns()
-        scheduleTableFiller()
-      }))
+      const root = tableRef.value?.$el
+      observeBusinessContent(root)
+      fitBusinessColumns()
+      scheduleTableFiller()
     }
 
     function scheduleOperationColumnFit() {
@@ -230,6 +248,7 @@ export default defineComponent({
     }
 
     onMounted(() => {
+      fitBusinessColumns()
       scheduleTableMeasurements()
       const root = tableRef.value?.$el
       if (!root) return
@@ -245,7 +264,6 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       cancelAnimationFrame(animationFrame)
-      cancelAnimationFrame(businessAnimationFrame)
       cancelAnimationFrame(fillerAnimationFrame)
       operationContentObserver?.disconnect()
       businessContentObserver?.disconnect()

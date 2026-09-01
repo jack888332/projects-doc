@@ -2,11 +2,11 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
-import { Delete, EditPen, Plus, RefreshRight, UploadFilled } from '@element-plus/icons-vue'
+import { Delete, EditPen, Plus, RefreshRight } from '@element-plus/icons-vue'
 import ConditionFilter from '../../shared/components/ConditionFilter.vue'
 import HoverActionMenu from '../../shared/components/HoverActionMenu.vue'
 import DataTableFrame from '../../shared/components/DataTableFrame.vue'
-import ImportDialog from '../../shared/components/ImportDialog.vue'
+import BaseRateDialog from '../components/BaseRateDialog.vue'
 import RateConfigAssignmentDialog from '../components/RateConfigAssignmentDialog.vue'
 import RateConfigEditorDialog from '../components/RateConfigEditorDialog.vue'
 import RateConfigLibraryTable from '../components/RateConfigLibraryTable.vue'
@@ -30,10 +30,12 @@ import { useDemoDataset } from '../data/useDemoDataset.js'
 
 const AS_OF_DATE = '2026-08-27'
 const baseRates = useDemoDataset('billingBaseRates', billingBaseRateFixtures)
-const referenceRows = useDemoDataset('billingRateCustomerReferences', billingRateFixtures, 2026082802)
+const referenceRows = useDemoDataset('billingRateCustomerReferences', billingRateFixtures, 2026090101)
 const rateConfigs = useDemoDataset('billingRateConfigs', billingRateConfigFixtures, 2026083101)
 const activeView = ref('configs')
-const importVisible = ref(false)
+const baseRateDialogVisible = ref(false)
+const baseRateDraft = ref(null)
+const baseRateEditing = ref(null)
 const editorVisible = ref(false)
 const snapshotVisible = ref(false)
 const publishingVisible = ref(false)
@@ -104,10 +106,43 @@ watch(assignmentVisible, (open) => {
 
 const formatDirection = direction => direction?.replace('->', '→') || '--'
 const formatRate = (rate) => { if (rate === null || rate === undefined || rate === '--') return '--'; const value = Number(rate); return Number.isNaN(value) ? '--' : value.toFixed(6) }
-const finishImport = (file) => {
-  const cad = baseRates.value.find(row => row.direction === 'CAD -> CNY')
-  if (cad) Object.assign(cad, { status:'生效', current:'是', sourceAt:'2026-08-27 17:10' })
-  ElMessage.success(`${file.name} 已导入，生效基准已刷新`)
+const baseRateNow = '2026-08-27 17:12'
+function openAddBaseRate() {
+  baseRateEditing.value = null
+  baseRateDraft.value = { pair:'USD / CNY', direction:'USD -> CNY', rate:null, source:'手动添加', sourceAt:baseRateNow, status:'待确认', current:'否' }
+  baseRateDialogVisible.value = true
+}
+function openEditBaseRate(row) {
+  baseRateEditing.value = row
+  baseRateDraft.value = {
+    pair:row.pair || 'USD / CNY',
+    direction:row.direction || 'USD -> CNY',
+    rate:Number(row.rate),
+    source:row.source || '手动添加',
+    sourceAt:row.sourceAt || baseRateNow,
+    status:row.status || '待确认',
+    current:row.current || '否',
+  }
+  baseRateDialogVisible.value = true
+}
+function saveBaseRate() {
+  const draft = baseRateDraft.value
+  if (!draft?.pair || !draft.direction) return ElMessage.warning('请选择货币对和汇兑方向')
+  const rate = Number(draft.rate)
+  if (!(rate > 0)) return ElMessage.warning('基准汇率必须大于 0')
+  const record = { ...draft, rate, sourceAt:baseRateNow }
+  const target = baseRateEditing.value
+  if (target) Object.assign(target, record)
+  else baseRates.value.unshift(record)
+  if (record.current === '是') {
+    const pairKey = rateCurrencyPairKey(record.direction)
+    baseRates.value.forEach((row) => {
+      if (row !== (target || record) && rateCurrencyPairKey(row.direction) === pairKey) row.current = '否'
+    })
+  }
+  baseRateDialogVisible.value = false
+  baseRateEditing.value = null
+  ElMessage.success('基准汇率已保存，特调预览已动态重算')
 }
 const configById = id => rateConfigs.value.find(config => config.id === id)
 const versionOf = (config, version) => config?.versions?.find(item => item.version === version)
@@ -121,7 +156,11 @@ const referenceLabel = config => {
   return count === 0 ? '未引用配置' : count === 1 ? '独享配置' : '共享配置'
 }
 const referenceTone = config => { const count = referenceCount(config); return count === 0 ? 'warning' : count === 1 ? 'success' : 'info' }
-const ruleSummary = rules => rules.length ? rules.map(rule => `${formatDirection(rule.direction)} ${formatRate(rule.result)}${rule.source === 'FALLBACK_CHAIN' ? '（店铺汇率 / 1）' : ''}`).join('；') : '--'
+const ruleSummary = rules => rules.length ? rules.map(rule => `${formatDirection(rule.direction)} ${formatRate(rule.result)}`).join('；') : '--'
+const ratePreviewLines = rules => rules.length ? rules.map(rule => `${formatDirection(rule.direction)} ${formatRate(rule.result)}`) : ['--']
+const adjustRuleLines = rules => rules.length ? rules.map(rule => rule.method === '固定汇率值'
+  ? rule.method
+  : `${rule.method} · ${rule.adjustDirection} ${rule.adjustValue}`) : ['--']
 const calculatedRulesOf = version => calculateRateConfigRules(version || {}, baseRates.value)
 const snapshotRulesOf = version => rateRulesFor(version).map(rule => ({ ...rule, adjustValue:Number(rule.adjustValue) }))
 function enrichReference(row) {
@@ -133,6 +172,7 @@ function enrichReference(row) {
     ...row,
     config,
     configName:config ? (config.name || config.no) : '未配置',
+    configRemark:config?.name || '--',
     configNo:config?.no || '--',
     configVersion:row?.configVersion || '--',
     referenceLabel:config ? referenceLabel(config) : '未配置',
@@ -143,6 +183,8 @@ function enrichReference(row) {
     rules,
     ruleCount:rules.length || '--',
     ruleSummary:ruleSummary(rules),
+    ratePreviewLines:ratePreviewLines(rules),
+    adjustRuleLines:adjustRuleLines(rules),
   }
 }
 const versionStatusOf = (config, version) => version?.version === config?.currentVersion ? '生效' : version?.version === config?.pendingVersion ? '待生效' : version?.versionStatus || '历史'
@@ -158,7 +200,7 @@ const customerRows = computed(() => customerDirectory.value
     return enrichReference({ ...reference, ...customer })
   })
   .filter(Boolean))
-const filteredReferences = computed(() => customerRows.value.filter(row => (!appliedQuery.keyword || `${row.customerCode}${row.customerName}${row.configNo}${row.configName}`.includes(appliedQuery.keyword)) && matchCustomerRelations(row, { stores:appliedQuery.store, groups:appliedQuery.group }).matches && (!appliedQuery.status || row.status === appliedQuery.status)))
+const filteredReferences = computed(() => customerRows.value.filter(row => (!appliedQuery.keyword || `${row.customerCode}${row.customerName}${row.configNo}${row.configName}`.includes(appliedQuery.keyword)) && matchCustomerRelations(row, { stores:appliedQuery.store, groups:appliedQuery.group }).matches))
 const filteredConfigs = computed(() => rateConfigs.value.filter(config => (!appliedQuery.keyword || `${config.no}${config.name}`.includes(appliedQuery.keyword)) && (!appliedQuery.shareType || shareTypeOf(config) === appliedQuery.shareType) && (!appliedQuery.status || config.status === appliedQuery.status)))
 const displayConfigs = computed(() => filteredConfigs.value.map((config) => {
   const displayVersions = config.versions.map((version) => {
@@ -166,7 +208,7 @@ const displayConfigs = computed(() => filteredConfigs.value.map((config) => {
     return { ...version, configVersionNo:`${config.no}-${version.version}`, rules, ruleCount:rules.length, ruleSummary:ruleSummary(rules), versionStatus:versionStatusOf(config, version) }
   })
   const current = displayVersions.find(version => version.version === config.currentVersion) || displayVersions[0]
-  return { ...config, referenceLabel:referenceLabel(config), referenceTone:referenceTone(config), referenceCount:referenceCount(config), ruleCount:current?.ruleCount || 0, ruleSummary:current?.ruleSummary || '--', displayVersions }
+  return { ...config, referenceLabel:referenceLabel(config), referenceTone:referenceTone(config), referenceCount:referenceCount(config), ruleCount:current?.ruleCount || 0, ruleSummary:current?.ruleSummary || '--', ratePreviewLines:ratePreviewLines(current?.rules || []), adjustRuleLines:adjustRuleLines(current?.rules || []), displayVersions }
 }))
 const affectedReferences = computed(() => selectedConfig.value
   ? currentReferences(selectedConfig.value).map(enrichReference)
@@ -186,7 +228,7 @@ async function cancelPendingVersion(config) {
 }
 const assignmentCustomerRows = computed(() => customerDirectory.value.map((customer) => {
   const reference = activeReferenceFor(customer.customerCode, assignmentDate.value || AS_OF_DATE)
-  return enrichReference({ ...(reference || { id:`EMPTY-${customer.customerCode}`, status:'未配置' }), ...customer })
+  return enrichReference({ ...(reference || { id:`EMPTY-${customer.customerCode}` }), ...customer })
 }))
 const assignmentRows = computed(() => assignmentCustomerRows.value.map((row) => {
   const matched = matchCustomerRelations(row, { stores:assignmentStore.value, groups:assignmentGroup.value })
@@ -480,17 +522,6 @@ function handleAssignmentConfirm() {
   if (pendingNewConfig.value) confirmNewConfig()
   else confirmAssignment()
 }
-async function editBaseRate(row) {
-  try {
-    const result = await ElMessageBox.prompt(`请输入 ${formatDirection(row.direction)} 的新汇率`, '编辑基准汇率', { inputValue:String(row.rate), inputPattern:/^\d+(\.\d+)?$/, inputErrorMessage:'请输入大于 0 的数字' })
-    const rate = Number(result.value)
-    if (!(rate > 0)) return ElMessage.warning('基准汇率必须大于 0')
-    Object.assign(row, { rate, status:'生效', current:'是', sourceAt:'2026-08-27 17:12' })
-    ElMessage.success('基准汇率已更新，特调预览已动态重算')
-  } catch (error) {
-    if (error !== 'cancel' && error !== 'close') throw error
-  }
-}
 async function removeBaseRate(row) {
   await ElMessageBox.confirm(`确认删除 ${formatDirection(row.direction)} 的基准汇率？`, '删除基准汇率', { type:'warning' })
   baseRates.value.splice(baseRates.value.indexOf(row), 1)
@@ -504,11 +535,11 @@ async function removeBaseRate(row) {
       <section class="rate-panel base-rate-panel">
         <header class="rate-panel-head"><div><h2>基准汇率表</h2></div></header>
         <DataTableFrame class="rate-table-frame" :total="baseRates.length" :page-size="20" :column-sort="false">
-          <template #actions><el-button :icon="RefreshRight" disabled>抓取</el-button><el-button :icon="UploadFilled" @click="importVisible = true">导入</el-button></template>
+          <template #actions><el-button :icon="RefreshRight" disabled>抓取</el-button><el-button type="primary" :icon="Plus" @click="openAddBaseRate">添加</el-button></template>
           <el-table :data="baseRates" class="clean-table rate-table" border height="100%">
             <el-table-column label="货币对" min-width="130"><template #default="scope"><strong>{{ formatDirection(scope.row.direction) }}</strong></template></el-table-column>
             <el-table-column label="汇率" width="112"><template #default="scope"><strong class="rate-value">{{ formatRate(scope.row.rate) }}</strong></template></el-table-column>
-            <TableActionColumn compact><template #default="scope"><HoverActionMenu><el-dropdown-item :icon="EditPen" @click="editBaseRate(scope.row)">编辑</el-dropdown-item><el-dropdown-item class="danger-action" :icon="Delete" @click="removeBaseRate(scope.row)">删除</el-dropdown-item></HoverActionMenu></template></TableActionColumn>
+            <TableActionColumn compact><template #default="scope"><HoverActionMenu><el-dropdown-item :icon="EditPen" @click="openEditBaseRate(scope.row)">编辑</el-dropdown-item><el-dropdown-item class="danger-action" :icon="Delete" @click="removeBaseRate(scope.row)">删除</el-dropdown-item></HoverActionMenu></template></TableActionColumn>
           </el-table>
         </DataTableFrame>
       </section>
@@ -516,7 +547,7 @@ async function removeBaseRate(row) {
       <section class="rate-panel rate-panel-wide">
         <header class="rate-panel-head rate-panel-head-stack">
           <div><h2>客户特调汇率</h2></div>
-          <el-tabs v-model="activeView" class="rate-source-tabs"><el-tab-pane label="配置库" name="configs" /><el-tab-pane label="客户引用配置情况" name="references" /></el-tabs>
+          <el-tabs v-model="activeView" class="rate-source-tabs"><el-tab-pane label="配置清单" name="configs" /><el-tab-pane label="客户引用配置情况" name="references" /></el-tabs>
           <div class="rate-panel-filters">
             <ConditionFilter v-model="query.keyword" :label="activeView === 'references' ? '客户/配置' : '配置'" type="text" />
             <template v-if="activeView === 'references'">
@@ -537,7 +568,7 @@ async function removeBaseRate(row) {
       </section>
     </div>
 
-    <ImportDialog v-model="importVisible" title="导入基准汇率" template-name="基准汇率导入模板.xlsx" @submit="finishImport" />
+    <BaseRateDialog v-model="baseRateDialogVisible" :draft="baseRateDraft" :editing="Boolean(baseRateEditing)" @save="saveBaseRate" />
 
     <RateSnapshotDialog
       v-model="snapshotVisible"

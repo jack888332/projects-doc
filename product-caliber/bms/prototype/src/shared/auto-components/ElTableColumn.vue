@@ -238,6 +238,7 @@ export default defineComponent({
   setup(props, { attrs, slots }) {
     const columnDataSort = inject('prototypeTableColumnDataSort', null)
     const tableAutoWidth = inject('prototypeTableAutoWidth', null)
+    const tableRows = inject('prototypeTableRows', null)
 
     return () => {
       const columnAttrs = normalizeTableColumnAttrs(attrs)
@@ -259,9 +260,10 @@ export default defineComponent({
         const declaredWidth = numericWidth(columnAttrs.width)
         const declaredMinWidth = numericWidth(columnAttrs.minWidth)
         const autoWidthConfig = tableAutoWidth?.value
-        const measuredContentWidth = autoWidthConfig?.enabled !== false && autoWidthConfig?.rows?.length
+        const widthRows = tableRows?.value?.length ? tableRows.value : (autoWidthConfig?.rows || [])
+        const measuredContentWidth = autoWidthConfig?.enabled !== false && widthRows.length
           ? contentWidth(
-              autoWidthConfig.rows,
+              widthRows,
               columnAttrs.prop,
               props.autoWidthKey,
               autoWidthConfig.maxWidth,

@@ -26,7 +26,6 @@ const reference = (overrides = {}) => ({
   configVersion:'V1',
   effectiveFrom:'2026-06-01',
   effectiveTo:'长期',
-  status:'启用',
   ...overrides,
 })
 
@@ -48,6 +47,7 @@ describe('rate configuration references', () => {
       expect.objectContaining({ id:'RR-002', configVersion:'V2', effectiveFrom:'2026-09-01', effectiveTo:'长期' }),
     ])
     expect(result.created).toMatchObject({ memberCode:'M-001', store:'星际货运(中转)', group:'台湾大客户组' })
+    expect(result.created).not.toHaveProperty('status')
     expect(result.created.relations).toEqual(customer.relations)
   })
 
@@ -83,10 +83,10 @@ describe('rate configuration calculation', () => {
     expect(result.result).toBeCloseTo(7.14, 8)
   })
 
-  it('defers to the store-rate and 1 fallback chain when no base rate is available', () => {
+  it('previews 1 while preserving the store-rate and 1 fallback chain when no base rate is available', () => {
     expect(calculateRateConfigResult({
       direction:'CNY -> USD', method:'固定汇率差', adjustDirection:'下浮', adjustValue:0.1,
-    }, baseRates)).toMatchObject({ valid:true, base:null, result:null, source:'FALLBACK_CHAIN' })
+    }, baseRates)).toMatchObject({ valid:true, base:null, result:1, source:'FALLBACK_CHAIN' })
   })
 
   it('rejects any configured result that is not greater than zero', () => {
@@ -124,7 +124,7 @@ describe('rate configuration calculation', () => {
   it('dynamically falls through after a base rate is removed', () => {
     const version = { rules:[{ direction:'USD -> CNY', method:'固定汇率差', adjustDirection:'上浮', adjustValue:0.1 }] }
     expect(calculateRateConfigRules(version, baseRates)[0]).toMatchObject({ result:7.1, source:'BASE_RATE' })
-    expect(calculateRateConfigRules(version, [])[0]).toMatchObject({ base:null, result:null, source:'FALLBACK_CHAIN' })
+    expect(calculateRateConfigRules(version, [])[0]).toMatchObject({ base:null, result:1, source:'FALLBACK_CHAIN' })
     expect(version.rules[0]).not.toHaveProperty('result')
   })
 })

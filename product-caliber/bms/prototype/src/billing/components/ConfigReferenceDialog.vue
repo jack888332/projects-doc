@@ -115,7 +115,7 @@ function confirm() {
       <div><span>已选客户</span><strong>{{ selectedRows.length }}</strong></div>
       <div><span>强制替换</span><strong :class="{ danger:riskCount }">{{ riskCount }}</strong></div>
     </div>
-    <el-alert :title="creating ? '客户与会员为同一主体；可按所属店铺和客户组筛选客户。跳过此步将创建未引用配置，后续可在配置库分配客户。' : '客户与会员为同一主体；所属店铺和所属客户组只用于本次筛选。确认后客户引用配置编号，后续新版生效时自动统一采用新版。'" type="info" :closable="false" show-icon />
+    <el-alert :title="creating ? '客户与会员为同一主体；可按所属店铺和客户组筛选客户。跳过此步将创建未引用配置，后续可在配置清单分配客户。' : '客户与会员为同一主体；所属店铺和所属客户组只用于本次筛选。确认后客户引用配置编号，后续新版生效时自动统一采用新版。'" type="info" :closable="false" show-icon />
     <div class="reference-filters">
       <ConditionFilter v-model="query.customer" label="客户" type="text" />
       <ConditionFilter v-model="query.store" label="所属店铺" :options="stores" />

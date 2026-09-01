@@ -23,7 +23,7 @@ const initialQuery = {
   reconciliationStatus: '',
 }
 const { query, appliedQuery, applyQuery } = useStagedQuery(initialQuery)
-const packages = useDemoDataset('billingRemittances', billingRemittanceFixtures, 3)
+const packages = useDemoDataset('billingRemittances', billingRemittanceFixtures, 4)
 
 const rows = computed(() => packages.value.filter((item) => {
   const text = `${item.tracking}${item.order}${item.customer}${item.shop}${item.billNo}`.toLowerCase()

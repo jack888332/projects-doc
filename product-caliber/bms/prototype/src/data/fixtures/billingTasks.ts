@@ -119,7 +119,7 @@ function task(input: Pick<BillingTaskFixture, 'id' | 'taskNo' | 'periodStart' | 
   }
 }
 
-export const billingTaskSeedVersion = 2026082801
+export const billingTaskSeedVersion = 2026090101
 
 export const billingTaskFixtures: BillingTaskFixture[] = [
   task({
@@ -171,15 +171,15 @@ export const billingTaskFixtures: BillingTaskFixture[] = [
   }),
   task({
     id: 2, taskNo: 'BMS-20260802-00080', generationMode: 'FIRST', billType: 'AR', configSource: 'CONFIG',
-    configNo: 'BC-TK9012-D', configVersion: 'V8', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案',
-    customerReferenceNo: 'AR-REF-TK9012-0008', customerName: 'TopKing Supply', customerNo: 'TK9012',
+    configNo: 'BC-OG9012-D', configVersion: 'V8', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案',
+    customerReferenceNo: 'AR-REF-OG9012-0008', customerName: 'TopKing Supply', customerNo: 'OG9012',
     memberCode: 'M-672019', shop: '义乌集运店', customerGroup: '华东同行组',
     periodStart: '2026-08-01', periodEnd: '2026-08-07', dataCutoff: '2026-08-02 09:30:00', createdAt: '2026-08-02 09:30:02',
     startedAt: '2026-08-02 09:31:11', finishedAt: '2026-08-02 09:34:45', duration: '3分34秒', operator: '谭清辉',
     sourceCount: 2540, pooledFeeCount: 8220, billCount: 2, netChange: 483126.58, resultConclusion: '首次生成',
-    resultVersion: 'RV-20260802-00317', newBills: ['ARB-TK9012-20260801-41b7', 'ARB-TK9012-20260801-8c2a'],
-    scopeKey: 'TK9012|AR|DEFAULT|2026-08-01/2026-08-07|BC-TK9012-D@V8',
-    lockKey: 'TK9012|AR|DEFAULT|2026-08-01/2026-08-07|BILL_GENERATE',
+    resultVersion: 'RV-20260802-00317', newBills: ['ARB-OG9012-20260801-41b7', 'ARB-OG9012-20260801-8c2a'],
+    scopeKey: 'OG9012|AR|DEFAULT|2026-08-01/2026-08-07|BC-OG9012-D@V8',
+    lockKey: 'OG9012|AR|DEFAULT|2026-08-01/2026-08-07|BILL_GENERATE',
     sourceSql: 'SELECT ... FROM sale_order_fee_detail WHERE customer_no = :customerNo;',
   }),
   task({
@@ -192,24 +192,24 @@ export const billingTaskFixtures: BillingTaskFixture[] = [
   }),
   task({
     id: 4, taskNo: 'BMS-20260802-00077', status: 'PENDING', taskType: 'BILL_RECALCULATE', generationMode: 'PENDING',
-    billType: 'AR', configSource: 'CONFIG', configNo: 'BC-NW2048-W', configVersion: 'V9', schemeKey: 'DEFAULT',
-    schemeName: '默认方案', schemeType: '默认方案', customerReferenceNo: 'AR-REF-NW2048-0009',
-    customerName: 'NorthWind Cargo', customerNo: 'NW2048', memberCode: 'M-204801', shop: '上海集运店', customerGroup: '美国电商组',
-    periodStart: '2026-07-21', periodEnd: '2026-07-27', createdAt: '2026-08-02 09:48:18', originalBills: ['ARB-NW2048-20260721-9c01'],
+    billType: 'AR', configSource: 'CONFIG', configNo: 'BC-OG2048-W', configVersion: 'V9', schemeKey: 'DEFAULT',
+    schemeName: '默认方案', schemeType: '默认方案', customerReferenceNo: 'AR-REF-OG2048-0009',
+    customerName: 'NorthWind Cargo', customerNo: 'OG2048', memberCode: 'M-204801', shop: '上海集运店', customerGroup: '美国电商组',
+    periodStart: '2026-07-21', periodEnd: '2026-07-27', createdAt: '2026-08-02 09:48:18', originalBills: ['ARB-OG2048-20260721-9c01'],
     recalculateScope: '原账单全部费项', resultConclusion: '待执行', resultVersion: '--',
-    scopeKey: 'NW2048|AR|DEFAULT|2026-07-21/2026-07-27|BC-NW2048-W@V9',
-    lockKey: 'NW2048|AR|DEFAULT|2026-07-21/2026-07-27|BILL_RECALCULATE',
+    scopeKey: 'OG2048|AR|DEFAULT|2026-07-21/2026-07-27|BC-OG2048-W@V9',
+    lockKey: 'OG2048|AR|DEFAULT|2026-07-21/2026-07-27|BILL_RECALCULATE',
   }),
   task({
     id: 5, taskNo: 'BMS-20260802-00072', generationMode: 'SUPPLEMENT', billType: 'AR', configSource: 'CONFIG',
-    configNo: 'BC-HL2388-WEEK', configVersion: 'V6', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案',
-    customerReferenceNo: 'AR-REF-HL2388-0006', customerName: 'Hualei Express', customerNo: 'HL2388',
+    configNo: 'BC-OG2388-WEEK', configVersion: 'V6', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案',
+    customerReferenceNo: 'AR-REF-OG2388-0006', customerName: 'Hualei Express', customerNo: 'OG2388',
     memberCode: 'M-238801', shop: '广州同行店', customerGroup: '华南同行组', periodStart: '2026-07-27',
     periodEnd: '2026-08-02', dataCutoff: '2026-08-02 08:35:00', createdAt: '2026-08-02 08:35:03', duration: '51秒',
     sourceCount: 784, pooledFeeCount: 2680, billCount: 1, netChange: 32680.2, resultConclusion: '补充生成',
-    resultVersion: 'RV-20260802-00296', originalBills: ['ARB-HL2388-20260727-a922'], newBills: ['ARB-HL2388-20260727-a922-S1'],
-    scopeKey: 'HL2388|AR|DEFAULT|2026-07-27/2026-08-02|BC-HL2388-WEEK@V6',
-    lockKey: 'HL2388|AR|DEFAULT|2026-07-27/2026-08-02|BILL_GENERATE',
+    resultVersion: 'RV-20260802-00296', originalBills: ['ARB-OG2388-20260727-a922'], newBills: ['ARB-OG2388-20260727-a922-S1'],
+    scopeKey: 'OG2388|AR|DEFAULT|2026-07-27/2026-08-02|BC-OG2388-WEEK@V6',
+    lockKey: 'OG2388|AR|DEFAULT|2026-07-27/2026-08-02|BILL_GENERATE',
   }),
   task({
     id: 6, taskNo: 'BMS-20260801-00068', generationMode: 'REPLACE', billType: 'AR', configSource: 'CONFIG',

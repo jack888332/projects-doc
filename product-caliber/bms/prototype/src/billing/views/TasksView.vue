@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus/es/components/message/index.mjs'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index.mjs'
+import { ElTable as ElementTable, ElTableColumn as ElementTableColumn } from 'element-plus'
 import {
   Delete, DocumentChecked, Refresh, RefreshRight, View,
 } from '@element-plus/icons-vue'
@@ -25,6 +26,7 @@ const props = defineProps({
 })
 
 const taskPageTab = ref(props.initialTaskTab)
+const taskViewMode = ref('detail')
 const detailVisible = ref(false)
 const batchVisible = ref(false)
 const detailTab = ref('overview')
@@ -102,6 +104,43 @@ const filteredTasks = computed(() => taskRecords.value.filter((item) => {
     && (!appliedTaskQuery.customerGroup || item.customerGroup === appliedTaskQuery.customerGroup)
     && periodMatched
 }))
+
+const taskGroups = computed(() => {
+  const groups = new Map()
+  filteredTasks.value.forEach((task) => {
+    const groupKey = `${task.customerNo}|${task.periodStart}|${task.periodEnd}`
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, {
+        groupKey,
+        customerName: task.customerName,
+        customerNo: task.customerNo,
+        periodStart: task.periodStart,
+        periodEnd: task.periodEnd,
+        tasks: [],
+      })
+    }
+    groups.get(groupKey).tasks.push(task)
+  })
+  return [...groups.values()].map((group) => {
+    const counts = { RUNNING: 0, FAILED: 0, PENDING: 0, SUCCESS: 0, DELETED: 0 }
+    group.tasks.forEach((task) => {
+      if (task.deletedAt) counts.DELETED += 1
+      else counts[task.status] = (counts[task.status] || 0) + 1
+    })
+    const statusParts = []
+    ;['RUNNING', 'FAILED', 'PENDING', 'SUCCESS', 'DELETED'].forEach((key) => {
+      if (!counts[key]) return
+      const label = key === 'DELETED' ? '已删除' : (statusMeta[key]?.label || key)
+      statusParts.push(`${counts[key]} ${label}`)
+    })
+    return {
+      ...group,
+      schemeCount: new Set(group.tasks.map(task => task.schemeKey)).size,
+      batches: [...new Set(group.tasks.map(task => task.batchNo).filter(no => no && no !== '-'))],
+      statusSummary: statusParts.join(' · ') || '--',
+    }
+  }).sort((left, right) => String(right.periodEnd).localeCompare(String(left.periodEnd)) || String(left.customerNo).localeCompare(String(right.customerNo)))
+})
 
 const taskSummary = computed(() => {
   const rows = filteredTasks.value
@@ -247,9 +286,15 @@ function viewResult(row) {
 
           <MetricGrid :items="taskSummary" :columns="5" />
 
-          <DataTableFrame :total="filteredTasks.length" :selected-count="0" :page-size="10">
-            <template #actions><el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button><DownloadButton title="下载任务" file-name="账单生成任务" :rows="{ filtered: filteredTasks, all: taskRecords }" :options="[{ label: '当前筛选结果', value: 'filtered', description: '下载当前筛选条件下的任务列表' }, { label: '全部任务', value: 'all', description: '下载全部生成任务' }]" /></template>
-            <el-table :data="filteredTasks" class="clean-table" row-key="taskNo">
+          <DataTableFrame :total="taskViewMode === 'group' ? taskGroups.length : filteredTasks.length" :summary="taskViewMode === 'group' ? `共 ${taskGroups.length} 组任务` : ''" :selected-count="0" :page-size="10">
+            <template #actions>
+              <el-radio-group v-model="taskViewMode" class="task-view-switch" aria-label="任务视图">
+                <el-radio-button value="detail">任务明细</el-radio-button>
+                <el-radio-button value="group">客户 × 账期</el-radio-button>
+              </el-radio-group>
+              <el-button type="primary" :icon="Refresh" @click="refreshTasks">刷新状态</el-button><DownloadButton title="下载任务" file-name="账单生成任务" :rows="{ filtered: filteredTasks, all: taskRecords }" :options="[{ label: '当前筛选结果', value: 'filtered', description: '下载当前筛选条件下的任务列表' }, { label: '全部任务', value: 'all', description: '下载全部生成任务' }]" />
+            </template>
+            <el-table v-if="taskViewMode === 'detail'" :data="filteredTasks" class="clean-table" row-key="taskNo">
             <el-table-column label="生成批次编号" width="190" fixed>
               <template #default="scope"><el-button v-if="scope.row.batchNo !== '-'" link type="primary" @click="openBatch(scope.row.batchNo)">{{ scope.row.batchNo }}</el-button><span v-else>--</span></template>
             </el-table-column>
@@ -286,6 +331,50 @@ function viewResult(row) {
                 </div>
               </template>
             </TableActionColumn>
+            </el-table>
+            <el-table v-else :data="taskGroups" class="clean-table task-group-table" row-key="groupKey">
+              <el-table-column type="expand">
+                <template #default="scope">
+                  <div class="task-group-expand">
+                    <ElementTable :data="scope.row.tasks" border row-key="taskNo">
+                      <ElementTableColumn prop="taskNo" label="任务编号" width="180" />
+                      <ElementTableColumn label="任务状态" width="100"><template #default="slot"><StatusTag :label="taskStatus(slot.row).label" :tone="taskStatus(slot.row).className" /></template></ElementTableColumn>
+                      <ElementTableColumn label="任务类型" width="100"><template #default="slot">{{ display(taskTypeMeta, slot.row.taskType) }}</template></ElementTableColumn>
+                      <ElementTableColumn label="账单生成方式" width="116"><template #default="slot">{{ display(generationModeMeta, slot.row.generationMode) }}</template></ElementTableColumn>
+                      <ElementTableColumn label="方案名称 / 编号" min-width="220"><template #default="slot"><StackedCell :primary="slot.row.schemeName" :secondary="`${slot.row.schemeKey} · ${slot.row.schemeType}`" /></template></ElementTableColumn>
+                      <ElementTableColumn label="配置编号 / 版本" min-width="210"><template #default="slot"><StackedCell :primary="slot.row.configNo" :secondary="`${configSourceMeta[slot.row.configSource] || slot.row.configSource} · ${slot.row.configVersion}`" /></template></ElementTableColumn>
+                      <ElementTableColumn prop="dataCutoff" label="数据截止点" width="160" />
+                      <ElementTableColumn label="操作" width="150">
+                        <template #default="slot">
+                          <div class="row-action-cell">
+                            <el-button class="table-detail-button" link type="primary" :icon="View" title="详情" aria-label="详情" @click="openDetail(slot.row)" />
+                            <HoverActionMenu v-if="slot.row.taskType !== 'FEE_POOL'">
+                              <el-dropdown-item v-if="slot.row.status === 'SUCCESS'" :icon="DocumentChecked" @click="viewResult(slot.row)">关联结果</el-dropdown-item>
+                              <el-dropdown-item v-if="slot.row.status === 'FAILED'" :icon="RefreshRight" @click="rerunTask(slot.row)">重新执行</el-dropdown-item>
+                              <el-dropdown-item v-if="['PENDING', 'FAILED'].includes(slot.row.status)" class="danger-action" :icon="Delete" @click="deleteTask(slot.row)">删除</el-dropdown-item>
+                            </HoverActionMenu>
+                          </div>
+                        </template>
+                      </ElementTableColumn>
+                    </ElementTable>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="客户" min-width="200" fixed>
+                <template #default="scope"><StackedCell :primary="scope.row.customerName" :secondary="scope.row.customerNo" /></template>
+              </el-table-column>
+              <el-table-column label="账期" width="200"><template #default="scope">{{ scope.row.periodStart }} 至 {{ scope.row.periodEnd }}</template></el-table-column>
+              <el-table-column label="方案数" width="90"><template #default="scope">{{ scope.row.schemeCount }}</template></el-table-column>
+              <el-table-column label="任务数" width="90"><template #default="scope"><strong>{{ scope.row.tasks.length }}</strong></template></el-table-column>
+              <el-table-column label="状态汇总" min-width="230"><template #default="scope"><span class="group-status-summary">{{ scope.row.statusSummary }}</span></template></el-table-column>
+              <el-table-column label="生成批次" min-width="180">
+                <template #default="scope">
+                  <template v-for="batchNo in scope.row.batches" :key="batchNo">
+                    <el-button link type="primary" @click="openBatch(batchNo)">{{ batchNo }}</el-button>
+                  </template>
+                  <span v-if="!scope.row.batches.length">--</span>
+                </template>
+              </el-table-column>
             </el-table>
           </DataTableFrame>
         </section>
@@ -402,3 +491,11 @@ function viewResult(row) {
     <TaskBatchDialog v-model="batchVisible" :batch-no="selectedBatchNo" :tasks="taskRecords" @detail="openDetail" @retry="rerunTask" />
   </div>
 </template>
+
+<style scoped>
+.task-view-switch{margin-right:var(--space-3)}
+.task-group-table :deep(.el-table__expanded-cell){padding:var(--space-3) var(--space-5)}
+.task-group-expand{background:#f8fafb;border:1px solid var(--border)}
+.group-status-summary{color:#5a6476}
+@media(max-width:760px){.task-view-switch{display:none}}
+</style>

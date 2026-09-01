@@ -20,7 +20,7 @@ export function rateRulesFor(version = {}) {
 }
 
 export function isRateReferenceEffective(reference, at) {
-  if (!reference?.configId || reference.status !== '启用') return false
+  if (!reference?.configId) return false
   const date = dayjs(at).startOf('day')
   const start = dayjs(reference.effectiveFrom).startOf('day')
   if (!date.isValid() || !start.isValid() || date.isBefore(start, 'day')) return false
@@ -104,7 +104,6 @@ export function switchRateReference(references, {
     configVersion,
     effectiveFrom,
     effectiveTo:next ? previousCalendarDay(next.effectiveFrom) : LONG_TERM,
-    status:'启用',
     changeReason,
   }
   return { references:[...nextReferences, created], created, changed:true }
@@ -129,9 +128,9 @@ export function calculateRateConfigResult(rule, baseRates) {
     return {
       valid:true,
       base:null,
-      result:null,
+      result:1,
       source:'FALLBACK_CHAIN',
-      message:'基准汇率未命中，当前特调规则不产出统一结果；账单生成时继续按所属店铺汇率表、1 逐级兜底',
+      message:'基准汇率未命中，配置页特调汇率按 1 展示；账单生成时继续按所属店铺汇率表、1 逐级兜底',
     }
   }
 

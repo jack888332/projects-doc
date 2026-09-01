@@ -18,7 +18,7 @@ const configTrace = (input: Omit<BillingBillTraceability, 'configSource'>): Bill
   ...input,
 })
 
-export const billingBillSeedVersion = 2026082802
+export const billingBillSeedVersion = 2026090101
 
 export const billingBillFixtures = [
   {
@@ -29,30 +29,30 @@ export const billingBillFixtures = [
     sentAt: '-', dueAt: '2026/08/22', overdueDays: 0, notice: '-', currency: 'TWD', amount: 186430.6, paid: 0,
   },
   {
-    type: 'AR', billNo: 'ARB-TK9012-20260801-41b7', status: '待审核', closeStatus: '未收口', issued: false,
-    customer: 'TopKing Supply', customerNo: 'TK9012', memberCode: 'M-672019', shop: '义乌集运店', group: '华东同行组',
-    ...configTrace({ batchNo: '-', taskNo: 'BMS-20260802-00080', configNo: 'BC-TK9012-D', configVersion: 'V8', customerReferenceNo: 'AR-REF-TK9012-0008', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案' }),
+    type: 'AR', billNo: 'ARB-OG9012-20260801-41b7', status: '待审核', closeStatus: '未收口', issued: false,
+    customer: 'TopKing Supply', customerNo: 'OG9012', memberCode: 'M-672019', shop: '义乌集运店', group: '华东同行组',
+    ...configTrace({ batchNo: '-', taskNo: 'BMS-20260802-00080', configNo: 'BC-OG9012-D', configVersion: 'V8', customerReferenceNo: 'AR-REF-OG9012-0008', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案' }),
     country: '美国', sector: '跨境电商', periodType: '周', periodStart: '2026/08/01', periodEnd: '2026/08/07',
     sentAt: '-', dueAt: '2026/08/14', overdueDays: 0, notice: '-', currency: 'CNY', amount: 321450.38, paid: 0,
   },
   {
-    type: 'AR', billNo: 'ARB-TK9012-20260801-8c2a', status: '待审核', closeStatus: '未收口', issued: false,
-    customer: 'TopKing Supply', customerNo: 'TK9012', memberCode: 'M-672019', shop: '义乌集运店', group: '华东同行组',
-    ...configTrace({ batchNo: '-', taskNo: 'BMS-20260802-00080', configNo: 'BC-TK9012-D', configVersion: 'V8', customerReferenceNo: 'AR-REF-TK9012-0008', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案' }),
+    type: 'AR', billNo: 'ARB-OG9012-20260801-8c2a', status: '待审核', closeStatus: '未收口', issued: false,
+    customer: 'TopKing Supply', customerNo: 'OG9012', memberCode: 'M-672019', shop: '义乌集运店', group: '华东同行组',
+    ...configTrace({ batchNo: '-', taskNo: 'BMS-20260802-00080', configNo: 'BC-OG9012-D', configVersion: 'V8', customerReferenceNo: 'AR-REF-OG9012-0008', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案' }),
     country: '英国', sector: '同行业务', periodType: '周', periodStart: '2026/08/01', periodEnd: '2026/08/07',
     sentAt: '-', dueAt: '2026/08/14', overdueDays: 0, notice: '-', currency: 'CNY', amount: 161676.2, paid: 0,
   },
   {
-    type: 'AR', billNo: 'ARB-HL2388-20260727-a922', status: '待审核', closeStatus: '未收口', issued: false,
-    customer: 'Hualei Express', customerNo: 'HL2388', memberCode: 'M-238801', shop: '广州同行店', group: '华南同行组',
-    ...configTrace({ batchNo: '-', taskNo: 'BMS-20260727-00061', configNo: 'BC-HL2388-WEEK', configVersion: 'V5', customerReferenceNo: 'AR-REF-HL2388-0005', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案' }),
+    type: 'AR', billNo: 'ARB-OG2388-20260727-a922', status: '待审核', closeStatus: '未收口', issued: false,
+    customer: 'Hualei Express', customerNo: 'OG2388', memberCode: 'M-238801', shop: '广州同行店', group: '华南同行组',
+    ...configTrace({ batchNo: '-', taskNo: 'BMS-20260727-00061', configNo: 'BC-OG2388-WEEK', configVersion: 'V5', customerReferenceNo: 'AR-REF-OG2388-0005', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案' }),
     country: '美国', sector: '同行业务', periodType: '周', periodStart: '2026/07/27', periodEnd: '2026/08/02',
     sentAt: '-', dueAt: '2026/08/09', overdueDays: 0, notice: '-', currency: 'CNY', amount: 128400, paid: 0,
   },
   {
-    type: 'AR', billNo: 'ARB-HL2388-20260727-a922-S1', status: '待审核', closeStatus: '未收口', issued: false,
-    customer: 'Hualei Express', customerNo: 'HL2388', memberCode: 'M-238801', shop: '广州同行店', group: '华南同行组',
-    ...configTrace({ batchNo: '-', taskNo: 'BMS-20260802-00072', configNo: 'BC-HL2388-WEEK', configVersion: 'V6', customerReferenceNo: 'AR-REF-HL2388-0006', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案' }),
+    type: 'AR', billNo: 'ARB-OG2388-20260727-a922-S1', status: '待审核', closeStatus: '未收口', issued: false,
+    customer: 'Hualei Express', customerNo: 'OG2388', memberCode: 'M-238801', shop: '广州同行店', group: '华南同行组',
+    ...configTrace({ batchNo: '-', taskNo: 'BMS-20260802-00072', configNo: 'BC-OG2388-WEEK', configVersion: 'V6', customerReferenceNo: 'AR-REF-OG2388-0006', schemeKey: 'DEFAULT', schemeName: '默认方案', schemeType: '默认方案' }),
     country: '美国', sector: '同行业务', periodType: '周', periodStart: '2026/07/27', periodEnd: '2026/08/02',
     sentAt: '-', dueAt: '2026/08/09', overdueDays: 0, notice: '-', currency: 'CNY', amount: 32680.2, paid: 0,
   },

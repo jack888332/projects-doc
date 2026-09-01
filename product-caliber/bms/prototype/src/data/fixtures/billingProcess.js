@@ -33,8 +33,8 @@ export const billingProcessFixtures = {
   ],
   audits: [
     { module: '账单配置', objectType: '客户账单配置', objectNo: 'BC-OG4155-AR@V13', action: '启用新版本', operator: '谭清辉', time: '2026-08-02 09:28:16', reason: '英国线路改为月结', result: '成功', relation: 'OG4155', impactCny: 0, impactUsd: 0, objectCount: 1, before: '{"version":"V12","status":"生效"}', after: '{"version":"V13","status":"生效"}' },
-    { module: '应收账单', objectType: '应收账单', objectNo: 'ARB-TK9012-20260725-41b7', action: '审核通过', operator: '郑雅雯', time: '2026-08-02 09:14:08', reason: '金额与汇率核对完成', result: '成功', relation: 'TK9012', impactCny: 18.42, impactUsd: -2.56, objectCount: 1, before: '{"status":"待审核"}', after: '{"status":"待结清","notification":"已通知"}' },
-    { module: '调账中心', objectType: '调账记录', objectNo: 'ADJ-c412-9071', action: '审核通过', operator: '陈嘉明', time: '2026-08-02 08:52:41', reason: '服务费率更正凭证有效', result: '成功', relation: 'RFB-TK9012-20260721-a11f', impactCny: 22.99, impactUsd: 3.2, objectCount: 2, before: '{"status":"待审核"}', after: '{"status":"审核通过"}' },
+    { module: '应收账单', objectType: '应收账单', objectNo: 'ARB-OG9012-20260725-41b7', action: '审核通过', operator: '郑雅雯', time: '2026-08-02 09:14:08', reason: '金额与汇率核对完成', result: '成功', relation: 'OG9012', impactCny: 18.42, impactUsd: -2.56, objectCount: 1, before: '{"status":"待审核"}', after: '{"status":"待结清","notification":"已通知"}' },
+    { module: '调账中心', objectType: '调账记录', objectNo: 'ADJ-c412-9071', action: '审核通过', operator: '陈嘉明', time: '2026-08-02 08:52:41', reason: '服务费率更正凭证有效', result: '成功', relation: 'RFB-OG9012-20260721-a11f', impactCny: 22.99, impactUsd: 3.2, objectCount: 2, before: '{"status":"待审核"}', after: '{"status":"审核通过"}' },
     { module: '汇率配置', objectType: '基准汇率', objectNo: 'CAD-CNY@20260802', action: '确认生效', operator: '谭清辉', time: '2026-08-02 08:40:03', reason: '汇率值超出允许范围', result: '阻断', relation: 'CAD/CNY', impactCny: 0, impactUsd: 0, objectCount: 1, before: '{}', after: '{}' },
   ],
   comparisons: [

@@ -7,6 +7,7 @@ const props = defineProps({
   modelValue: { type: Boolean, default: false },
   title: { type: String, default: '导入' },
   templateName: { type: String, default: '导入模板.xlsx' },
+  confirmLabel: { type: String, default: '导入' },
   accept: { type: String, default: '.xlsx,.xls,.csv' },
 })
 
@@ -59,7 +60,7 @@ function submit() {
     </div>
     <template #footer>
       <el-button @click="close">取消</el-button>
-      <el-button type="primary" :disabled="!files.length" @click="submit">导入</el-button>
+      <el-button type="primary" :disabled="!files.length" @click="submit">{{ confirmLabel }}</el-button>
     </template>
   </el-dialog>
 </template>

@@ -1,3 +1,4 @@
+# Runtime data and disposable working directories
 **/logs/
 **/log/
 **/runtime/
@@ -5,15 +6,132 @@
 **/temp/
 **/.cache/
 **/cache/
+
+# Dependencies and package-manager caches
 **/node_modules/
+**/.npm/
+**/.npm-cache/
+**/.pnpm-store/
+**/.yarn/cache/
+**/.yarn/unplugged/
+**/.yarn/build-state.yml
+**/.yarn/install-state.gz
+**/.parcel-cache/
+**/.turbo/
 **/.vite/
+**/.next/
+**/.nuxt/
+**/.svelte-kit/
+
+# Build output and automated-test evidence generated locally
+**/build/
+**/dist/
+**/coverage/
+**/playwright-report/
+**/test-results/
+**/.tmp-build/
+**/.tmp-e2e/
+**/*.tsbuildinfo
+
+# Process state, logs, and crash output
 **/*.pid
 **/*.pid.lock
 **/*.seed
 **/*.out
 **/*.err
 **/*.stackdump
+**/*.log
 **/vite-*.txt
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+
+# Python bytecode, test data, and virtual environments
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.pytest_cache/
+**/.mypy_cache/
+**/.pyright/
+**/.pyre/
+**/.pytype/
+**/.ruff_cache/
+**/.hypothesis/
+**/.tox/
+**/.nox/
+**/.coverage
+**/.coverage.*
+**/coverage.xml
+**/htmlcov/
+**/.ipynb_checkpoints/
+**/.venv/
+**/venv/
+**/env/
+**/ENV/
+**/.conda/
+
+# Local configuration and secrets
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.sample
+!**/.env.template
+**/.envrc
+**/.direnv/
+
+# IDE-local files; standard shared VS Code files remain trackable
+**/.idea/
+**/.fleet/
+**/.history/
+**/.vs/
+**/.vscode/*
+!**/.vscode/extensions.json
+!**/.vscode/launch.json
+!**/.vscode/settings.json
+!**/.vscode/tasks.json
+**/*.code-workspace
+**/*.suo
+**/*.user
+**/*.userosscache
+**/*.sln.docstates
+
+# Operating-system metadata
+**/.DS_Store
+**/._*
+**/Thumbs.db
+**/ehthumbs.db
+**/Desktop.ini
+**/$RECYCLE.BIN/
+
+# Editor backups and office-suite lock or recovery files
+**/*.tmp
+**/*.temp
+**/*.bak
+**/*.orig
+**/*.rej
+**/*.swp
+**/*.swo
+**/*.swn
+**/*~
+**/.#*
+**/\#*\#
+**/~$*
+**/.~lock.*#
+**/*.asd
+**/*.wbk
+**/*.xlk
+
+# GitLab Pages and local documentation-site output
 public/
 .vitepress-work/
 .aidocs-cache/
+**/.vitepress/cache/
+**/.vitepress/dist/
+**/.vuepress/.cache/
+**/.vuepress/.temp/
+**/.vuepress/dist/
+**/.docusaurus/
+
+# PRD snapshots, conversion work, and deliveries are traceability records.
+# Keep them trackable; do not add ignore rules for those directories here.

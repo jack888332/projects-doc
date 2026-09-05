@@ -5,7 +5,7 @@
 <a id="doc-A6A29BE637-ois-fee-data-ad5529f1"></a>
 ## 1. 客户侧费项的 OIS 数据源
 
-本节记录应收账单和返款账单涉及的客户侧费用在 OIS 中的现状，包括存储结构、来源表、关联字段、金额与币种字段、时间与支付字段以及两类附加费导入形成的数据差异。
+本节记录 BMS 归集应收账单和返款账单客户侧费用时使用的 OIS 数据，包括存储结构、来源表、关联字段、金额与币种字段、时间与支付字段以及两类附加费导入形成的数据差异。
 
 成本费项不在本节范围内，其来源和导入方式见<a href="../../../长篇单档PRD/PRD.成本中心.md">《成本中心 PRD》5. 成本费项标准化与供应商账单导入</a>。客户侧费项的业务对象层级见[核心对象关系](PRD.账单系统.第003篇.业务系统基本面.A231A39E11.md#doc-A231A39E11-business-baseline-c84fb3e2)。
 
@@ -32,11 +32,11 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 | `ofp_ofdb1.sale_order_additional_matter` | 费项纵表 | 一项附加事项；同一业务订单可以对应多条记录 | `sale_order_id`、`bill_waybill_no`、`sub_bill_waybill_no` | 业务订单或尾程包裹 | `sale_order_id`关联业务订单，收款运单号和子运单号记录附加费涉及的尾程运单；两种导入入口的差异见[同一张附加事项表，为什么要区分两种导入？](#doc-A6A29BE637-ois-fee-data-a254f9b7)。 |
 | `ofp_ofdb1.claim_order` | 业务事件纵表 | 一笔理赔；同一订单编号可以对应多条记录 | `order_code` | 业务订单 | 同一业务订单可以存在多条独立的理赔记录。 |
 
-`ofp_ofdb1.sale_order_package_fee.type`和`ofp_ofdb1.sale_order_fee_detail.type`采用相同口径：`1`表示应收，`2`表示成本。客户侧费项使用应收数据，成本数据由成本中心处理；其它值没有已定义的业务含义。
+`ofp_ofdb1.sale_order_package_fee.type`和`ofp_ofdb1.sale_order_fee_detail.type`采用相同口径：`1`表示应收，`2`表示成本。客户侧费项使用应收数据，成本数据由成本中心处理；其他取值暂无已定义的业务含义。
 
-订单费项报表导入的数据先按尾程包裹粒度写入`ofp_ofdb1.sale_order_package_fee`，再汇总为业务订单粒度的`ofp_ofdb1.sale_order_fee_detail`。前者保留包裹级回款明细，后者承接订单级汇总；两张表不得被理解为两份彼此独立的回款来源。
+订单费项报表导入的数据先按尾程包裹粒度写入`ofp_ofdb1.sale_order_package_fee`，再汇总为业务订单粒度的`ofp_ofdb1.sale_order_fee_detail`。前者保留包裹级回款明细，后者承接订单级汇总；两张表不是两份彼此独立的回款来源。
 
-订单主表和订单扩展表中的金额在订单出库前仍可能变化，金额稳定过程见[费项重算窗口](PRD.账单系统.第003篇.业务系统基本面.A231A39E11.md#doc-A231A39E11-business-baseline-c9cdf277)。附加事项和理赔以新增记录表达新增业务事实，不在订单原记录中继续增加金额字段。
+订单主表和订单扩展表中的金额在订单出库前仍可能变化，金额何时稳定的规则见[费项重算窗口](PRD.账单系统.第003篇.业务系统基本面.A231A39E11.md#doc-A231A39E11-business-baseline-c9cdf277)。附加事项和理赔以新增记录表达新增业务事实，不在订单原记录中继续增加金额字段。
 
 <a id="doc-A6A29BE637-ois-fee-data-cce16964"></a>
 ### 1.3 BMS 归集费项时使用哪些非金额字段？
@@ -58,12 +58,12 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 3. `时间字段`：业务订单的`delivery_time`记录出库时间，`order_completed_time`记录订单完结时间。`sale_order_package_fee`本身不保存这两个履约时间，可通过`sale_order_id`关联业务订单取得；`sale_order_additional_matter`保存附加事项自身的`create_time`，挂靠真实尾程包裹时还可以沿业务订单关系取得上述履约时间；理赔记录具有`update_time`。
 4. `业务状态`：理赔记录只归集有效且已通过客服、财务审核的数据。
 5. `支付信息`：`payment_method`记录附加费的`收取方式`，是应收归集的必要过滤字段；只有其值表示`账期支付`时，该附加费才进入应收归集范围。`fee_pay_status`和理赔记录的`payment_status`用于排除已经完成支付处理的数据，并随来源记录保留以供追溯。
-6. `金额币种`：`currency`和`currency_code`记录来源订单现有币种信息，`dest_country_currency_code`记录目的国币种。币种字段与来源金额一并采集并保留原值，不参与账期范围判断；来源未明确币种时的默认规则见[系统从哪里取金额和币种？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-3859a98f)，换算规则见[金额汇兑](PRD.账单系统.第014篇.金额汇兑.27B80EF314.md#doc-27B80EF314-currency-exchange-e7e21dd6)。
+6. `金额币种`：`currency`和`currency_code`记录来源订单中的币种信息，`dest_country_currency_code`记录目的国币种。币种字段与来源金额一并采集并保留原值，不参与账期范围判断；来源未明确币种时的默认规则见[系统从哪里取金额和币种？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-3859a98f)，换算规则见[金额汇兑](PRD.账单系统.第014篇.金额汇兑.27B80EF314.md#doc-27B80EF314-currency-exchange-e7e21dd6)。
 
 <a id="doc-A6A29BE637-ois-fee-data-b7b2c0fa"></a>
 ### 1.4 OIS 有哪些客户侧费用字段？
 
-下表统一记录 OIS 当前存在的客户侧费用字段及其财务名称、账单挂靠对象、费项类型、是否由系统计算、最早形成阶段和 BMS 原始币种或汇率口径。费项类型由费项索引定义，见[费项索引怎样定义费项类型？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-798b26a1)；挂靠对象边界见[核心设计思路](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-2a64a5e1)。附加事项行按`附加费用报表导入`的现有数据关系列示。
+下表统一记录 BMS 从 OIS 读取的客户侧费用字段及其财务名称、账单挂靠对象、费项类型、是否由系统计算、最早形成阶段和 BMS 原始币种或汇率口径。费项类型由费项索引定义，见[费项索引怎样定义费项类型？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-798b26a1)；挂靠对象边界见[核心设计思路](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-2a64a5e1)。附加事项行按`附加费用报表导入`的数据关系列示。
 
 <style>
 .fee-source-table {
@@ -110,7 +110,7 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
     <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.overlength_amount</code></td><td>超长费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>业务订单完成核重</td><td>店铺币种</td></tr>
     <tr class="source-extend"><td><code>ofp_ofdb1.sale_order_header_extend.marketing_activity_discount_amount</code></td><td>满减活动优惠金额</td><td>业务订单</td><td>应收扣减类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.weight_charge_amount</code></td><td>超重费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td><td>店铺币种</td></tr>
-    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.warehouse_rental_amount</code></td><td>仓租费用</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
+    <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.warehouse_rental_amount</code></td><td>仓租费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.user_coupon_fee</code></td><td>优惠券优惠金额</td><td>业务订单</td><td>应收扣减类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.tax_premium_amount</code></td><td>包税手续费</td><td>业务订单</td><td>应收类</td><td><code>是</code></td><td>下单核价</td><td>店铺币种</td></tr>
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.material_charge_amount</code></td><td>包材费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td><td>店铺币种</td></tr>
@@ -181,29 +181,31 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 6. `代收货款`和`应返货款`属于代收类资金，用于返款账单、回款管理或对账；`cod_price`、`dest_country_surcharge_amount`和`实收回款`属于非费项核对事实。`dest_country_surcharge_amount`是订单侧到付附加费总额，不进入客户应收账单。费项类型和账单用途见[费项索引怎样定义费项类型？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-798b26a1)。
 7. `录入币种`表示优先采用来源数据中随金额录入的币种；录入币种为空时，使用来源订单所属店铺的店铺币种兜底。店铺币种通常配置为人民币，但必须以实际店铺配置为准。完整规则见[系统从哪里取金额和币种？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-3859a98f)。
 8. 目的国币种优先读取`ofp_ofdb1.sale_order_header.dest_country_currency_code`，为空时再按运抵国匹配运抵国配置。该规则只确定 BMS 原始币种，不改变费项类型和账单归属：到付附加费仍不进入客户应收账单，只有`收取方式`为`账期支付`的附加费才进入应收归集范围。
-9. 订单费用报表导入的普通费项金额都必须确定原始币种；其中`仓租费`和`航空费`固定为人民币，其它普通费项金额采用目的国币种。后续订单费用报表只导入`实收回款`和`回款汇率`，不再导入`实付返款`和`返款汇率`。系统不再依赖`ofp_ofdb1.sale_order_package_fee.type`区分返款汇率和回款汇率，`payment_collect`当前导入值统一按回款汇率处理。当前回款汇率表示`目的国币种 → 财务本位币`；返款账单所用返款汇率由货款原始币种和货款结算币种确定，见[返款账单换算总则](PRD.账单系统.第014篇.金额汇兑.27B80EF314.md#doc-27B80EF314-currency-exchange-83e6bbc9)。
+9. 订单费用报表导入的普通费项金额都必须确定原始币种；其中`仓租费`和`航空费`固定为人民币，其他普通费项金额采用目的国币种。后续订单费用报表只导入`实收回款`和`回款汇率`，不再导入`实付返款`和`返款汇率`。系统不再依赖`ofp_ofdb1.sale_order_package_fee.type`区分返款汇率和回款汇率，`payment_collect`当前导入值统一按回款汇率处理。当前回款汇率表示`目的国币种 → 财务本位币`；返款账单所用返款汇率由货款原始币种和货款结算币种确定，见[返款账单换算总则](PRD.账单系统.第014篇.金额汇兑.27B80EF314.md#doc-27B80EF314-currency-exchange-83e6bbc9)。
 10. 表中币种是`费项原始币种`，不是客户账单的`费项结算币种`。进入账单后的换算按[金额汇兑](PRD.账单系统.第014篇.金额汇兑.27B80EF314.md#doc-27B80EF314-currency-exchange-e7e21dd6)执行；系统不得因账单结算币种不同而改写来源数据的原始币种。
 
 <a id="doc-A6A29BE637-ois-fee-data-a254f9b7"></a>
 ### 1.5 同一张附加事项表，为什么要区分两种导入？
 
-`附加费用报表导入`和`记账单导入`产生的记录都写入`ofp_ofdb1.sale_order_additional_matter`，但两类费用归属不同的业务对象，可取得的履约时间事实也不同。
+`附加费用报表导入`和`记账单导入`产生的记录都写入`ofp_ofdb1.sale_order_additional_matter`，但两类费用归属的业务对象不同，可取得的履约时间事实也不同。
 
 | 导入入口 | 记录什么费用 | 当前挂靠对象 | 可用的时间事实 |
 | :--- | :--- | :--- | :--- |
 | `附加费用报表导入` | 归属于真实尾程包裹的附加费 | 真实业务订单下由尾程运单号对应的尾程包裹 | 附加事项记录具有`create_time`；还可以沿包裹归属读取真实业务订单的出库时间或订单完结时间。 |
 | `记账单导入` | 直接向客户收取、但不归属于真实业务订单的附加费 | `ofp_ofdb1.sale_order_header.order_type = "BILL"`的虚拟业务订单 | 虚拟业务订单没有出库或完结时间；附加事项记录自身具有`create_time`。 |
 
-`ofp_ofdb1.sale_order_header.order_type = "BILL"`用于标记虚拟业务订单。虚拟业务订单只承载来源和客户归属，不代表客户真实下单，也不发生核价、核重、出库、运输或签收。两类附加费如何进入任务处理范围、如何入池和防重，分别见[第三步：哪些来源数据可以由本次任务处理？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-07045de3)、[费用达到什么条件才能入池？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-a23a7c51)和[怎样防止重复，并查清每笔费用的来源？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-16ab4787)。
+`ofp_ofdb1.sale_order_header.order_type = "BILL"`用于标记虚拟业务订单。虚拟业务订单只承载来源和客户归属，不代表客户真实下单，也不发生核价、核重、出库、运输或签收等业务过程。
+
+两类附加费如何进入任务处理范围、如何入池和防重，分别见[第三步：哪些来源数据可以由本次任务处理？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-07045de3)、[费用达到什么条件才能入池？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-a23a7c51)和[怎样防止重复，并查清每笔费用的来源？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-16ab4787)。
 
 <a id="doc-A6A29BE637-ois-fee-data-a5752663"></a>
 ### 1.6 返款账单怎样理解订单侧和包裹侧字段？
 
-返款相关金额同时存在于OIS输出的订单级机算结果和订单费用报表导入形成的包裹级金额中。OIS机算形成的`应付返款`及其手续费直接下挂业务订单，BMS只读取结果；`ofp_ofdb1.sale_order_package_fee`中的所有金额均为尾程包裹级导入值，不是OIS机算值。包裹侧只导入新的实收回款、回款汇率和包裹级手续费等事实；历史实付返款和返款汇率只保留存量原记录。
+返款相关金额同时存在于 OIS 输出的订单级机算结果和订单费用报表导入形成的包裹级金额中。OIS 机算形成的`应付返款`及其手续费直接下挂业务订单，BMS 只读取结果；`ofp_ofdb1.sale_order_package_fee`中的所有金额均为尾程包裹级导入值，不是 OIS 机算值。包裹侧只导入新的实收回款、回款汇率和包裹级手续费等事实；历史实付返款和返款汇率只保留存量原记录。
 
 | 来源字段 | 当前业务含义 | 返款账单用途 |
 | :--- | :--- | :--- |
-| `ofp_ofdb1.sale_order_header.collection_price` | 订单侧代收货款本金 | OIS输出并直接挂靠业务订单；BMS读取后作为订单级`应付返款`的来源。 |
+| `ofp_ofdb1.sale_order_header.collection_price` | 订单侧代收货款本金 | OIS 输出并直接挂靠业务订单；BMS 读取后作为订单级`应付返款`的来源。 |
 | `ofp_ofdb1.sale_order_header.collection_premium_amount` | 订单侧代收货款手续费 | 用于核对业务订单级手续费结果；命中返款扣减配置时按业务订单计入一次。 |
 | `ofp_ofdb1.sale_order_header.cod_price` | 收件人侧 COD 到付总额 | 用于核对到付总额；该金额可能同时包含代收货款本金和到付附加费，不等于`应付返款（即代收货款）`。 |
 | `ofp_ofdb1.sale_order_header.cod_amount` | 历史字段中文名为`货到付款手续费` | 不得仅凭字段名直接认定为手续费；必须结合具体订单和包裹侧事实判断。 |
@@ -222,4 +224,4 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 5. `实收回款`和`回款汇率`继续作为包裹级回款事实导入，不属于客户应付费用，不得直接进入应收账单核销金额。历史`实付返款`和`返款汇率`只保留存量原记录，不参与返款账单的结算币种、返款汇率、金额计算或核销。系统不再依赖`ofp_ofdb1.sale_order_package_fee.type`区分返款汇率和回款汇率。
 6. 返款账单详情须保留业务订单号、尾程运单号、当前采用的返款计算来源字段、来源金额、来源币种和最终账单计算金额，便于财务追溯返款计算结果；包裹级回款事实只在回款管理展示，不进入返款账单详情。
 
-已有数据核对表明，订单侧字段名不能独立决定业务含义。例如订单`1051651926`中，`cod_price = 608`、`collection_price = 505`，而`cod_amount = 505`。该结果只能证明到付总额与代收货款本金存在差额，并且`cod_amount`不能按字段中文名直接作为`505`的手续费扣减；差额和手续费归属仍须回到包裹侧导入事实及费项明细判断。
+经已有数据核对确认，订单侧字段名不能独立决定业务含义。以下使用不对应任何真实客户或订单的虚构数据说明同一关系：订单`DEMO-COD-001`中，`cod_price = 120`、`collection_price = 100`，而`cod_amount = 100`。该结果只能证明到付总额与代收货款本金存在差额，并且`cod_amount`不能按字段中文名直接作为`100`的手续费扣减；差额和手续费归属仍须回到包裹侧导入事实及费项明细判断。

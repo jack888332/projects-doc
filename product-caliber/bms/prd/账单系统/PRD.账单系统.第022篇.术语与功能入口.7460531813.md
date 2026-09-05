@@ -26,7 +26,6 @@
 | 营收总览 | [🔗原型链接](http://localhost:10520/#/billing/revenue-overview) |
 | 应收账单 | [🔗原型链接](http://localhost:4181/#/billing/receivable-bills) |
 | 返款账单 | [🔗原型链接](http://localhost:4181/#/billing/refund-bills) |
-| 回款管理 | [🔗原型链接](http://localhost:4181/#/billing/remittance) |
 | 调账中心 | [🔗原型链接](http://localhost:4181/#/billing/adjustments) |
 | 账单配置 | [🔗原型链接](http://localhost:4181/#/billing/config) |
 | 汇率配置 | [🔗原型链接](http://localhost:4181/#/billing/rates) |
@@ -47,7 +46,6 @@ rectangle tree [
     |_ <b>营收总览</b>
     |_ <b>应收账单</b>
     |_ <b>返款账单</b>
-    |_ <b>回款管理</b>
     |_ <b>调账中心</b>
   |_ <color:#6B7280>核心配置</color>
     |_ <b>账单配置</b>
@@ -70,8 +68,7 @@ rectangle tree [
 | :--- | :--- | :--- | :--- |
 | 财务日常 | 营收总览 | 在当前供应链范围内按店铺及其下属客户查看应收、已收、应收未收及逾期未收金额，并下钻到具体应收账单 | [营收总览](PRD.账单系统.第013篇.营收总览.3D43B00B76.md#doc-3D43B00B76-revenue-overview-7a6b4f62) |
 | 财务日常 | 应收账单 | 查询、审核、发送、结算、补录、冲正、核销及跟踪应收账单异常 | [应收账单模块](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-b1671b99) |
-| 财务日常 | 返款账单 | 查询、审核、发送和结清返款账单，核对 COD 货款、扣减项及应返金额 | [返款账单模块](PRD.账单系统.第012篇.返款账单.A4A4EF02F0.md#doc-A4A4EF02F0-refund-bill-09993f61) |
-| 财务日常 | 回款管理 | 查看和核对派送商回款事实、回款状态及回款金额 | [回款管理](PRD.账单系统.第012篇.返款账单.A4A4EF02F0.md#doc-A4A4EF02F0-collection-94d05002) |
+| 财务日常 | 返款账单 | 查询、审核、发送和结清返款账单，核对 COD 货款、扣减项、应返金额及回款记录与汇兑损益 | [返款账单模块](PRD.账单系统.第012篇.返款账单.A4A4EF02F0.md#doc-A4A4EF02F0-refund-bill-09993f61) |
 | 财务日常 | 调账中心 | 处理补录、调账、冲正、重整及历史账单差异承接 | [调账中心](PRD.账单系统.第015篇.调账中心.17F89514C9.md#doc-17F89514C9-adjustment-center-98536490) |
 | 财务日常 / 核心配置 | 账单配置 | 维护统一的应收和返款配置、配置版本及客户引用，包括账期、履约节点、限定情形和币种 | [客户级账单配置](PRD.账单系统.第005篇.客户级账单配置.B6349C60A4.md#doc-B6349C60A4-billing-config-d161171a) |
 | 财务日常 / 核心配置 | 汇率配置 | 维护基准汇率、统一的特调配置、配置版本及客户引用，查看客户最终默认汇率结果 | [客户级汇率配置](PRD.账单系统.第006篇.客户级汇率配置.72D3AF6045.md#doc-72D3AF6045-rate-config-809a91c4) |

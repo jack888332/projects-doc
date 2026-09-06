@@ -10,8 +10,9 @@
 | 业务主题 | 术语链接 |
 | :--- | :--- |
 | 总体方案 | [应收账单](PRD.账单系统.第001篇.概览与索引.7822BE08F7.md#doc-7822BE08F7-overview-9d9ba04a)、[返款账单](PRD.账单系统.第001篇.概览与索引.7822BE08F7.md#doc-7822BE08F7-overview-9d9ba04a)、[成本账单](PRD.账单系统.第001篇.概览与索引.7822BE08F7.md#doc-7822BE08F7-overview-9d9ba04a) |
-| 账单生成/重算机制 | [费项](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-c6aeed9f)、[提前收口](PRD.账单系统.第007篇.BMS任务生命周期与操作.D94FE560DB.md#doc-D94FE560DB-task-lifecycle-984e810a)、[截断账期](PRD.账单系统.第008篇.任务快照与配置衔接.A82E89D72C.md#doc-A82E89D72C-task-snapshot-ab6c0655)、[仅展示不核销](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-c6aeed9f) |
+| 账单生成/重算机制 | [费项](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-c6aeed9f)、[提前收口](PRD.账单系统.第007篇.BMS任务生命周期与操作.D94FE560DB.md#doc-D94FE560DB-task-lifecycle-984e810a)、[截断账期](PRD.账单系统.第008篇.任务快照与配置衔接.A82E89D72C.md#doc-A82E89D72C-task-snapshot-ab6c0655)、[仅展示不核销](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-c6aeed9f)、[资金事实分类（账单侧 / 来源侧）](PRD.账单系统.第010篇.账单生成重算与变更分流.4CA3C606DB.md#doc-4CA3C606DB-billing-calculation-funds-fact-classification) |
 | 应收账单模块 | [待审核](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0)、[待结清](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0)、[已结清](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0)、[已作废](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0)、[账期收口状态](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0)、[账单发出时间](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-119cdedf)、[通知状态](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-119cdedf)、[逾期未结清](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0) |
+| 返款负数处理 | [负数承接记录与负数承接冲抵](PRD.账单系统.第012篇.返款账单.A4A4EF02F0.md#doc-A4A4EF02F0-refund-bill-negative-amount)、[应收调整费项](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-arr-adjustment) |
 | 金额汇兑 | [锁定汇率](PRD.账单系统.第014篇.金额汇兑.27B80EF314.md#doc-27B80EF314-currency-exchange-338cc4ee) |
 
 <a id="doc-7460531813-term-function-27a28537"></a>

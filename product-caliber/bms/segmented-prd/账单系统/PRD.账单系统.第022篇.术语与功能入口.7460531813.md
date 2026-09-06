@@ -10,7 +10,7 @@
 | 业务主题 | 术语链接 |
 | :--- | :--- |
 | 总体方案 | [应收账单](PRD.账单系统.第001篇.概览与索引.7822BE08F7.md#doc-7822BE08F7-overview-9d9ba04a)、[返款账单](PRD.账单系统.第001篇.概览与索引.7822BE08F7.md#doc-7822BE08F7-overview-9d9ba04a)、[成本账单](PRD.账单系统.第001篇.概览与索引.7822BE08F7.md#doc-7822BE08F7-overview-9d9ba04a) |
-| 账单生成/重算机制 | [费项](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-c6aeed9f)、[提前收口](PRD.账单系统.第007篇.BMS任务生命周期与操作.D94FE560DB.md#doc-D94FE560DB-task-lifecycle-984e810a)、[截断账期](PRD.账单系统.第008篇.任务快照与配置衔接.A82E89D72C.md#doc-A82E89D72C-task-snapshot-ab6c0655)、[仅展示不核销](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-c6aeed9f)、[资金事实分类（账单侧 / 来源侧）](PRD.账单系统.第010篇.账单生成重算与变更分流.4CA3C606DB.md#doc-4CA3C606DB-billing-calculation-funds-fact-classification) |
+| 账单生成/重算机制 | [费项](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-c6aeed9f)、[账期结束、账期收口与提前收口](PRD.账单系统.第007篇.BMS任务生命周期与操作.D94FE560DB.md#doc-D94FE560DB-task-lifecycle-984e810a)、[截断账期](PRD.账单系统.第008篇.任务快照与配置衔接.A82E89D72C.md#doc-A82E89D72C-task-snapshot-ab6c0655)、[仅展示不核销](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-c6aeed9f)、[资金事实分类（账单侧 / 来源侧）](PRD.账单系统.第010篇.账单生成重算与变更分流.4CA3C606DB.md#doc-4CA3C606DB-billing-calculation-funds-fact-classification) |
 | 应收账单模块 | [待审核](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0)、[待结清](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0)、[已结清](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0)、[已作废](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0)、[账期收口状态](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0)、[账单发出时间](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-119cdedf)、[通知状态](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-119cdedf)、[逾期未结清](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-16ae68e0) |
 | 返款负数处理 | [负数承接记录与负数承接冲抵](PRD.账单系统.第012篇.返款账单.A4A4EF02F0.md#doc-A4A4EF02F0-refund-bill-negative-amount)、[应收调整费项](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-arr-adjustment) |
 | 金额汇兑 | [锁定汇率](PRD.账单系统.第014篇.金额汇兑.27B80EF314.md#doc-27B80EF314-currency-exchange-338cc4ee) |
@@ -69,7 +69,7 @@ rectangle tree [
 | :--- | :--- | :--- | :--- |
 | 财务日常 | 营收总览 | 在当前供应链范围内按店铺及其下属客户查看应收、已收、应收未收及逾期未收金额，并下钻到具体应收账单 | [营收总览](PRD.账单系统.第013篇.营收总览.3D43B00B76.md#doc-3D43B00B76-revenue-overview-7a6b4f62) |
 | 财务日常 | 应收账单 | 查询、审核、发送、结算、补录、冲正、核销及跟踪应收账单异常 | [应收账单模块](PRD.账单系统.第011篇.应收账单.88A604AED3.md#doc-88A604AED3-receivable-bill-b1671b99) |
-| 财务日常 | 返款账单 | 查询、审核、发送和结清返款账单，核对 COD 货款应付返款、指定扣减项、实付返款及回款记录与汇兑损益 | [返款账单模块](PRD.账单系统.第012篇.返款账单.A4A4EF02F0.md#doc-A4A4EF02F0-refund-bill-09993f61) |
+| 财务日常 | 返款账单 | 查询、审核、发送和结清返款账单，核对 COD 应付返款、指定扣减项、实付返款及回款记录与汇兑损益 | [返款账单模块](PRD.账单系统.第012篇.返款账单.A4A4EF02F0.md#doc-A4A4EF02F0-refund-bill-09993f61) |
 | 财务日常 | 调账中心 | 处理补录、调账、冲正、重整及历史账单差异承接 | [调账中心](PRD.账单系统.第015篇.调账中心.17F89514C9.md#doc-17F89514C9-adjustment-center-98536490) |
 | 财务日常 / 核心配置 | 账单配置 | 维护统一的应收和返款配置、配置版本及客户引用，包括账期、履约节点、限定情形和币种 | [客户级账单配置](PRD.账单系统.第005篇.客户级账单配置.B6349C60A4.md#doc-B6349C60A4-billing-config-d161171a) |
 | 财务日常 / 核心配置 | 汇率配置 | 维护基准汇率、统一的特调配置、配置版本及客户引用，查看客户最终默认汇率结果 | [客户级汇率配置](PRD.账单系统.第006篇.客户级汇率配置.72D3AF6045.md#doc-72D3AF6045-rate-config-809a91c4) |

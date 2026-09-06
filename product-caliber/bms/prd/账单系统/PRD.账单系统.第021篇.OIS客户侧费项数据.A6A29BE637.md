@@ -129,9 +129,9 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.collection_price</code></td><td>代收货款</td><td>业务订单</td><td>代收类</td><td><code>否</code></td><td>--</td><td>目的国币种</td></tr>
     <tr class="source-header"><td><code>ofp_ofdb1.sale_order_header.collection_premium_amount</code></td><td>代收货款手续费</td><td>业务订单</td><td>应收类</td><td><code>否</code></td><td>--</td><td>目的国币种</td></tr>
     <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.collection</code></td><td>历史实付返款</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>历史订单费用报表导入（停止新增）</td><td>只保留存量原记录；不再展示，也不作为返款账单币种、汇率或金额计算依据</td></tr>
-    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.recovery_money</code></td><td>实收回款</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td><td>原始口径为目的国币种；有回款汇率时，导入结果为财务本位币</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.recovery_money</code></td><td>实收回款</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td><td>未导入回款汇率时按目的国币种记录；有回款汇率时，导入结果为财务本位币（CNY）</td></tr>
     <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable_collection_amount</code></td><td>代收货款手续费（包裹导入值）</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
-    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.payment_collect</code></td><td>回款汇率</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种兑财务本位币</td></tr>
+    <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.payment_collect</code></td><td>回款汇率</td><td>尾程包裹</td><td>非费项</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种兑财务本位币（CNY）</td></tr>
     <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.resend_fee</code></td><td>重出费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
     <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable_freight</code></td><td>运费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
     <tr class="source-package-fee"><td><code>ofp_ofdb1.sale_order_package_fee.receivable_delivery_fee</code></td><td>派送费</td><td>尾程包裹</td><td>应收类</td><td><code>否</code></td><td>订单费项报表导入</td><td>目的国币种</td></tr>
@@ -181,7 +181,7 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 6. 订单侧`collection_price`（代收货款）保留用于核对，BMS 按`cod_price - dest_country_surcharge_amount`计算所得`应付返款`用于返款账单或对账；两者表达同一代收资金口径，取值不一致时以订单级`应付返款`计算规则为准。`cod_price`、`dest_country_surcharge_amount`和`实收回款`属于非费项字段，其中前两者是订单侧应付返款计算输入，`实收回款`是包裹侧导入核对事实。`dest_country_surcharge_amount`不进入客户应收账单。费项类型和账单用途见[费项索引怎样定义费项类型？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-798b26a1)。
 7. `录入币种`表示优先采用来源数据中随金额录入的币种；录入币种为空时，使用来源订单所属店铺的店铺币种兜底。店铺币种通常配置为人民币，但必须以实际店铺配置为准。完整规则见[系统从哪里取金额和币种？](PRD.账单系统.第009篇.来源范围与费项池.C986F40642.md#doc-C986F40642-fee-source-3859a98f)。
 8. 目的国币种优先读取`ofp_ofdb1.sale_order_header.dest_country_currency_code`，为空时再按运抵国匹配运抵国配置。该规则只确定 BMS 原始币种，不改变费项类型和账单归属：到付附加费仍不进入客户应收账单，只有`收取方式`为`账期支付`的附加费才进入应收归集范围。
-9. 订单费用报表导入的普通费项金额都必须确定原始币种；其中`仓租费`和`航空费`固定为人民币，其他普通费项金额采用目的国币种。后续订单费用报表只导入`实收回款`和`回款汇率`，不再导入`实付返款`和`返款汇率`。系统不再依赖`ofp_ofdb1.sale_order_package_fee.type`区分返款汇率和回款汇率，`payment_collect`当前导入值统一按回款汇率处理。当前回款汇率表示`目的国币种 → 财务本位币`；返款账单所用返款汇率由货款原始币种和货款结算币种确定，见[返款账单换算总则](PRD.账单系统.第014篇.金额汇兑.27B80EF314.md#doc-27B80EF314-currency-exchange-83e6bbc9)。
+9. 订单费用报表导入的普通费项金额都必须确定原始币种；其中`仓租费`和`航空费`固定为人民币，其他普通费项金额采用目的国币种。后续订单费用报表只导入`实收回款`和`回款汇率`，不再导入`实付返款`和`返款汇率`。系统不再依赖`ofp_ofdb1.sale_order_package_fee.type`区分返款汇率和回款汇率，`payment_collect`当前导入值统一按回款汇率处理。当前回款汇率表示`目的国币种 → 财务本位币（CNY）`；返款账单所用返款汇率由货款原始币种和货款结算币种确定，见[返款账单换算总则](PRD.账单系统.第014篇.金额汇兑.27B80EF314.md#doc-27B80EF314-currency-exchange-83e6bbc9)。
 10. 表中币种是`费项原始币种`，不是客户账单的`费项结算币种`。进入账单后的换算按[金额汇兑](PRD.账单系统.第014篇.金额汇兑.27B80EF314.md#doc-27B80EF314-currency-exchange-e7e21dd6)执行；系统不得因账单结算币种不同而改写来源数据的原始币种。
 
 <a id="doc-A6A29BE637-ois-fee-data-a254f9b7"></a>
@@ -213,7 +213,7 @@ OIS 的费用数据主要分布在以下六张表中，OIS 集运单在 BMS 中�
 | `ofp_ofdb1.sale_order_package_fee.collection` | 历史包裹侧实付返款 | 停止新增导入；存量只保留原记录，不再展示，也不参与返款账单计算或核销。 |
 | `ofp_ofdb1.sale_order_package_fee.recovery_money` | 包裹侧导入的实收回款 | 直接作为`实收回款`来源；回款返款模式下，用于判断是否已回款并核对回款金额。 |
 | `ofp_ofdb1.sale_order_package_fee.receivable_collection_amount` | 包裹侧导入的代收货款手续费 | 直接挂靠对应尾程包裹，是导入费项而非机算结果；与业务订单级机算手续费同时存在时，按各自挂靠层级分别归集。 |
-| `ofp_ofdb1.sale_order_package_fee.payment_collect` | 包裹侧导入的回款汇率 | 来源口径为`目的国币种 → 财务本位币`；直接作为回款汇率来源，账单生成时随任务或账单快照固化，不由系统按金额关系自动生成或覆盖。 |
+| `ofp_ofdb1.sale_order_package_fee.payment_collect` | 包裹侧导入的回款汇率 | 来源口径为`目的国币种 → 财务本位币（CNY）`；直接作为回款汇率来源，账单生成时随任务或账单快照固化，不由系统按金额关系自动生成或覆盖。 |
 
 字段使用规则如下：
 

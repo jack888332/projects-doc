@@ -63,7 +63,7 @@ stop
 skinparam activityDiamondBackgroundColor #FFF4CC
 title 普货进口卡航流程
 start
-note right: @1
+note right: P1
 :新建订单;
 :接单;
 if (理货正常？) then (是)
@@ -96,7 +96,7 @@ stop
 @enduml
 ```
 
-- @1：运输路线为国外空运至广州机场，再由卡车航班转运至国内其他口岸。
+- P1：运输路线为国外空运至广州机场，再由卡车航班转运至国内其他口岸。
 
 ### 4. 转关车辆进仓流程
 

@@ -28,6 +28,7 @@ end fork
 :货物运抵;
 if (是否查验) then (是)
   :查验;
+else (否)
 endif
 :放行;
 stop
@@ -52,6 +53,7 @@ end fork
 if (是否查验) then (是)
   :已审结，去货站录运抵;
   :查验;
+else (否)
 endif
 :放行;
 stop
@@ -78,6 +80,7 @@ end fork
 if (是否查验) then (是)
   :缴税完成;
   :查验;
+else (否)
 endif
 :放行;
 :提货;

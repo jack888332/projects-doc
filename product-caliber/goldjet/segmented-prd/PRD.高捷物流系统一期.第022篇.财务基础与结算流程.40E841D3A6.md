@@ -71,7 +71,7 @@ else (是)
 endif
 |财务|
 :审批结算费用;
-note right: @1
+note right: P1
 if (财务审批通过？) then (否)
   #gold:(B)
   detach
@@ -104,13 +104,13 @@ else (修改)
   detach
 endif
 legend bottom left
-  @2
+  P2
 endlegend
 @enduml
 ```
 
-- @1：主管审批通过后，业务员可打印单票账单。
-- @2：连接符 A 表示返回提交审批；连接符 B 表示进入被拒绝结算明细的处理分支。
+- P1：主管审批通过后，业务员可打印单票账单。
+- P2：连接符 A 表示返回提交审批；连接符 B 表示进入被拒绝结算明细的处理分支。
 
 | 步骤 | 步骤描述 | 角色 | 流程描述 | 下一步骤 | 关键控制点 |
 | --- | --- | --- | --- | --- | --- |
@@ -147,10 +147,10 @@ skinparam activityDiamondBackgroundColor #FFF4CC
 start
 repeat
   :创建收款申请并提交;
-  note right: @1
+  note right: P1
   :确认收款申请;
 repeat while (审批结果？) is (拒绝) not (通过)
-note right: @2
+note right: P2
 split
   :登记销项票;
   stop
@@ -163,8 +163,8 @@ end split
 @enduml
 ```
 
-- @1：收款申请基于已对账的结算明细与收款水单创建。
-- @2：销项票登记单独列为审批通过后的处理，不作为核销的前置步骤；两者先后及同步关系待确认。
+- P1：收款申请基于已对账的结算明细与收款水单创建。
+- P2：销项票登记单独列为审批通过后的处理，不作为核销的前置步骤；两者先后及同步关系待确认。
 
 <a id="doc-40E841D3A6-section-0f97b5b6d534"></a>
 #### 1.1.5 应付结算流程
@@ -205,7 +205,7 @@ start
 repeat
   |业务员|
   :创建付款申请并提交;
-  note right: @1
+  note right: P1
   |职能部门|
   :审批付款申请\n（业务主管、分管领导、财务）;
 repeat while (审批结果？) is (拒绝) not (通过)
@@ -215,7 +215,7 @@ stop
 @enduml
 ```
 
-- @1：付款申请基于已对账的结算明细创建。
+- P1：付款申请基于已对账的结算明细创建。
 
 <a id="doc-40E841D3A6-section-4abb908691b3"></a>
 ### 1.2 即期汇率维护

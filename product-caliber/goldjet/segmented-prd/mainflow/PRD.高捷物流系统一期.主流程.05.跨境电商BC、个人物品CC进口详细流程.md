@@ -193,11 +193,13 @@ if (是否需要上传材料？) then (是)
     :2A.上传材料;
     :3B.接收生产证明并提交海关;
     stop
+  else (否)
   endif
 else (否)
   if (是否年度超额退运) then (是，转CC申报)
     :2B.补充CC所需材料给关务做申报;
     stop
+  else (否)
   endif
 endif
 :2C.退运登记;
@@ -231,6 +233,7 @@ if (是否机检通过) then (是，获得机检无异常批注)
       :寄快递;
     endif
   endif
+else (否)
 endif
 stop
 @enduml

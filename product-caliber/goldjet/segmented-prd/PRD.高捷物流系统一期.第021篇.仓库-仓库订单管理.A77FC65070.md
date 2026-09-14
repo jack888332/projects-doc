@@ -32,7 +32,7 @@
 <a id="doc-A77FC65070-section-987fa361a564"></a>
 #### 1.1.3 受控术语
 
-受控术语定义见 [数据字典 · 受控业务术语](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-terms-controlled)。
+受控术语定义见 [数据字典 · 受控业务术语](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-domain-values)。
 
 <a id="doc-A77FC65070-section-d404c18c5637"></a>
 #### 1.1.4 基本流程说明
@@ -187,7 +187,7 @@
 <a id="doc-A77FC65070-section-2f7dec8fdcc6"></a>
 #### 1.2.10 字段定义
 
-字段定义见 [数据字典 · 托盘管理字段](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-fields-025-003)。
+字段定义见 [数据字典 · 托盘管理字段](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-ground-warehouse-entity-pallet)。
 
 <a id="doc-A77FC65070-section-b7d86ea35cad"></a>
 #### 1.2.11 托盘管理规则

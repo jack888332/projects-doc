@@ -60,7 +60,7 @@
 
 | 所属步骤 | 关键控制点描述 |
 | --- | --- |
-| 2 | 客户报价记录的字段定义见[客户收费报价字段](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-fields-ddp-038)。 |
+| 2 | 客户报价记录的字段定义见[客户收费报价字段](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-partners-quotes-entity-customer-charge-quote)。 |
 
 <a id="doc-7579B595B8-section-95d79e50b524"></a>
 ## 3. 订单管理流程
@@ -92,7 +92,7 @@
 
 | 所属步骤 | 关键控制点描述 |
 | --- | --- |
-| 2 | 订单接入字段与运输订单字段的对应关系见[订单字段映射](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-fields-ddp-039)。 |
+| 2 | 订单接入字段与运输订单字段的对应关系见[订单字段映射](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-mappings-mapping-cross-module-order-fields)。 |
 | 5 | 一个订单可以安排多辆不同车型的车辆。选择车型后，系统按报价顺序展示路线和车型均匹配的供应商。 |
 
 <a id="doc-7579B595B8-section-4f694486f2b0"></a>
@@ -139,7 +139,7 @@
 
 | 所属步骤 | 关键控制点描述 |
 | --- | --- |
-| 7 | 司机当前运输任务的展示字段见[司机当前任务展示字段](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-fields-040-001)。 |
+| 7 | 司机当前运输任务的展示字段见[司机当前任务展示字段](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-read-models-read-model-driver-current-task)。 |
 
 <a id="doc-7579B595B8-section-eb8702275d29"></a>
 ## 5. 车队管理
@@ -190,8 +190,8 @@
 
 | 所属步骤 | 关键控制点描述 |
 | --- | --- |
-| 1 | 司机字段见[车队字段映射](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-fields-ddp-041)。 |
-| 7 | 车辆字段见[车队字段映射](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-fields-ddp-041)。 |
+| 1 | 司机字段见[车队字段映射](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-mappings-mapping-cross-module-fleet-fields)。 |
+| 7 | 车辆字段见[车队字段映射](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-mappings-mapping-cross-module-fleet-fields)。 |
 
 <a id="doc-7579B595B8-section-a5b92ee23329"></a>
 ## 6. 结算管理

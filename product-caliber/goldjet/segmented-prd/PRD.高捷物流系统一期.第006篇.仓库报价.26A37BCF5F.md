@@ -27,7 +27,7 @@
 <a id="doc-26A37BCF5F-section-e8c0843bb361"></a>
 #### 1.1.3 仓库报价术语
 
-受控术语定义见 [数据字典 · 受控业务术语](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-terms-controlled)。
+受控术语定义见 [数据字典 · 受控业务术语](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-domain-values)。
 
 <a id="doc-26A37BCF5F-section-6566db07b7b6"></a>
 #### 1.1.4 参与角色与职责

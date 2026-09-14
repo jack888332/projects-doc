@@ -28,7 +28,7 @@
 <a id="doc-C027EE380C-section-ef152f56c024"></a>
 #### 1.1.3 受控术语
 
-受控术语定义见 [数据字典 · 受控业务术语](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-terms-controlled)。
+受控术语定义见 [数据字典 · 受控业务术语](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-domain-values)。
 
 <a id="doc-C027EE380C-section-43167b14f7ad"></a>
 #### 1.1.4 参与角色与职责

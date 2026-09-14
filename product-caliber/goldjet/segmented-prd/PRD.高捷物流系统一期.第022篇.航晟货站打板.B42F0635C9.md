@@ -28,7 +28,7 @@
 <a id="doc-B42F0635C9-section-25bc74f48e5d"></a>
 #### 1.1.3 受控术语
 
-受控术语定义见 [数据字典 · 受控业务术语](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-terms-controlled)。
+受控术语定义见 [数据字典 · 受控业务术语](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-domain-values)。
 
 <a id="doc-B42F0635C9-section-e7bebd79575e"></a>
 #### 1.1.4 货站打板流程说明

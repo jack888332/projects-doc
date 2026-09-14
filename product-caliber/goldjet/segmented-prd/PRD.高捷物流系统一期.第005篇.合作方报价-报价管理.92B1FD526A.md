@@ -44,7 +44,7 @@
 <a id="doc-92B1FD526A-section-6b2ea41fa43f"></a>
 #### 1.2.3 合作方报价术语
 
-受控术语定义见 [数据字典 · 受控业务术语](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-terms-controlled)。
+受控术语定义见 [数据字典 · 受控业务术语](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-domain-values)。
 
 <a id="doc-92B1FD526A-section-194e38c5ce40"></a>
 #### 1.2.4 参与角色与职责

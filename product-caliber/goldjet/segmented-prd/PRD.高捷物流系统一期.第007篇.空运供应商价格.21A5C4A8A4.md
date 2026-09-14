@@ -271,7 +271,7 @@
 
 - 提单杂费计算规则：提单杂费为数据字典所列各项提单杂费之和。
 
-字段定义见 [数据字典 · 提单杂费代码映射](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-fields-009-005)。
+字段定义见 [数据字典 · 提单杂费代码映射](PRD.高捷物流系统一期.第035篇.数据字典.7A3D9E1F50.md#doc-7A3D9E1F50-mappings-mapping-air-waybill-surcharge-code)。
 
 <a id="doc-21A5C4A8A4-section-4757fe4cc688"></a>
 ### 1.2 客户价格维护管理

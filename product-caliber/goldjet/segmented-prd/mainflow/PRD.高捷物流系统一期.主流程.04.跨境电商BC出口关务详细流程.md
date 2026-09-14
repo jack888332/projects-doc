@@ -9,16 +9,17 @@
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 查验异常处理（子流程）
 start
 switch (异常情形)
-case (少量品名和数量跟申报的不一致)
+case (少量品名和数量\n与申报不一致)
   :申请清单撤单;
 case (敏感物安检不过)
   :退单退场;
 case (涉及侵权)
   :记录弃货;
-case (超过55%不符/重量超3%)
+case (超过55%不符/\n重量超3%)
   :删单退场;
 endswitch
 stop
@@ -28,6 +29,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 申报异常处理（子流程）
 start
 switch (异常情形)
@@ -50,6 +52,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title BC出口主流程（转关模式）
 start
 -> 客户提供资料给客服;
@@ -116,6 +119,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title BC出口主流程（非转关模式）
 start
 -> 客户提供资料给客服;
@@ -175,10 +179,11 @@ stop
 
 ## 5. BC出口转关流程（适用条件未区分）
 
-本流程与第 3 节的适用条件尚未区分。本流程不包含“车辆进出区登记”，且“查验”判断未定义“不查验”分支；适用范围明确前，两套转关流程均不得作为唯一业务口径。
+本流程与第 3 节的适用条件尚未区分。本流程不包含“车辆进出区登记”，且“查验”判断未定义“不查验”分支；适用范围明确前，两套转关流程均不得作为唯一业务口径。图中的待确认终点仅标记已知流程边界，不表示业务完成。
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title BC出口转关流程（适用条件未区分）
 start
 -> 客户提供资料给客服;
@@ -227,6 +232,9 @@ if (查验？) then (是)
     -> 处理完成;
   else (否)
   endif
+else (否)
+  :不查验时的后续待确认;
+  end
 endif
 :放行;
 -> 货站出托书后;

@@ -57,6 +57,43 @@
 <a id="doc-32C78B8106-section-470dd2b8ab0e"></a>
 #### 1.2.5 订单管理流程
 
+邮件录入与系统同步的订单汇入同一调度入口；调度后的修改或取消仍受订单来源和状态条件限制。
+
+```plantuml
+@startuml goldjet-015-order-dispatch
+skinparam activityDiamondBackgroundColor #FFF4CC
+|航晟物流客服|
+start
+if (订单提交方式？) then (邮件)
+  |外部客户|
+  :发送《用车单》;
+  |航晟物流客服|
+  :根据《用车单》录入订单;
+else (系统同步)
+  |高捷各业务部门|
+  :通过 API 发送用车订单;
+endif
+|航晟物流客服|
+:查看订单列表;
+:录入调度派车信息;
+|航晟系统|
+if (已与高捷业务系统对接？) then (是)
+  :回传派车信息;
+  |高捷各业务部门|
+  :接收派车信息并更新业务系统;
+endif
+|航晟物流客服|
+if (需要修改订单或调度？) then (是)
+  :按来源和状态条件\n修改或取消订单、调度;
+  |航晟系统|
+  :记录修改内容和修改人;
+endif
+|航晟物流客服|
+:查看订单详情、调度记录\n和变更记录;
+stop
+@enduml
+```
+
 | 环节 | 参与方 | 处理与结果 | 后续环节 |
 | --- | --- | --- | --- |
 | 1. 通过邮件发送《用车单》 | 外部客户 | 若没有做系统对接，则选择邮件附件《用车单》的提交发送模式。 | 2 |
@@ -71,6 +108,78 @@
 
 <a id="doc-32C78B8106-section-8a8ddb081835"></a>
 #### 1.2.6 逆向流程节点说明
+
+修改订单与调整调度分别判断；取消调度产生返空费，修改调度不自动产生返空费。
+
+```plantuml
+@startuml goldjet-015-order-dispatch-changes
+skinparam activityDiamondBackgroundColor #FFF4CC
+|航晟物流客服|
+start
+if (处理对象？) then (订单)
+  if (手工创建且符合修改条件？) then (否)
+    |航晟系统|
+    :相关字段不可编辑;
+    stop
+  endif
+  |航晟物流客服|
+  if (订单为“未调度”？) then (是)
+    :修改订单全部信息;
+  else (已调度或异常中)
+    :仅修改备注或执行关闭;
+  endif
+  :提交允许的修改;
+  stop
+endif
+|航晟物流客服|
+:对已调度或异常中的订单\n调整调度;
+if (操作类型？) then (取消调度)
+  |航晟系统|
+  :按返空费配置比例\n生成应收、应付返空费;
+  stop
+endif
+|航晟物流客服|
+:修改调度;
+|航晟系统|
+:不自动生成返空费;
+|航晟物流客服|
+if (涉及相关收费？) then (是)
+  :人工新增收费;
+endif
+stop
+@enduml
+```
+
+系统同步订单与手工录入执行相同的创建校验，失败结果反馈给对应提交方。
+
+```plantuml
+@startuml goldjet-015-order-intake-validation
+skinparam activityDiamondBackgroundColor #FFF4CC
+|航晟物流客服|
+start
+if (订单来源？) then (手工录入)
+  :录入订单数据;
+else (API 同步)
+  |空运系统|
+  :发送订单数据;
+endif
+|航晟系统|
+:校验单号、必填、合作方匹配\n及业务格式和取值;
+if (校验通过？) then (是)
+  :创建订单并显示在订单列表;
+else (否)
+  if (来自空运系统 API？) then (是)
+    :向空运系统反馈创建失败原因;
+    |空运系统|
+    :接收创建失败原因;
+  else (手工录入)
+    |航晟系统|
+    :高亮错误输入项\n且不允许提交;
+  endif
+endif
+stop
+@enduml
+```
 
 | 流程点 | 异常节点 | 前置条件 | 后续处理 |
 | --- | --- | --- | --- |

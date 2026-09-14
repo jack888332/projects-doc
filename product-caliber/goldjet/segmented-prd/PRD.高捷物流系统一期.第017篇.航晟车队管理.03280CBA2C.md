@@ -41,6 +41,64 @@
 <a id="doc-03280CBA2C-section-fca683731c5a"></a>
 #### 1.1.4 流程描述
 
+司机与车辆资料分别维护，查看列表后按需要进入修改，不要求每次查看都修改。
+
+```plantuml
+@startuml goldjet-017-driver-vehicle-maintenance
+skinparam activityDiamondBackgroundColor #FFF4CC
+start
+if (维护对象？) then (司机)
+  :录入司机资料;
+  if (需要关联车辆？) then (是)
+    :关联车辆信息;
+  endif
+  :查看司机列表;
+  if (需要修改司机信息？) then (是)
+    :修改司机资料\n并记录修改时间和修改人;
+  endif
+  :查看司机详情\n及执行中、历史任务;
+else (车辆)
+  :录入车辆资料;
+  :查看车辆列表;
+  if (需要修改车辆信息？) then (是)
+    :修改车辆资料\n及关联司机信息;
+  endif
+  :查看车辆详情\n及执行中、历史任务;
+endif
+stop
+@enduml
+```
+
+事故违章、维修和油耗记录各自形成独立维护流程，仅在需要更正时修改已提交记录。
+
+```plantuml
+@startuml goldjet-017-fleet-record-maintenance
+skinparam activityDiamondBackgroundColor #FFF4CC
+start
+switch (记录类别？)
+case (事故违章)
+  :录入事故或违章;
+  if (需要关联司机？) then (是)
+    :关联司机信息;
+  endif
+  :查看事故违章列表;
+case (维修)
+  :录入维修明细\n并关联车辆;
+  :查看维修列表;
+case (油耗)
+  :录入油耗或油卡记录;
+  :系统计算百公里油耗等派生数据;
+  :关联车辆并查看油耗列表;
+endswitch
+if (需要修改本类记录？) then (是)
+  :进入对应记录的修改入口\n编辑并保存;
+else (否)
+  :保留已提交记录;
+endif
+stop
+@enduml
+```
+
 | 环节 | 参与方 | 处理与结果 | 后续环节 |
 | --- | --- | --- | --- |
 | 1. 新增司机录入 | 司机管理 | 录入司机的基础资料 | 2 |

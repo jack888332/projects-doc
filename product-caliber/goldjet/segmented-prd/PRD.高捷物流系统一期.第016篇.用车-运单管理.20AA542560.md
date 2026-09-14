@@ -57,6 +57,82 @@
 <a id="doc-20AA542560-section-df85abad663f"></a>
 #### 1.2.5 运单履约与司机反馈流程
 
+司机正常履约时，节点与凭证反馈给航晟物流，航晟仓库可查看与本仓相关的到达信息；该交接顺序不表示后台强制校验节点顺序。
+
+```plantuml
+@startuml goldjet-016-driver-handoffs
+skinparam activityDiamondBackgroundColor #FFF4CC
+|司机|
+start
+:登录后查看任务详情;
+if (确认前往提货？) then (是)
+  :确认前往提货;
+  |航晟物流|
+  :更新为“提货中”;
+  if (提货点或卸货点为航晟仓库？) then (是)
+    |航晟仓库|
+    :查看预计到达时间;
+  endif
+endif
+|司机|
+:确认到达提货点;
+if (提货点为航晟仓库？) then (是)
+  |航晟仓库|
+  :记录司机上报的实际到达时间;
+endif
+|司机|
+:确认已提货并上传提货凭证;
+|航晟物流|
+:查看节点与提货凭证;
+|司机|
+:确认到达卸货点;
+:确认已卸货并上传卸货凭证;
+|航晟物流|
+:查看节点与卸货凭证;
+stop
+@enduml
+```
+
+候车与压车按各自条件独立判断，不作为继续运输的前置审批；异常上报和客服处理见[逆向流程节点说明](#doc-20AA542560-section-731d67f1818c)。
+
+```plantuml
+@startuml goldjet-016-waiting-fee-branches
+skinparam activityDiamondBackgroundColor #FFF4CC
+title 候车费判断
+|航晟系统|
+start
+:取得司机实际候车时长\n及供应商候车费规则;
+if (候车时长超过免收费时长？) then (否)
+  :不触发候车收费;
+  stop
+else (是)
+  :按规则记录候车计费;
+endif
+|航晟物流|
+:查看候车费记录;
+stop
+@enduml
+```
+
+```plantuml
+@startuml goldjet-016-demurrage-fee
+skinparam activityDiamondBackgroundColor #FFF4CC
+title 压车费判断
+|航晟系统|
+start
+:取得到达卸货点、已卸货时间\n及压车收费规则;
+if (已卸货晚于到达次日12:00？) then (否)
+  :不触发压车收费;
+  stop
+else (是)
+  :按规则生成应收、应付压车费;
+endif
+|航晟物流|
+:查看压车费记录;
+stop
+@enduml
+```
+
 | 环节 | 参与方 | 处理与结果 | 后续环节 |
 | --- | --- | --- | --- |
 | 1. 查看运单列表 | 航晟物流 | 提供运单列表，可以查看各运单，并进行灵活的筛选和搜索。 | 2 |
@@ -85,6 +161,71 @@
 
 <a id="doc-20AA542560-section-731d67f1818c"></a>
 #### 1.2.6 逆向流程节点说明
+
+调度修改优先判断运单所处阶段；不能直接修改时，先按取消资格处理原调度。
+
+```plantuml
+@startuml goldjet-016-dispatch-reversal
+skinparam activityDiamondBackgroundColor #FFF4CC
+|航晟客服|
+start
+:对指定运单调整调度;
+if (修改调度且运单为“待提货”？) then (是)
+  :修改调度信息;
+  |航晟系统|
+  :实时更新原运单;
+  stop
+endif
+|航晟客服|
+if (符合订单取消条件且\n运单未卸货、未取消？) then (否)
+  :不可取消原调度;
+  stop
+endif
+:取消原调度;
+|航晟系统|
+:将该运单更新为“已取消”;
+:按规则将返空费\n写入应收、应付账单;
+|航晟客服|
+if (本次为修改调度？) then (是)
+  :重新录入调度信息;
+endif
+stop
+@enduml
+```
+
+异常处理是履约之外的独立分支。
+
+```plantuml
+@startuml goldjet-016-exception-reporting
+skinparam activityDiamondBackgroundColor #FFF4CC
+|上报人（司机或航晟客服）|
+start
+:选择运单并准备上报异常;
+note right: @1
+|航晟系统|
+if (运单已取消？) then (是)
+  :不可上报异常;
+  stop
+else (否)
+  |上报人（司机或航晟客服）|
+  :提交异常;
+  |航晟系统|
+  :记录上报者;
+  |航晟客服|
+  :查看并处理异常;
+  if (客服关闭异常？) then (是)
+    |航晟系统|
+    :记录关闭异常事项;
+  else (否)
+    |航晟系统|
+    :保留未关闭异常;
+  endif
+endif
+stop
+@enduml
+```
+
+- @1：异常未关闭也不阻止司机继续确认运输节点。
 
 | 异常节点 | 前置条件 | 后续处理 |
 | --- | --- | --- |

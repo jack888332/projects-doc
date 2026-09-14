@@ -11,7 +11,8 @@
 
 ```plantuml
 @startuml
-title 前置准备工作详细流程（前置流程）
+skinparam activityDiamondBackgroundColor #FFF4CC
+title 前置准备工作详细流程
 start
 :准备资料;
 fork
@@ -22,7 +23,7 @@ fork
   :14、设置客户信用等级;
   :15、创建仓库;
   :16、创建自动寻源规则;
-  :14、通知仓库准备耗材/库内操作规范;
+  :14、通知仓库准备耗材/\n库内操作规范;
   :准备耗材;
 fork again
   :1、维护客户档案;
@@ -56,16 +57,17 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 服务添加或取消子流程
 start
-if (已签约的合同条款里包含该服务) then (是)
-  if (确认客户是否需要该服务) then (是)
+if (合同条款包含该服务？) then (是)
+  if (客户需要该服务？) then (是)
     :添加本次运输费用项;
   else (否)
     :移除本次运输费用项;
   endif
 else (否)
-  if (确认客户是否需要该服务) then (是)
+  if (客户需要该服务？) then (是)
     :添加合同补充条款;
   endif
 endif

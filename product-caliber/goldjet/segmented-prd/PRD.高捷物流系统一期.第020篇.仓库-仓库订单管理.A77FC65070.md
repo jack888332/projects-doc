@@ -37,6 +37,51 @@
 <a id="doc-A77FC65070-section-d404c18c5637"></a>
 #### 1.1.4 基本流程说明
 
+仓库系统负责向 WMS 下发入出仓单，并接收实际作业结果；入仓和出仓均按托盘管理，支持部分处理。
+
+```plantuml
+@startuml goldjet-020-warehouse-wms-handoffs
+skinparam activityDiamondBackgroundColor #FFF4CC
+|空运系统|
+start
+:发送仓库订单;
+|航晟仓库|
+:在订单列表管理与查看订单;
+:创建入仓单并发送给 WMS;
+|WMS|
+:接收入仓单;
+|航晟仓库|
+if (订单信息修改？) then (是)
+  :发送更新后的订单信息;
+  |WMS|
+  :接收订单信息更新;
+endif
+|WMS|
+:反馈实际入仓毛件体;
+|航晟仓库|
+:更新订单详情;
+if (向空运反馈实际毛件体？) then (是)
+  |航晟物流|
+  :收到实际毛件体后反馈空运;
+  |空运系统|
+  :接收实际毛件体;
+endif
+|航晟仓库|
+if (创建出仓单？) then (是)
+  :创建出仓单并发送给 WMS;
+  |WMS|
+  :接收出仓单并回传出库结果;
+  |航晟仓库|
+  :更新订单状态;
+  if (需要修改应收付？) then (是)
+    :手动修改科目和金额;
+  endif
+  :导出应收付账单;
+endif
+stop
+@enduml
+```
+
 | 环节 | 参与方 | 处理与结果 | 后续环节 |
 | --- | --- | --- | --- |
 | 1. 发送仓库订单 | 空运系统 | 空运系统发送需要仓库服务的订单 | 3 |
@@ -62,6 +107,54 @@
 
 <a id="doc-A77FC65070-section-a9bfe94c6eb6"></a>
 #### 1.1.5 逆向流程节点说明
+
+上游创建订单时校验入仓号是否重复；订单取消另按当前入库状态判断。
+
+```plantuml
+@startuml goldjet-020-order-intake-cancellation
+skinparam activityDiamondBackgroundColor #FFF4CC
+start
+if (处理入口？) then (上游创建订单)
+  :接收仓库订单数据;
+  if (入仓号已存在？) then (是)
+    :拒绝重复创建并反馈错误;
+    note right: @1
+  else (否)
+    :按订单创建规则处理;
+  endif
+else (取消订单)
+  if (订单为“待入库”？) then (是)
+    :允许取消订单;
+  else (否)
+    :不允许取消订单;
+  endif
+endif
+stop
+@enduml
+```
+
+- @1：入仓号已存在时，仅允许更新该入仓号对应的已有订单。
+
+电商退货按包裹条形码校验节点时间；普货整批退货重新入库时，进入新的入库流程。
+
+```plantuml
+@startuml goldjet-020-return-validation
+skinparam activityDiamondBackgroundColor #FFF4CC
+start
+if (退货类型？) then (电商退货)
+  :按条形码提交退件入库\n或退件出库节点;
+  if (节点时间满足规定先后顺序？) then (是)
+    :按当前退货节点处理提交;
+  else (否)
+    :提示时间顺序错误;
+  endif
+else (普货整批退货)
+  :退货重新入库;
+  :按新的入库流程执行;
+endif
+stop
+@enduml
+```
 
 | 流程点 | 异常节点 | 前置条件 | 后续处理 |
 | --- | --- | --- | --- |

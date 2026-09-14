@@ -10,6 +10,7 @@
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 企业主动发起改单流程
 start
 :1.打印改单资料;
@@ -26,6 +27,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 退运及出口报关流程
 start
 if (已申报？) then (已申报)
@@ -58,12 +60,16 @@ stop
 
 ```plantuml
 @startuml
-title 普货进口卡航（国外空运—广州机场—卡车航班转运国内其他口岸）流程
+skinparam activityDiamondBackgroundColor #FFF4CC
+title 普货进口卡航流程
 start
+note right: @1
 :新建订单;
 :接单;
-if (理货正常？) then (去国航/南航客服中心换单)
-else (否，通知客服)
+if (理货正常？) then (是)
+  :去国航/南航客服中心换单;
+else (否)
+  :通知客服;
   :联系货站处理;
 endif
 :确认换单完成;
@@ -90,10 +96,13 @@ stop
 @enduml
 ```
 
+- @1：运输路线为国外空运至广州机场，再由卡车航班转运至国内其他口岸。
+
 ### 4. 转关车辆进仓流程
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 转关车辆进仓流程
 start
 :新建订单;
@@ -120,20 +129,22 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 到货换单理货流程
 start
 :新建订单;
 :接单;
 :查到货信息;
-if (到货异常) then (是)
+if (到货异常？) then (是)
   :通知客户处理;
   -> 处理完成;
-else (否，线下换单，盖章，结算)
+else (否)
+  :线下换单、盖章、结算;
 endif
 :确认换单完成;
 :做分运清单;
 :到货站交单;
-if (货物是否破损) then (是)
+if (货物破损？) then (是)
   :出破损证明;
   :通知客户;
 else (否)
@@ -141,10 +152,11 @@ endif
 :到货站找货;
 :拉货回我司监管仓;
 :理货;
-if (理货异常) then (是)
+if (理货异常？) then (是)
   :通知客服;
   :通知客户，确认异常情况;
-else (否，加盖验讫章)
+else (否)
+  :加盖验讫章;
 endif
 :上传分单理货数据;
 :转仓完成;
@@ -156,6 +168,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 普货进口主流程
 start
 :新建订单;
@@ -202,6 +215,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 查验/申报异常处理流程
 start
 switch (发起方式)
@@ -218,7 +232,7 @@ case (挂单)
 case (退单)
   :修改报关单，重新上传单证;
   :提交到单一窗口;
-  -> 在单一窗口申报;
+  :在单一窗口申报;
 endswitch
 stop
 @enduml
@@ -228,6 +242,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 出口退运删单流程
 start
 -> 企业在单一窗口发起删单或海关发起删单后;
@@ -265,6 +280,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 出口主流程（公路预配舱单模式）
 start
 :新建订单;
@@ -283,9 +299,11 @@ fork again
     -> 下发入仓预报;
     :接收入仓通知;
   fork again
-    -> 客户要求提货;
-    :约车;
-    -> 货到国内仓;
+    if (客户要求提货？) then (是)
+      :约车;
+      -> 货到国内仓;
+    else (否)
+    endif
   end fork
   :接收货物;
   :记录实际入仓信息;
@@ -301,7 +319,8 @@ end fork
 if (申报异常？) then (是)
   :申报异常处理;
   -> 处理完成;
-else (否，提醒客服和仓库货物出仓入货站)
+else (否)
+  :提醒客服和仓库\n货物出仓入货站;
   fork
     :约车;
   fork again
@@ -309,7 +328,8 @@ else (否，提醒客服和仓库货物出仓入货站)
   end fork
   :装车;
   :记录出仓信息;
-  -> 货物运抵货站，货站现场操作人员\n拍照上传托运书;
+  -> 货物运抵货站;
+  :货站现场操作人员\n拍照上传托运书;
 endif
 :查看报关状态;
 if (报关状态) then (查验)
@@ -330,6 +350,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 出口主流程（货站录运抵模式）
 start
 :新建订单;
@@ -354,9 +375,11 @@ fork again
     -> 下发入仓预报;
     :接收入仓通知;
   fork again
-    -> 客户要求提货;
-    :约车;
-    -> 货到国内仓;
+    if (客户要求提货？) then (是)
+      :约车;
+      -> 货到国内仓;
+    else (否)
+    endif
   end fork
   :接收货物;
   :记录实际入仓信息;
@@ -395,6 +418,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 出口主流程（深圳口岸空运预配模式）
 start
 :新建订单;
@@ -413,9 +437,11 @@ fork again
     -> 下发入仓预报;
     :接收入仓通知;
   fork again
-    -> 客户要求提货;
-    :约车;
-    -> 货到国内仓;
+    if (客户要求提货？) then (是)
+      :约车;
+      -> 货到国内仓;
+    else (否)
+    endif
   end fork
   :接收货物;
   :记录实际入仓信息;

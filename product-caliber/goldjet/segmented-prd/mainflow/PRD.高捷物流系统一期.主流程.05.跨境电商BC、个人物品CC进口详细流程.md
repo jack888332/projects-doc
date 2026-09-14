@@ -9,6 +9,7 @@
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title BC、CC关务进口（备货入库）
 start
 :1.入仓预报;
@@ -42,6 +43,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title BC/CC进口入库（集货）
 start
 :1.入仓预报;
@@ -73,6 +75,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title BC/CC进口出库（空运/海外提货模式）
 start
 :1.订单;
@@ -88,8 +91,8 @@ start
 fork
   :10.1.打印提货证明;
   :11A.报关员在货站提货，取提货单;
-  -> 订单回执=待运抵;
-  :12A.发送运抵数据给白云快件中心：\n货物到达快件中心时;
+  -> 订单回执=待运抵，\n货物到达快件中心;
+  :12A.发送运抵数据\n给白云快件中心;
 fork again
   :10.2.录入提单信息，进行申报;
   :11B.订单申报;
@@ -120,6 +123,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title BC/CC进口出库（陆运/中港车模式）
 start
 :1.订单;
@@ -146,7 +150,7 @@ end fork
 :13.录入承运确报;
 :14.承运确报结果发送给司机;
 -> 司机过皇岗口岸;
-:15.在白云快件自助进出区系统录入车辆数据;
+:15.在白云快件自助进出区系统\n录入车辆数据;
 fork
   :16A.订单申报;
   fork
@@ -166,7 +170,7 @@ fork again
   -> 司机将货送到快件中心;
   :16C.发送运抵数据给白云快件中心;
 end fork
-:18B、对接白云物流系统，抓取信息;
+:18B.对接白云物流系统，抓取信息;
 :车辆入区;
 :装车锁库;
 :出区;
@@ -180,6 +184,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title BC/CC退运
 start
 :1.接收退运通知;
@@ -209,8 +214,10 @@ if (是否机检通过) then (是，获得机检无异常批注)
     :5A.通知仓库理货;
   fork again
     :维护载货清单;
-    :5B.录入原始舱单：载货清单和\n车辆资料表审核通过后，可录入原始舱单;
-    :6.录入承运确报：原始舱单\n审核通过后，可录入承运确报;
+    -> 载货清单和车辆资料表审核通过;
+    :5B.录入原始舱单;
+    -> 原始舱单审核通过;
+    :6.录入承运确报;
     :7.承运确报结果发送给司机;
     :8.白云快件自助进出区系统录入;
   end fork
@@ -233,6 +240,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 退供流程
 start
 :1.申请退供;

@@ -11,6 +11,7 @@
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 应付税金付款
 start
 :导入海关税金明细;
@@ -26,6 +27,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 应收税金账单核销
 start
 :生成应收扣费历史记录;
@@ -39,6 +41,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 税金余额管理
 start
 :接收订单;
@@ -58,17 +61,19 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 税金充值
 start
 :通知客户充值;
 :充值税金;
-if (支付方式) then (线上支付)
+switch (支付方式)
+case (线上支付)
   :在线支付;
   -> 支付成功;
-else (线下汇款)
+case (线下汇款)
   :选择水单;
   -> 提交;
-endif
+endswitch
 :(自动)审核;
 :增加账户余额;
 stop
@@ -82,21 +87,24 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 结算应付流程
 start
 :录入应付费用（自动/手动）;
+#gold:(A)
 :提交审核;
 :审核费用;
-while (审核是否通过？) is (审核不通过)
-  if (修改或作废？) then (修改)
-    :修改重新提交;
-    :提交审核;
-    :审核费用;
-  else (作废)
+if (审核通过？) then (否)
+  if (修改或作废？) then (作废)
     :作废，该费用申请流程结束;
     stop
+  else (修改)
   endif
-endwhile (审核通过)
+  :修改费用;
+  #gold:(A)
+  detach
+else (是)
+endif
 fork
   :单票账单;
 fork again
@@ -105,15 +113,15 @@ fork again
   :供应商确认对账单;
 end fork
 if (是否有异常？) then (有异常)
-  :录入调整单（关联原先的子单）;
-  note right: 回到“提交审核”环节重新流转
+  :录入调整单\n（关联原先的子单）;
+  #gold:(A)
+  note right: @1
+  detach
 else (无异常)
-  :付款申请;
-  :职能部门审批;
-  while (是否通过？) is (审批不通过)
+  repeat
     :付款申请;
     :职能部门审批;
-  endwhile (审批通过)
+  repeat while (审批通过？) is (否) not (是)
   :出纳付款;
 endif
 stop
@@ -121,25 +129,30 @@ stop
 ```
 
 
+- @1：连接符 A 表示返回提交审核，修改费用和录入调整单后均接续至该入口。
+
 ### 2. 财务应收流程
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 财务应收流程
 start
 :录入应收费用（自动/手动）;
+#gold:(A)
 :提交审核;
 :审核应收费用明细;
-while (审核是否通过？) is (审核拒绝)
-  if (修改或作废？) then (修改)
-    :修改并重新提交;
-    :提交审核;
-    :审核应收费用明细;
-  else (作废)
+if (审核通过？) then (否)
+  if (修改或作废？) then (作废)
     :作废，此应收费用申请业务结束;
     stop
+  else (修改)
   endif
-endwhile (审核通过)
+  :修改费用明细;
+  #gold:(A)
+  detach
+else (是)
+endif
 fork
   :单票账单;
 fork again
@@ -148,8 +161,10 @@ fork again
   :客户确认对账单;
 end fork
 if (是否有异常？) then (有异常)
-  :录入调整单（关联原先的子单）;
-  note right: 回到“提交审核”环节重新流转
+  :录入调整单\n（关联原先的子单）;
+  #gold:(A)
+  note right: @1
+  detach
 else (无异常)
   :收款申请;
   fork
@@ -159,7 +174,7 @@ else (无异常)
     :出纳线下收款;
     :会计审批收款;
   end fork
-  :出纳线上登记收款确认（核销业务单据）;
+  :出纳线上登记收款确认\n（核销业务单据）;
   :释放客户额度;
 endif
 stop
@@ -167,10 +182,13 @@ stop
 ```
 
 
+- @1：连接符 A 表示返回提交审核，修改费用明细和录入调整单后均接续至该入口。
+
 ### 3. 报价计费流程
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 报价计费流程
 start
 fork

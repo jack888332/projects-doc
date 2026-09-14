@@ -48,6 +48,32 @@
 <a id="doc-C027EE380C-section-5445851213dc"></a>
 #### 1.1.5 基本流程说明
 
+扫码后按当前操作类型和单号区分首次上传与已有记录，识别失败可转为手动录入。
+
+```plantuml
+@startuml goldjet-019-document-upload
+skinparam activityDiamondBackgroundColor #FFF4CC
+start
+:登录并选择操作类型;
+:扫描单号;
+if (能够识别单号？) then (是)
+  :带入识别的单号;
+else (否)
+  :手动编辑单号;
+endif
+if (本类别下已操作过该单号？) then (是)
+  :查看已上传记录;
+  if (需要修改？) then (是)
+    :修改单据信息\n或删除后重新上传图片;
+  endif
+else (否)
+  :确认单号，必要时编辑;
+  :按当前操作类型要求\n拍照或上传图片;
+endif
+stop
+@enduml
+```
+
 | 环节 | 参与方 | 处理与结果 | 后续环节 |
 | --- | --- | --- | --- |
 | 1. 登录小程序 | 地面人员 |  | 2 |
@@ -62,6 +88,25 @@
 
 <a id="doc-C027EE380C-section-88ad13e1904e"></a>
 #### 1.1.6 逆向流程节点说明
+
+提交时重新按操作类型匹配业务单号，不匹配则反馈错误并提示重新提交。
+
+```plantuml
+@startuml goldjet-019-submission-validation
+skinparam activityDiamondBackgroundColor #FFF4CC
+|地面人员|
+start
+:提交当前操作的单号与内容;
+|系统|
+:按操作类型匹配业务单号;
+if (匹配现有单号数据？) then (是)
+  :继续执行当前操作的其余校验;
+else (否)
+  :提示单号无法匹配\n请重新提交;
+endif
+stop
+@enduml
+```
 
 | 异常节点 | 前置条件 | 后续处理 |
 | --- | --- | --- |

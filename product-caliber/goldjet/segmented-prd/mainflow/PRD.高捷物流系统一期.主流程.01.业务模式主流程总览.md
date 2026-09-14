@@ -11,9 +11,9 @@
 
 ```plantuml
 @startuml
-title 普货出口关务主流程
+skinparam activityDiamondBackgroundColor #FFF4CC
+title 普货出口关务主流程（直飞/直航）
 
-|直飞/直航模式|
 start
 :接单/建单;
 fork
@@ -31,8 +31,14 @@ if (是否查验) then (是)
 endif
 :放行;
 stop
+@enduml
+```
 
-|转关模式|
+```plantuml
+@startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
+title 普货出口关务主流程（转关）
+
 start
 :接单/建单;
 fork
@@ -43,7 +49,8 @@ fork again
   :上传托运书;
 end fork
 :申报;
-if (是否查验) then (已审结，去货站录运抵)
+if (是否查验) then (是)
+  :已审结，去货站录运抵;
   :查验;
 endif
 :放行;
@@ -55,6 +62,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 普货进口关务主流程
 start
 :建单/接单;
@@ -67,7 +75,8 @@ fork again
   :换单完成;
 end fork
 :申报;
-if (是否查验) then (缴税完成)
+if (是否查验) then (是)
+  :缴税完成;
   :查验;
 endif
 :放行;
@@ -81,6 +90,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 跨境电商BC出口关务主流程
 start
 :建单/接单;
@@ -111,7 +121,8 @@ stop
 
 ```plantuml
 @startuml
-title 跨境电商BC、个人物品CC进口备货主流程
+skinparam activityDiamondBackgroundColor #FFF4CC
+title 跨境电商BC、个人物品CC\n进口备货主流程
 start
 :建档签约;
 :商品备案;
@@ -139,7 +150,8 @@ stop
 
 ```plantuml
 @startuml
-title 跨境电商BC、个人物品CC进口集货主流程
+skinparam activityDiamondBackgroundColor #FFF4CC
+title 跨境电商BC、个人物品CC\n进口集货主流程
 start
 :建档签约;
 :商品备案;
@@ -165,6 +177,7 @@ stop
 
 ```plantuml
 @startuml
+skinparam activityDiamondBackgroundColor #FFF4CC
 title 跨境电商BBC进口备货主流程
 start
 :建档签约;

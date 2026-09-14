@@ -58,6 +58,30 @@
 <a id="doc-92B1FD526A-section-f03ef0467168"></a>
 #### 1.2.5 供应商报价管理流程
 
+报价可通过 Excel 导入或手工录入进入列表；下图展示录入方式的分支与后续维护入口。
+
+```plantuml
+@startuml goldjet-005-supplier-quote-entry
+skinparam activityDiamondBackgroundColor #FFF4CC
+|供应商|
+start
+:线下提供报价单;
+|航晟物流客服|
+if (报价单为统一格式\n且选择上传模式？) then (是)
+  :上传报价单 Excel;
+else (否)
+  :新建报价记录并录入;
+endif
+:查看报价列表;
+if (需要修改或删除？) then (是)
+  :编辑或删除报价记录;
+endif
+stop
+@enduml
+```
+
+统一格式决定报价单能否上传导入；录入、查询和维护的完整操作见下表。
+
 | 步骤 | 步骤描述 | 角色 | 流程描述 | 下一步骤 | 关键控制点 |
 | --- | --- | --- | --- | --- | --- |
 | 1 | 线下提供报价单 | 供应商 | 供应商按照自己的报价单格式提供报价单。 |  |  |
@@ -350,6 +374,37 @@
 
 <a id="doc-92B1FD526A-section-11a9af11eaad"></a>
 #### 1.3.5 客户收费报价流程
+
+客户报价先选择单价或提货费计费；单价计费再判断是否适用最小收费。图中不展开计算公式，具体口径保留在下表。
+
+```plantuml
+@startuml goldjet-005-customer-quote-charging
+skinparam activityDiamondBackgroundColor #FFF4CC
+start
+:航晟物流客服录入客户报价;
+if (录入单价？) then (否)
+  :按提货费收费;
+  note right: @1
+  detach
+else (是)
+  :形成单价计费结果;
+  if (已录入最小收费且\n单价计费结果不足最小收费？) then (是)
+    :按最小收费计费;
+  else (否)
+    :按单价计费结果收费;
+  endif
+endif
+:查看报价信息;
+if (需要修改或删除？) then (是)
+  :编辑或删除报价记录;
+endif
+stop
+@enduml
+```
+
+- @1：按提货费收费后的后续步骤待确认。
+
+单价与提货费不得同时录入；查看、维护与计费的完整说明如下。
 
 | 步骤 | 步骤描述 | 角色 | 流程描述 | 下一步骤 | 关键控制点 |
 | --- | --- | --- | --- | --- | --- |

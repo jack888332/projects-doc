@@ -90,22 +90,24 @@ skinparam activityDiamondBackgroundColor #FFF4CC
 |打单员|
 start
 :运单发送阶段后\n检查报关结果;
-if (报关成功？) then (否)
+if (报关成功？) then (是)
+  label spacer1
+else (否)
   :催促报关;
   |报关员|
   :报关;
   note right: P1
   detach
-else (是)
 endif
 |打单员|
-if (安排转关？) then (是)
+if (安排转关？) then (否)
+  label spacer2
+else (是)
   :通知报关员转关;
   |执行角色未明确|
   :执行转关（步骤 15）;
   note right: P2
   detach
-else (否)
 endif
 |打单员|
 :预览并打印提单;

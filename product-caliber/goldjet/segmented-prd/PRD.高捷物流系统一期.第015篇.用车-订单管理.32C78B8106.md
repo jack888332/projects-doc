@@ -118,12 +118,16 @@ stop
 skinparam activityDiamondBackgroundColor #FFF4CC
 |航晟物流客服|
 start
-if (处理对象？) then (订单)
-  if (手工创建且符合修改条件？) then (否)
+if (处理对象？) then (调度)
+  label spacer1
+else (订单)
+  |航晟物流客服|
+  if (手工创建且符合修改条件？) then (是)
+    label spacer2
+  else (否)
     |航晟系统|
     :相关字段不可编辑;
     stop
-  else (是)
   endif
   |航晟物流客服|
   if (订单为“未调度”？) then (是)
@@ -133,15 +137,15 @@ if (处理对象？) then (订单)
   endif
   :提交允许的修改;
   stop
-else (调度)
 endif
 |航晟物流客服|
 :对已调度或异常中的订单\n调整调度;
-if (操作类型？) then (取消调度)
+if (操作类型？) then (修改调度)
+  label spacer3
+else (取消调度)
   |航晟系统|
   :按返空费配置比例\n生成应收、应付返空费;
   stop
-else (修改调度)
 endif
 |航晟物流客服|
 :修改调度;
@@ -171,9 +175,7 @@ else (API 同步)
 endif
 |航晟系统|
 :校验单号、必填、合作方匹配\n及业务格式和取值;
-if (校验通过？) then (是)
-  :创建订单并显示在订单列表;
-else (否)
+if (校验通过？) then (否)
   if (来自空运系统 API？) then (是)
     :向空运系统反馈创建失败原因;
     |空运系统|
@@ -182,6 +184,9 @@ else (否)
     |航晟系统|
     :高亮错误输入项\n且不允许提交;
   endif
+else (是)
+  |航晟系统|
+  :创建订单并显示在订单列表;
 endif
 stop
 @enduml

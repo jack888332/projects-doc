@@ -76,7 +76,11 @@
 skinparam activityDiamondBackgroundColor #FFF4CC
 |客服|
 start
-if (创建哪类订单？) then (子订单)
+if (创建哪类订单？) then (主订单)
+  |客服|
+  :填写主订单基础数据与服务信息;
+else (子订单)
+  |客服|
   :填写子订单基础数据与服务信息;
   :提交子订单;
   :选择一个或多个子订单\n合成主订单;
@@ -89,9 +93,6 @@ if (创建哪类订单？) then (子订单)
     stop
   else (是)
   endif
-else (主订单)
-  |客服|
-  :填写主订单基础数据与服务信息;
 endif
 |客服|
 :派单给航线部;
@@ -157,13 +158,14 @@ skinparam activityDiamondBackgroundColor #FFF4CC
 |客服|
 start
 :处理已提交订单的服务信息;
-if (当前服务状态？) then (待服务)
+if (当前服务状态？) then (服务中)
+  label spacer1
+else (待服务)
   :点击修改并编辑服务信息;
   :保存服务信息;
   |系统|
   :向对应供应商重发服务单据;
   stop
-else (服务中)
 endif
 |客服|
 :不允许修改，仅可取消;
@@ -181,13 +183,13 @@ split
   end
 split again
   |客服|
-  if (重新勾选该服务？) then (是)
-    |系统|
-    :生成新的服务单据;
-    end
-  else (否)
+  if (重新勾选该服务？) then (否)
     |客服|
     :本次不重新勾选服务;
+    end
+  else (是)
+    |系统|
+    :生成新的服务单据;
     end
   endif
 end split

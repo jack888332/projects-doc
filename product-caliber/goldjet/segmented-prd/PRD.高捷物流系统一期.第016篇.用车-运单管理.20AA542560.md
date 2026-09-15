@@ -173,12 +173,13 @@ skinparam activityDiamondBackgroundColor #FFF4CC
 |航晟客服|
 start
 :对指定运单调整调度;
-if (修改调度且运单为“待提货”？) then (是)
+if (修改调度且运单为“待提货”？) then (否)
+  label spacer1
+else (是)
   :修改调度信息;
   |航晟系统|
   :实时更新原运单;
   stop
-else (否)
 endif
 |航晟客服|
 if (符合订单取消条件且\n运单未卸货、未取消？) then (否)
@@ -209,10 +210,7 @@ start
 :选择运单并准备上报异常;
 note right: P1
 |航晟系统|
-if (运单已取消？) then (是)
-  :不可上报异常;
-  stop
-else (否)
+if (运单已取消？) then (否)
   |上报人（司机或航晟客服）|
   :提交异常;
   |航晟系统|
@@ -226,6 +224,10 @@ else (否)
     |航晟系统|
     :保留未关闭异常;
   endif
+else (是)
+  |航晟系统|
+  :不可上报异常;
+  stop
 endif
 stop
 @enduml

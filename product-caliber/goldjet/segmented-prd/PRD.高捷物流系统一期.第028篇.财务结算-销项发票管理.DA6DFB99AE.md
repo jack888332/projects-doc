@@ -575,6 +575,7 @@ state "已删除" as Deleted
 New --> Submitted : 提交开票成功
 Submitted --> Issued : 开票系统回传开票成功
 New --> Deleted : 确认删除
+Deleted --> [*]
 note right of Submitted : P1
 note right of Issued : P2
 @enduml
@@ -792,6 +793,7 @@ state "已删除" as Deleted
 [*] --> New : 进入补录范围
 New --> Backfilled : 补录提交成功
 New --> Deleted : 确认删除
+Deleted --> [*]
 note right of New : P1
 @enduml
 ```

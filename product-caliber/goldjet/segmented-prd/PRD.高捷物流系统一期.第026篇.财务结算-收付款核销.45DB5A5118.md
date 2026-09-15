@@ -252,6 +252,7 @@ Submitted --> Returned : 管理员确认打回
 Returned --> Submitted : 再次提交成功
 New --> Deleted : 确认删除
 Returned --> Deleted : 确认删除
+Deleted --> [*]
 note right of Submitted : P1
 @enduml
 ```

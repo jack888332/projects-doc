@@ -318,7 +318,7 @@ stop
 - 已取消：上游系统发送取消订单指令，并成功取消。
 - 订单行操作：“编辑”用于修改；“详情”用于查看订单详情；“标签”用于下载该订单的“打印”标签。
 
-仓库订单的指令状态与实际出入库反馈分开推进。下图只连接已明确的入库、出库指令和取消关系；出库数量判定的重叠边界保留在图后说明。
+仓库订单的指令状态与实际出入库反馈分开推进。下图只连接已明确的迁移；终点表示本次仓库订单出入库生命周期结束，不表示后续结算完成。出库数量判定的重叠边界保留在图后说明。
 
 ```plantuml
 @startuml goldjet-020-state-warehouse-order
@@ -337,6 +337,8 @@ WaitingIn --> Stored : WMS反馈实际入库
 WaitingIn --> Cancelled : 上游取消成功
 Stored --> WaitingOut : 收到上游出库指令\n[对应出库未完成]
 PartlyOut --> WaitingOut : 收到后续出库指令\n[对应出库未完成]
+Cancelled --> [*]
+Out --> [*]
 note right of WaitingOut : P1
 note bottom of OutputStates : P2
 @enduml

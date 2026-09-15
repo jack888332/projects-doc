@@ -358,11 +358,12 @@ BusinessRejected -up-> Submitted : 再次提交成功
 BusinessApproved -down-> FinanceApproved : 财务审批通过
 BusinessApproved -right-> FinanceRejected : 财务审批拒绝
 FinanceRejected -up-> Submitted : 再次提交成功
+FinanceApproved --> [*] : 本行审批结束
 note right of FinanceApproved : P1
 @enduml
 ```
 
-- P1：财务审批通过后的金蝶同步见[结算费用新增](#doc-70AD0AF66B-section-036da482966a)，不作为本图的审批状态。
+- P1：终点仅表示本行审批结束，不表示后续同步、对账与结算完成。财务审批通过后的金蝶同步见[结算费用新增](#doc-70AD0AF66B-section-036da482966a)，不作为本图的审批状态。
 - 拒绝后的编辑、删除和再次提交分别见[订单成本编辑](#doc-70AD0AF66B-section-c5e17177865b)、[订单成本删除](#doc-70AD0AF66B-section-2216fea5c02f)和[订单成本提交](#doc-70AD0AF66B-section-8bba8406a0e7)；图中不展开删除路径。
 
 <a id="doc-70AD0AF66B-adjustment-management"></a>

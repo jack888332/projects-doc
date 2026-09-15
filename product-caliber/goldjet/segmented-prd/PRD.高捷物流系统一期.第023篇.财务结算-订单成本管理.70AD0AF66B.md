@@ -336,6 +336,35 @@
 
 - 取消：取消本次审批动作，返回“订单成本审批明细”界面。
 
+**成本明细行审批状态图**
+
+本图分别适用于应收、应付成本明细行，不表示整张订单的状态；保存与审批结果见[结算费用新增](#doc-70AD0AF66B-section-036da482966a)。
+
+```plantuml
+@startuml goldjet-state-023-cost-line-approval
+hide empty description
+state "新建" as New
+state "已提交" as Submitted
+state "业务审批通过" as BusinessApproved
+state "业务审批拒绝" as BusinessRejected
+state "财务审批通过" as FinanceApproved
+state "财务审批拒绝" as FinanceRejected
+
+[*] --> New : 首次保存成功
+New -down-> Submitted : 提交成功
+Submitted -down-> BusinessApproved : 业务主管审批通过
+Submitted -right-> BusinessRejected : 业务主管审批拒绝
+BusinessRejected -up-> Submitted : 再次提交成功
+BusinessApproved -down-> FinanceApproved : 财务审批通过
+BusinessApproved -right-> FinanceRejected : 财务审批拒绝
+FinanceRejected -up-> Submitted : 再次提交成功
+note right of FinanceApproved : P1
+@enduml
+```
+
+- P1：财务审批通过后的金蝶同步见[结算费用新增](#doc-70AD0AF66B-section-036da482966a)，不作为本图的审批状态。
+- 拒绝后的编辑、删除和再次提交分别见[订单成本编辑](#doc-70AD0AF66B-section-c5e17177865b)、[订单成本删除](#doc-70AD0AF66B-section-2216fea5c02f)和[订单成本提交](#doc-70AD0AF66B-section-8bba8406a0e7)；图中不展开删除路径。
+
 <a id="doc-70AD0AF66B-adjustment-management"></a>
 ### 1.3 调整单管理
 

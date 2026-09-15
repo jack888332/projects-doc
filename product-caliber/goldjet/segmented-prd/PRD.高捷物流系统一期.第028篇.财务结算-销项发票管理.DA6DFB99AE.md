@@ -559,6 +559,30 @@
 
 **关联功能**：用户需准确选择“需要开票”，选择错误可能导致重复或错误开票；开票结果通知见[销项发票通知规则](PRD.高捷物流系统一期.第030篇.消息推送.5F950AB3B1.md#doc-5F950AB3B1-section-cd7cf9bd98cb)。
 
+**销项开票申请状态图 · 需要开票**
+
+本图只展示“需要开票”为“是”的申请，从首次保存后展开；创建时直接提交也可进入“已提交”。提交与删除分别见[销项票申请提交开票](#doc-DA6DFB99AE-section-57ca66524933)和[销项票申请删除](#doc-DA6DFB99AE-section-2903e83f1382)。
+
+```plantuml
+@startuml goldjet-state-028-invoice-application
+hide empty description
+state "新建" as New
+state "已提交" as Submitted
+state "已开票" as Issued
+state "已删除" as Deleted
+
+[*] --> New : 首次保存成功
+New --> Submitted : 提交开票成功
+Submitted --> Issued : 开票系统回传开票成功
+New --> Deleted : 确认删除
+note right of Submitted : P1
+note right of Issued : P2
+@enduml
+```
+
+- P1：开票失败、回传超时及重试后的申请状态尚未明确，本图不补造失败状态或回退路径。
+- P2：“已开票”与回传发票信息见[销项票申请编辑页面](#doc-DA6DFB99AE-section-f06057042524)。发票作废会触发[销项发票通知](PRD.高捷物流系统一期.第030篇.消息推送.5F950AB3B1.md#doc-5F950AB3B1-section-cd7cf9bd98cb)，但申请如何重新处理尚未明确，不将发票作废直接画成申请状态。
+
 <a id="doc-DA6DFB99AE-invoice-backfill"></a>
 ### 1.3 销项发票补录
 
@@ -753,6 +777,26 @@
 - 提交校验：原币币种为 CNY 时，校验税务发票行开票金额合计与头信息中的申请金额(原币)是否相同；不同时提示“‘销项发票申请金额XX’与‘税务发票合计金额XX’不一致，无法保存提交”。
 
 **后续处理与分支**：- 若客户不需要开票，则该信息可保留在销项票补录界面；若需要进行清理，可手工维护开票信息，进行手工清理。
+
+**销项开票申请状态图 · 手工补录**
+
+本图从已进入补录列表的“新建”申请展开，补录提交和删除见[销项发票补录提交](#doc-DA6DFB99AE-section-172e9df4b314)和[销项发票补录删除](#doc-DA6DFB99AE-section-1000e6136382)。
+
+```plantuml
+@startuml goldjet-state-028-invoice-backfill
+hide empty description
+state "新建" as New
+state "已补录" as Backfilled
+state "已删除" as Deleted
+
+[*] --> New : 进入补录范围
+New --> Backfilled : 补录提交成功
+New --> Deleted : 确认删除
+note right of New : P1
+@enduml
+```
+
+- P1：本图不决定“需要开票”为“否”时创建提交的状态，也不决定补录金额不一致时是否允许提交；两处口径差异分别见[销项票申请创建提交](#doc-DA6DFB99AE-section-938b7af1a75d)与[开票申请提交](#doc-DA6DFB99AE-section-dfa43d93ac00)、[销项发票补录提交](#doc-DA6DFB99AE-section-172e9df4b314)与本节提交校验。
 
 <a id="doc-DA6DFB99AE-tax-invoice-query"></a>
 ### 1.4 税务发票查询与发送

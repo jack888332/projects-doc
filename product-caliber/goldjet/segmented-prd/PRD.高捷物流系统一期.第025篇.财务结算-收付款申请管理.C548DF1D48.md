@@ -185,6 +185,30 @@
 
 付款申请提交及逐级审批的消息规则见[付款申请通知规则](PRD.高捷物流系统一期.第030篇.消息推送.5F950AB3B1.md#doc-5F950AB3B1-section-38bc0838cba3)。
 
+**付款申请提交与业务审批状态图**
+
+本图从已保存的“新建”付款申请展开，仅展示提交与业务审批的确定路径；新建时直接保存并提交见[付款申请新增](#doc-C548DF1D48-section-e0d10d1ac8a0)。
+
+```plantuml
+@startuml goldjet-state-025-payment-business-approval
+hide empty description
+state "新建" as New
+state "已提交" as Submitted
+state "业务审批通过" as Approved
+state "业务审批拒绝" as Rejected
+
+[*] --> New : 首次保存成功
+New --> Submitted : 提交成功
+Submitted --> Approved : 业务审批通过
+Submitted --> Rejected : 业务审批拒绝
+Rejected --> Submitted : 再次提交成功
+note right of Approved : P1
+@enduml
+```
+
+- P1：财务审批的可处理状态与入口尚未统一：[付款申请审批](#doc-C548DF1D48-section-507c65157b68)仅允许“已提交”申请显示列表审批按钮，而[付款申请通知规则](PRD.高捷物流系统一期.第030篇.消息推送.5F950AB3B1.md#doc-5F950AB3B1-section-38bc0838cba3)在业务审批通过后通知财务；[工作台审批待办](PRD.高捷物流系统一期.第002篇.工作台与待办管理.279CFF369E.md#doc-279CFF369E-section-520e93eb4409)另有直达审批明细的入口。因此本图不连接财务审批结果，“业务审批通过”也不表示申请终态。
+- 财务审批拒绝后的再次提交、删除分别见[付款申请提交](#doc-C548DF1D48-section-7f00e5b0ba39)和[付款申请删除](#doc-C548DF1D48-section-b242495363eb)；图中不展开删除路径。
+
 <a id="doc-C548DF1D48-section-9fef85689204"></a>
 #### 1.2.10 待付款申请列表
 
@@ -642,6 +666,29 @@
 - 确认：确认审批拒绝并返回“收款申请列表”界面。该收款申请批次的状态变为“财务审批拒绝”，之后可删除或再次提交审批。
 
 - 取消：取消该审批动作，返回“收款申请审批”界面。
+
+**收款申请审批状态图**
+
+本图从已保存的“新建”收款申请展开；新建时也可直接保存并提交，进入“已提交”，见[收款申请提交操作](#doc-C548DF1D48-section-98297292678c)。
+
+```plantuml
+@startuml goldjet-state-025-receipt-approval
+hide empty description
+state "新建" as New
+state "已提交" as Submitted
+state "财务审批通过" as Approved
+state "财务审批拒绝" as Rejected
+
+[*] --> New : 首次保存成功
+New --> Submitted : 提交成功
+Submitted --> Approved : 财务审批通过
+Submitted --> Rejected : 财务审批拒绝
+Rejected --> Submitted : 再次提交成功
+Approved --> [*] : 申请审批结束
+@enduml
+```
+
+“财务审批通过”是申请审批的最终状态，不表示收款核销已完成；核销见[收款核销](PRD.高捷物流系统一期.第026篇.财务结算-收付款核销.45DB5A5118.md#doc-45DB5A5118-receipt-writeoff)。本图不展开新建或拒绝后的删除路径。
 
 <a id="doc-C548DF1D48-section-001568ce980d"></a>
 #### 1.3.10 待收款申请列表

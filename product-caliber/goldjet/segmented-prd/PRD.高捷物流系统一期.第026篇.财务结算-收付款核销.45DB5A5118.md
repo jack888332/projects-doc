@@ -234,6 +234,31 @@
 
 - 取消：取消提交，返回“付款核销列表”界面。
 
+**收付款核销单共用状态图**
+
+本图适用于单张付款核销单或收款核销单，从首次保存后的“新建”状态展开；新建时也可直接保存并提交，见[付款核销提交](#doc-45DB5A5118-section-653e5543b706)和[收款核销提交](#doc-45DB5A5118-section-ee0d3241a522)。
+
+```plantuml
+@startuml goldjet-state-026-writeoff
+hide empty description
+state "新建" as New
+state "已提交" as Submitted
+state "已打回" as Returned
+state "已删除" as Deleted
+
+[*] --> New : 首次保存成功
+New --> Submitted : 提交成功
+Submitted --> Returned : 管理员确认打回
+Returned --> Submitted : 再次提交成功
+New --> Deleted : 确认删除
+Returned --> Deleted : 确认删除
+note right of Submitted : P1
+@enduml
+```
+
+- P1：“已提交”仍可由管理员打回，不是不可逆终态。收款核销完成后的客户额度释放见[应收结算流程](PRD.高捷物流系统一期.第022篇.财务基础与结算流程.40E841D3A6.md#doc-40E841D3A6-section-23c66131aa44)；打回时的额度扣减见[收款核销打回](#doc-45DB5A5118-section-fb0ff2d54db5)，该额度变化不套用于付款核销。
+- 编辑后仅保存不改变状态；收款核销的提交、删除和打回规则见[收款核销](#doc-45DB5A5118-receipt-writeoff)。金蝶同步结果与核销单状态分开表达，不在本图新增同步状态。
+
 <a id="doc-45DB5A5118-section-e6aca2046239"></a>
 #### 1.2.9 待付款核销列表页面
 

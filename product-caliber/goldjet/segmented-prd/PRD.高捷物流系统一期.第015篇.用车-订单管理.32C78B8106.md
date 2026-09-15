@@ -372,6 +372,36 @@ stop
 | 已完成 | 该订单中的运单状态全部=已卸货或已取消 |
 | 异常中 | 该订单中至少有一个运单状态=异常中 |
 
+用车订单状态由调度、下属运单与订单操作共同决定；图中只连接结果明确的迁移，不把订单状态等同于单个运单状态。
+
+```plantuml
+@startuml goldjet-015-state-order
+hide empty description
+state "未调度" as Undispatched
+state "已调度" as Dispatched
+state "已完成" as Completed
+state "异常中" as Abnormal
+state "已取消" as Cancelled
+state "已关闭" as Closed
+
+[*] --> Undispatched : 创建成功\n[尚无调度]
+Undispatched --> Dispatched : 调度提交成功
+Undispatched --> Cancelled : 取消订单
+Dispatched --> Completed : 全部运单已卸货或已取消
+Dispatched --> Abnormal : 下属运单进入异常中
+Undispatched --> Closed : 客服关闭手工订单
+Dispatched --> Closed : 客服确认关闭手工订单\n[订单未完成]
+Abnormal --> Closed : 客服确认关闭手工订单\n[订单未完成]
+note right of Abnormal : P1
+note right of Cancelled : P2
+note right of Closed : P3
+@enduml
+```
+
+- P1：“已调度”的判定包含异常运单，与“异常中”的显示优先级尚未明确；多运单异常取消后的订单汇总结果不在图中补定。
+- P2：本图仅画出未调度时取消。已调度或异常中订单的上游取消，按[上游订单交互结果](#doc-32C78B8106-section-393a06a30fdb)允许成功，但与本节“已取消”的进入条件不一致，故未连接该分支。
+- P3：“已关闭”来自[订单修改规则](#doc-32C78B8106-section-683144265b9d)，不可再编辑；它与“已取消”的关系、状态清单及“订单未完成”的判定口径仍需统一。关闭产生的费用按该规则处理。
+
 <a id="doc-32C78B8106-section-fb4d1b4c1d39"></a>
 #### 1.3.8 运输订单筛选栏界面原型概述
 

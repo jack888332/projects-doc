@@ -45,6 +45,34 @@
 <a id="doc-A9F351FB48-section-a1070dd16867"></a>
 ### 1.2 合作方档案与客户额度维护规则
 
+**合作方档案状态图（确定迁移片段）**
+
+本图适用于单个组织下的一份供应商或客户档案，不表示客户额度申请的状态。
+
+```plantuml
+@startuml goldjet-state-003-partner-record
+hide empty description
+state "新建" as Draft
+state "已提交" as Submitted
+state "已生效" as Active
+state "已失效" as Inactive
+state "已删除" as Deleted
+[*] --> Draft : 新增档案
+Draft --> Submitted : 提交审批 [校验通过]
+Submitted --> Active : 财务审批通过
+Active --> Inactive : 财务确认失效
+Inactive --> Active : 财务确认启用
+Draft --> Deleted : 确认删除 [无业务关联]
+Inactive --> Deleted : 财务确认删除 [无业务关联]
+Deleted --> [*]
+note right of Submitted : P1
+@enduml
+```
+
+来源：[供应商新增与审批规则](#doc-A9F351FB48-section-ec3c26d0c295)、[客户新增与审批规则](#doc-A9F351FB48-section-ce358c60ac22)，以及对应的[供应商删除](#doc-A9F351FB48-section-9750bc0139b1)、[失效](#doc-A9F351FB48-section-ba66f569f79b)、[启用](#doc-A9F351FB48-section-f9db6de7db5b)和[客户删除](#doc-A9F351FB48-section-de01f85643db)、[失效](#doc-A9F351FB48-section-55a1104c2679)、[启用](#doc-A9F351FB48-section-97b8cd8458d2)规则。无业务关联指该部门下无关联订单和订单成本结算明细；删除限制仍按各删除场景执行。
+
+P1：审批拒绝后的档案主状态存在“新建＋审批拒绝”和“财务审批拒绝”两种表述，因此图中不连接拒绝后的目标状态；这不表示禁止拒绝、编辑、删除或重新提交。冲突见[供应商审批拒绝](#doc-A9F351FB48-section-fd371add3827)、[客户审批拒绝](#doc-A9F351FB48-section-c03a906650fa)与各自新增审批规则，待确认事项见[PRD自洽性问题](../analysis/PRD自洽性问题.md)。
+
 <a id="doc-A9F351FB48-section-bfc18407f9ed"></a>
 #### 1.2.1 供应商列表页面
 
@@ -1657,3 +1685,23 @@
 2. 订单成本录入（录入应收时，扣减额度；该客户的应收行如果删除，则需加回客户的额度。在收款核销完成后，需加回核销金额的额度。）
 
 - 本次批复额度：审批通过时需校验：批复额度≥（-原始额度）。
+
+**客户额度申请状态图**
+
+```plantuml
+@startuml goldjet-state-003-credit-application
+hide empty description
+state "新建" as Draft
+state "已提交" as Submitted
+state "已生效" as Effective
+state "财务审批拒绝" as Rejected
+[*] --> Draft : 业务主管发起额度申请
+Draft --> Submitted : 提交 [校验通过]
+Submitted --> Effective : 财务审批通过 [批复额度校验通过]
+Submitted --> Rejected : 财务审批拒绝
+Rejected --> Submitted : 申请人再次提交 [校验通过]
+Rejected --> [*] : 申请人删除
+@enduml
+```
+
+本图按本节业务分支表达一行额度申请，不表示客户档案或客户总额度状态。申请入口与默认“新建”状态见[客户额度新增](#doc-A9F351FB48-section-5a1bf91ca3c0)；只有已生效客户可发起申请。拒绝后可以继续编辑、删除或提交；图中终点仅表示该申请被删除。已生效申请仍参与授信额度汇总，计算见[客户额度审批](#doc-A9F351FB48-section-bfbaebd95288)。

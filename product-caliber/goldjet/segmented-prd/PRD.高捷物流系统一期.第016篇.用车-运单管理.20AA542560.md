@@ -274,6 +274,41 @@ stop
 | 已卸货 | 司机于小程序，手动确认“已卸货” |  |
 | 已取消 | 该调度运单被取消 |  |
 
+下图展示正常履约与取消调度。节点之间的司机连线表示正常反馈路径，不是后台允许迁移的全部范围；客服补录范围见 P1，“提货中”不是必经状态。
+
+```plantuml
+@startuml goldjet-016-state-fulfillment
+hide empty description
+state "可继续履约的状态" as Active {
+  state "待提货" as Waiting
+  state "提货中" as Picking
+  state "到达提货点" as PickupArrived
+  state "已提货" as Picked
+  state "到达卸货点" as DeliveryArrived
+
+  Waiting --> Picking : 司机确认前往提货
+  Waiting --> PickupArrived : 司机确认到达提货点
+  Picking --> PickupArrived : 司机确认到达提货点
+  PickupArrived --> Picked : 司机确认已提货
+  Picked --> DeliveryArrived : 司机确认到达卸货点
+}
+state "已卸货" as Unloaded
+state "已取消" as Cancelled
+state Initial <<choice>>
+
+[*] --> Initial
+Initial --> Waiting : 客服调度生成运单
+Initial --> Picked : WMS调度匹配成功\n[中转运单]
+DeliveryArrived --> Unloaded : 司机确认已卸货
+Active --> Cancelled : 取消调度\n[符合取消资格]
+note left of Active : P1
+note bottom of Cancelled : P2
+@enduml
+```
+
+- P1：“可继续履约的状态”是图中分组，不是新增状态。客服可通过“状态管理”补录组内节点或已卸货节点，系统不校验轨迹事件顺序；不要求沿司机路径逐步前进，本图未穷举补录连线。已卸货或已取消后不再提供“状态管理”入口，见[运输运单列表规则](#doc-20AA542560-section-de63dd420873)与[运单轨迹记录规则](#doc-20AA542560-section-d3d2dba76233)。
+- P2：图中未展开运单异常状态；异常期间允许继续履约，异常恢复见[异常管理规则](#doc-20AA542560-section-19313adccda8)。取消资格及返空费按[逆向流程节点说明](#doc-20AA542560-section-731d67f1818c)处理；中转运单的初始状态按[中转运单列表规则](#doc-20AA542560-section-9bdf355a4f45)处理。
+
 <a id="doc-20AA542560-section-37c0086fec81"></a>
 #### 1.3.3 运输运单筛选栏界面原型概述
 
@@ -487,6 +522,22 @@ stop
 - 取消异常后，运单的“轨迹记录”页签生成取消异常记录。
 
 **分支与边界：** 运单异常状态会同步影响所属订单状态，订单状态规则见[用车订单状态定义](PRD.高捷物流系统一期.第015篇.用车-订单管理.32C78B8106.md#doc-32C78B8106-section-22c036104a98)。
+
+下图仅说明单条异常、异常期间未继续确认履约节点时的恢复关系；“发生异常前的状态”指该运单原有状态，不是新增枚举值。
+
+```plantuml
+@startuml goldjet-016-state-exception-recovery
+hide empty description
+state "发生异常前的状态" as Previous
+state "异常中" as Abnormal
+
+Previous --> Abnormal : 司机或客服上报异常\n[运单未取消]
+Abnormal --> Previous : 客服取消异常
+note bottom of Abnormal : P1
+@enduml
+```
+
+- P1：本图不将取消异常等同于取消运单。异常未关闭也允许继续确认运输节点；期间已产生新节点或存在多条未关闭异常时，恢复原状态与最新履约状态、剩余异常的关系尚待明确，图中未补画该结果。
 
 <a id="doc-20AA542560-section-d5dcbbe2cd24"></a>
 #### 1.3.15 运单详情-单据管理页面

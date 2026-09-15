@@ -318,6 +318,33 @@ stop
 - 已取消：上游系统发送取消订单指令，并成功取消。
 - 订单行操作：“编辑”用于修改；“详情”用于查看订单详情；“标签”用于下载该订单的“打印”标签。
 
+仓库订单的指令状态与实际出入库反馈分开推进。下图只连接已明确的入库、出库指令和取消关系；出库数量判定的重叠边界保留在图后说明。
+
+```plantuml
+@startuml goldjet-020-state-warehouse-order
+hide empty description
+state "待入库" as WaitingIn
+state "已入库" as Stored
+state "待出库" as WaitingOut
+state "出库反馈结果（迁移待确认）" as OutputStates {
+  state "部分出库" as PartlyOut
+  state "已出库" as Out
+}
+state "已取消" as Cancelled
+
+[*] --> WaitingIn : 创建成功\n[尚无入库]
+WaitingIn --> Stored : WMS反馈实际入库
+WaitingIn --> Cancelled : 上游取消成功
+Stored --> WaitingOut : 收到上游出库指令\n[对应出库未完成]
+PartlyOut --> WaitingOut : 收到后续出库指令\n[对应出库未完成]
+note right of WaitingOut : P1
+note bottom of OutputStates : P2
+@enduml
+```
+
+- P1：仅“待入库”订单可取消；已入库后的取消不画为合法迁移。出库指令到达与 WMS 实际出库反馈是不同事件，操作记录按[订单操作记录规则](#doc-A77FC65070-section-6f1385314889)分别记录。
+- P2：“出库反馈结果”只是两个已有状态的图示分组，不是新增状态。“部分出库”的 `已实际出库件数 <= 总入库件数` 与“已出库”的等值条件重叠，零出库量与多次出库的判定边界也需明确；图中暂不连接 WMS 出库反馈至这两个状态，也不以图示改写原条件。
+
 <a id="doc-A77FC65070-section-d676849a3b5d"></a>
 #### 1.2.7 订单详情-操作记录页面
 

@@ -380,12 +380,59 @@ endif
 
 异常结束：没按钮。置灰，不可编辑。在结算页面生成明细。
 
+**服务单状态图 · 正常履约与待服务取消**
+
+本图共用于提货、仓储和订舱的一般履约路径，各服务触发事件取上表；补录新增服务的事件见[主订单补录与服务规则](#doc-5029269CA8-section-be0a1aa30e46)。订舱的手工补录、航班变更及亏损审核单独见[订舱处理规则](PRD.高捷物流系统一期.第010篇.空运-订舱管理.6A0360EC35.md#doc-6A0360EC35-section-7e8797c5c9ba)。
+
+```plantuml
+@startuml goldjet-009-state-service
+hide empty description
+state "待服务" as Waiting
+state "服务中" as Serving
+state "服务已完成" as Completed
+state "服务已取消" as Cancelled
+[*] --> Waiting : 生成服务单据
+Waiting --> Serving : 取得对应开始事件
+Serving --> Completed : 取得对应完成事件
+Waiting --> Cancelled : 手工取消
+Cancelled --> [*] : 删除该服务
+note right of Serving : P1
+note right of Completed : P2
+@enduml
+```
+
+- P1：[订单异常与修改规则](#doc-5029269CA8-section-9983c813182e)称服务中取消后为“异常取消”，本节称“异常结束”；统一前不将二者绘为同一状态。重新勾选会生成新服务单据，不是原服务回到“待服务”。
+- P2：本节同时写“服务已完成可手工取消”和“服务已完成没按钮”，取消入口尚待明确，因此本图未补接完成后的取消路径，也不将完成画成不可逆终点。取消及费用规则仍保留在正文。
+
 <a id="doc-5029269CA8-section-9e4d3081c213"></a>
 #### 1.3.4 主订单补料页面
 
 - 在《主订单管理》新增主订单后，点击提交后，页面跳转至主订单列表。订单状态变为“待订舱”。
 
 - 在航线部订舱服务完成后，订单状态变为“待补录”。点击订单号，进入订单补录界面。
+
+**主订单状态图 · 创建至出提单**
+
+本图聚焦主订单，不将订舱、提货和仓储的服务状态合并为订单状态。补录完成后的状态见[客服待办任务](PRD.高捷物流系统一期.第002篇.工作台与待办管理.279CFF369E.md#doc-279CFF369E-section-677910652394)，出提单结果见[提单编辑与预览下载规则](PRD.高捷物流系统一期.第011篇.空运提单与航司推送.ED54E43A14.md#doc-ED54E43A14-section-43b81c0c9f43)。
+
+```plantuml
+@startuml goldjet-009-state-air-order
+hide empty description
+state "待订舱" as Booking
+state "待补录" as Supplement
+state "待出提单" as Issue
+state "已出提单" as Issued
+[*] --> Booking : 主订单提交成功
+Booking --> Supplement : 订舱服务完成
+Supplement --> Issue : 客服完成补录
+Issue --> Issued : 提单编辑提交
+note right of Booking : P1
+note right of Issued : P2
+@enduml
+```
+
+- P1：本图采用本节明确的主订单创建入口；[订单管理流程](#doc-5029269CA8-section-0de90fb8a71c)另称派单后为“待确认”，与“待订舱”的关系尚未明确，不在图中合并或新增迁移。亏损审批见[订舱处理规则](PRD.高捷物流系统一期.第010篇.空运-订舱管理.6A0360EC35.md#doc-6A0360EC35-section-7e8797c5c9ba)。
+- P2：图示范围截止到出提单，不表示订单生命周期结束。“已交单”的进入动作与“已废除／已作废”的术语关系未闭合，不能据此补接终态；相关未决项集中见[PRD自洽性问题](../analysis/PRD自洽性问题.md)。
 
 <a id="doc-5029269CA8-section-ebfabeb299bf"></a>
 #### 1.3.5 主订单补录字段
@@ -591,6 +638,24 @@ endif
 4. 作废：所有服务状态均为“待服务”时，点击“作废”直接删除订单，不触发审核，订单不再显示在列表中。有任一服务不是“待服务”时，系统弹出确认框；确认后订单状态变为“待审核”。客服主管可在审批管理页面按提交时间查看申请，并进入订单创建页面选择“同意”或“拒绝”。拒绝时必须填写0至500字的理由；同意后订单状态变为“已废除”。审批结果通知按消息推送规则发送。
 
 5. 修改：仅允许修改运费卖价、后段卡车卖价和分泡。保存后触发订单修改通知；航线部修改成本或航班信息后触发订单变更通知。具体规则见[消息推送规则](PRD.高捷物流系统一期.第030篇.消息推送.5F950AB3B1.md#doc-5F950AB3B1-section-ef4930471a81)。
+
+**主订单状态图 · 作废审批片段**
+
+本图从“任一服务不是待服务，客服确认作废申请”开始，不表示主订单创建时即进入审核。所有服务均为待服务时直接删除，不进入本图。
+
+```plantuml
+@startuml goldjet-009-state-order-void
+hide empty description
+state "待审核" as Review
+state "已废除" as Voided
+[*] --> Review : 客服确认作废申请
+Review --> Voided : 客服主管同意
+Voided --> [*]
+note right of Review : P1
+@enduml
+```
+
+- P1：此处“待审核”专指作废申请，不能与亏损审核共用通过结果；拒绝后的主订单状态尚未明确，图中不假定恢复为申请前状态。
 
 **适用范围与约束**
 

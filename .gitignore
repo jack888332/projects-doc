@@ -204,6 +204,8 @@ public/
 **/锚点迁移计划.json
 **/拆分计划.json
 **/回并计划.json
+**/重组计划.json
 
-# PRD snapshots and deliveries remain eligible for repository traceability.
+# Local PRD recovery snapshots; formal deliveries remain eligible for Git.
+**/.prd-snapshots/
 # Existing tracked files remain tracked until explicitly removed from the index.

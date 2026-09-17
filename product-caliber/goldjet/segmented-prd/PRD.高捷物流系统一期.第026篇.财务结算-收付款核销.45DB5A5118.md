@@ -253,11 +253,10 @@ Returned --> Submitted : 再次提交成功
 New --> Deleted : 确认删除
 Returned --> Deleted : 确认删除
 Deleted --> [*]
-note right of Submitted : P1
 @enduml
 ```
 
-- P1：“已提交”仍可由管理员打回，不是不可逆终态。收款核销完成后的客户额度释放见[应收结算流程](PRD.高捷物流系统一期.第022篇.财务基础与结算流程.40E841D3A6.md#doc-40E841D3A6-section-23c66131aa44)；打回时的额度扣减见[收款核销打回](#doc-45DB5A5118-section-fb0ff2d54db5)，该额度变化不套用于付款核销。
+- “已提交”仍可由管理员打回，不是不可逆终态。收款核销完成后的客户额度释放见[应收结算流程](PRD.高捷物流系统一期.第022篇.财务基础与结算流程.40E841D3A6.md#doc-40E841D3A6-section-23c66131aa44)；打回时的额度扣减见[收款核销打回](#doc-45DB5A5118-section-fb0ff2d54db5)，该额度变化不套用于付款核销。
 - 编辑后仅保存不改变状态；收款核销的提交、删除和打回规则见[收款核销](#doc-45DB5A5118-receipt-writeoff)。金蝶同步结果与核销单状态分开表达，不在本图新增同步状态。
 
 <a id="doc-45DB5A5118-section-e6aca2046239"></a>

@@ -576,13 +576,11 @@ New --> Submitted : 提交开票成功
 Submitted --> Issued : 开票系统回传开票成功
 New --> Deleted : 确认删除
 Deleted --> [*]
-note right of Submitted : P1
-note right of Issued : P2
 @enduml
 ```
 
-- P1：开票失败、回传超时及重试后的申请状态尚未明确，本图不补造失败状态或回退路径。
-- P2：“已开票”与回传发票信息见[销项票申请编辑页面](#doc-DA6DFB99AE-section-f06057042524)。发票作废会触发[销项发票通知](PRD.高捷物流系统一期.第030篇.消息推送.5F950AB3B1.md#doc-5F950AB3B1-section-cd7cf9bd98cb)，但申请如何重新处理尚未明确，不将发票作废直接画成申请状态。
+- “已提交”：开票失败、回传超时及重试后的申请状态尚未明确，本图不补造失败状态或回退路径。
+- “已开票”与回传发票信息见[销项票申请编辑页面](#doc-DA6DFB99AE-section-f06057042524)。发票作废会触发[销项发票通知](PRD.高捷物流系统一期.第030篇.消息推送.5F950AB3B1.md#doc-5F950AB3B1-section-cd7cf9bd98cb)，但申请如何重新处理尚未明确，不将发票作废直接画成申请状态。
 
 <a id="doc-DA6DFB99AE-invoice-backfill"></a>
 ### 1.3 销项发票补录
@@ -794,11 +792,10 @@ state "已删除" as Deleted
 New --> Backfilled : 补录提交成功
 New --> Deleted : 确认删除
 Deleted --> [*]
-note right of New : P1
 @enduml
 ```
 
-- P1：本图不决定“需要开票”为“否”时创建提交的状态，也不决定补录金额不一致时是否允许提交；两处口径差异分别见[销项票申请创建提交](#doc-DA6DFB99AE-section-938b7af1a75d)与[开票申请提交](#doc-DA6DFB99AE-section-dfa43d93ac00)、[销项发票补录提交](#doc-DA6DFB99AE-section-172e9df4b314)与本节提交校验。
+“新建”入口及“补录提交成功”迁移：本图不决定“需要开票”为“否”时创建提交的状态，也不决定补录金额不一致时是否允许提交；两处口径差异分别见[销项票申请创建提交](#doc-DA6DFB99AE-section-938b7af1a75d)与[开票申请提交](#doc-DA6DFB99AE-section-dfa43d93ac00)、[销项发票补录提交](#doc-DA6DFB99AE-section-172e9df4b314)与本节提交校验。
 
 <a id="doc-DA6DFB99AE-tax-invoice-query"></a>
 ### 1.4 税务发票查询与发送

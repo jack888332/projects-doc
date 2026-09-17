@@ -13,13 +13,13 @@
 skinparam activityDiamondBackgroundColor #FFF4CC
 title 企业主动发起改单流程
 start
-:1.打印改单资料;
+:打印改单资料;
 -> 线下提交资料给海关，海关审批通过;
-:2.确认改单;
-:3.上传新的报关资料;
-:4.打印纠正和改进措施处理单;
+:确认改单;
+:上传新的报关资料;
+:打印纠正和改进措施处理单;
 -> 线下找主管签名;
-:5.上传纠正和改进措施处理单;
+:上传纠正和改进措施处理单;
 stop
 @enduml
 ```
@@ -63,7 +63,6 @@ stop
 skinparam activityDiamondBackgroundColor #FFF4CC
 title 普货进口卡航流程
 start
-note right: P1
 :新建订单;
 :接单;
 if (理货正常？) then (是)
@@ -96,7 +95,7 @@ stop
 @enduml
 ```
 
-- P1：运输路线为国外空运至广州机场，再由卡车航班转运至国内其他口岸。
+运输路线为国外空运至广州机场，再由卡车航班转运至国内其他口岸。
 
 ### 4. 转关车辆进仓流程
 
@@ -341,7 +340,7 @@ if (报关状态) then (查验)
   endif
 else (放行)
 endif
-:9.打印资料，交单;
+:打印资料，交单;
 :货物离境;
 stop
 @enduml
@@ -409,7 +408,7 @@ if (报关状态) then (查验)
   endif
 else (放行)
 endif
-:9.打印资料，交单;
+:打印资料，交单;
 :货物离境;
 stop
 @enduml
@@ -450,7 +449,7 @@ fork again
     -> 异常处理完毕;
   else (无异常)
   endif
-  :6.确认入仓;
+  :确认入仓;
   :发送预配信息;
 end fork
 :提交申报;
@@ -477,7 +476,7 @@ if (报关状态) then (查验)
   endif
 else (放行)
 endif
-:9.打印资料，交单;
+:打印资料，交单;
 :货物离境;
 stop
 @enduml

@@ -61,13 +61,12 @@ Inactive --> Active : 财务确认启用
 Draft --> Deleted : 确认删除 [无业务关联]
 Inactive --> Deleted : 财务确认删除 [无业务关联]
 Deleted --> [*]
-note right of Submitted : P1
 @enduml
 ```
 
 来源：[供应商新增与审批规则](#doc-A9F351FB48-section-ec3c26d0c295)、[客户新增与审批规则](#doc-A9F351FB48-section-ce358c60ac22)，以及对应的[供应商删除](#doc-A9F351FB48-section-9750bc0139b1)、[失效](#doc-A9F351FB48-section-ba66f569f79b)、[启用](#doc-A9F351FB48-section-f9db6de7db5b)和[客户删除](#doc-A9F351FB48-section-de01f85643db)、[失效](#doc-A9F351FB48-section-55a1104c2679)、[启用](#doc-A9F351FB48-section-97b8cd8458d2)规则。无业务关联指该部门下无关联订单和订单成本结算明细；删除限制仍按各删除场景执行。
 
-P1：审批拒绝后的档案主状态存在“新建＋审批拒绝”和“财务审批拒绝”两种表述，因此图中不连接拒绝后的目标状态；这不表示禁止拒绝、编辑、删除或重新提交。冲突见[供应商审批拒绝](#doc-A9F351FB48-section-fd371add3827)、[客户审批拒绝](#doc-A9F351FB48-section-c03a906650fa)与各自新增审批规则，待确认事项见[PRD自洽性问题](../analysis/PRD自洽性问题.md)。
+“已提交”的拒绝分支：审批拒绝后的档案主状态存在“新建＋审批拒绝”和“财务审批拒绝”两种表述，因此图中不连接拒绝后的目标状态；这不表示禁止拒绝、编辑、删除或重新提交。冲突见[供应商审批拒绝](#doc-A9F351FB48-section-fd371add3827)、[客户审批拒绝](#doc-A9F351FB48-section-c03a906650fa)与各自新增审批规则，待确认事项见[PRD自洽性问题](../analysis/PRD自洽性问题.md)。
 
 <a id="doc-A9F351FB48-section-bfc18407f9ed"></a>
 #### 1.2.1 供应商列表页面

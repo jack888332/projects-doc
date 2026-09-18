@@ -49,32 +49,50 @@
 ```plantuml
 @startuml goldjet-011-waybill-preparation
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 |客服|
 start
-:**【1】**根据客户资料补料;
-if (本次编辑哪类收发货人资料？) then (主单)
-  :**【2】**填写主单收发货人资料;
-else (分单)
-  :**【3】**填写分单收发货人资料;
-endif
-:**【4】**暂存已补充资料;
-|打单员|
-:**【5】**填写主单计费信息;
-if (**【6】**有两个及以上分单？) then (是)
-  |客服|
-  :**【7】**线下提供各分单重量;
-else (否)
-endif
-|客服或打单员|
-:**【8】**发送主运单;
-if (主运单发送成功？) then (是)
-  :**【9】**发送分运单;
-  :进入报关与交单阶段;
-  stop
-else (否)
-  :不发送分运单\n显示返回的异常信息;
-  stop
-endif
+group 资料补充 #F4F8FA {
+  :**【1】**根据客户资料补料;
+  if (本次编辑哪类收发货人资料？) then (主单)
+    :**【2】**填写主单收发货人资料;
+  else (分单)
+    :**【3】**填写分单收发货人资料;
+  endif
+  :**【4】**暂存已补充资料;
+}
+group 计费与分重 #F5F9F6 {
+  |打单员|
+  :**【5】**填写主单计费信息;
+  if (**【6】**有两个及以上分单？) then (是)
+    |客服|
+    :**【7】**线下提供各分单重量;
+  else (否)
+  endif
+}
+group 运单发送 #F8F6FA {
+  |客服或打单员|
+  :**【8】**发送主运单;
+  if (主运单发送成功？) then (是)
+    :**【9】**发送分运单;
+    :进入报关与交单阶段;
+    stop
+  else (否)
+    :不发送分运单\n显示返回的异常信息;
+    stop
+  endif
+}
 @enduml
 ```
 

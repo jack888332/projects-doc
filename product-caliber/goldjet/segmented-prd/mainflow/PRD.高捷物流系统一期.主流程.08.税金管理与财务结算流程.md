@@ -88,8 +88,21 @@ stop
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title 结算应付流程
 start
+group 费用录入与审核 #F4F8FA {
 :录入应付费用（自动/手动）;
 #gold:(A)
 :提交审核;
@@ -105,6 +118,8 @@ if (审核通过？) then (否)
   detach
 else (是)
 endif
+}
+group 账单与对账 #F5F9F6 {
 fork
   :单票账单;
 fork again
@@ -112,6 +127,8 @@ fork again
   :生成对账单;
   :供应商确认对账单;
 end fork
+}
+group 调整或付款 #F8F6FA {
 if (是否有异常？) then (有异常)
   :录入调整单\n（关联原先的子单）;
   #gold:(A)
@@ -123,6 +140,7 @@ else (无异常)
   repeat while (审批通过？) is (否) not (是)
   :出纳付款;
 endif
+}
 stop
 @enduml
 ```
@@ -135,8 +153,21 @@ stop
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title 财务应收流程
 start
+group 费用录入与审核 #F4F8FA {
 :录入应收费用（自动/手动）;
 #gold:(A)
 :提交审核;
@@ -152,6 +183,8 @@ if (审核通过？) then (否)
   detach
 else (是)
 endif
+}
+group 账单与对账 #F5F9F6 {
 fork
   :单票账单;
 fork again
@@ -159,6 +192,8 @@ fork again
   :生成对账单;
   :客户确认对账单;
 end fork
+}
+group 调整或收款核销 #F8F6FA {
 if (是否有异常？) then (有异常)
   :录入调整单\n（关联原先的子单）;
   #gold:(A)
@@ -175,6 +210,7 @@ else (无异常)
   :出纳线上登记收款确认\n（核销业务单据）;
   :释放客户额度;
 endif
+}
 stop
 @enduml
 ```

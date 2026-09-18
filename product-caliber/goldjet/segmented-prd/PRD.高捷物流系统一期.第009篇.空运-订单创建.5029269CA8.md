@@ -69,8 +69,21 @@
 ```plantuml
 @startuml goldjet-009-order-booking-handoff
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 |客服|
 start
+group 订单形成 #F4F8FA {
 if (**【1】**创建哪类订单？) then (主订单)
   |客服|
   :**【4.1】**填写主订单基础数据与服务信息;
@@ -91,10 +104,13 @@ else (子订单)
   else (是)
   endif
 endif
+}
+group 航线派单 #F5F9F6 {
 |客服|
 :**【8.1】**派单给航线部;
 |系统|
 :**【8.2】**订单变为待确认，航线部可接单;
+}
 stop
 @enduml
 ```

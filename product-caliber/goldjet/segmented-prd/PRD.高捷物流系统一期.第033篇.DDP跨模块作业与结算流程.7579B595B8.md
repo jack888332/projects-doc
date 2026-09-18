@@ -97,8 +97,21 @@ stop
 ```plantuml
 @startuml goldjet-033-customs-warehouse-terminal
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 |海关系统|
 start
+group 预配反馈与海关状态 #F4F8FA {
 :**【1.1】**接收并处理已报送的预配舱单\n反馈处理结果;
 |仓库系统|
 :**【1.2】**接收预配舱单反馈结果;
@@ -107,17 +120,22 @@ start
 |海关系统|
 :**【2.3】**反馈海关状态;
 |仓库系统|
+}
 if (海关已放行？) then (是)
+group 出仓通知与回传 #F5F9F6 {
   :**【3】**自动向 WMS 发送订单出仓单;
   |WMS|
   :**【4.1】**处理货物出仓\n向仓库系统反馈出仓结果;
   |仓库系统|
   :**【4.2】**接收出仓结果并安排中转派车;
+}
+group 入区登记与回执 #F8F6FA {
   :**【5.1】**人工操作或自动发送入区登记;
   |货站|
   :**【5.2、6.1】**接收并处理登记\n向仓库系统反馈处理结果;
   |仓库系统|
   :**【6.2】**接收入区登记回执;
+}
   stop
 else (否)
   :本图不进入出仓通知环节;

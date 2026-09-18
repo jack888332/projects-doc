@@ -11,8 +11,21 @@
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title BBC进口：区间调拨出区
 start
+group 订单与申报资料 #F4F8FA {
 :通知提货出区;
 :接收订单;
 :订单校验成功后下发仓库;
@@ -22,17 +35,23 @@ start
 :确认价格;
 :审核资料;
 :完善出仓信息;
+}
+group 核注申报与进场 #F5F9F6 {
 :核注清单报送;
 :保税核注清单推送到金二系统;
 :约车;
 :车辆核放及出区登记;
 :车辆过卡口;
 :空车过磅;
+}
+group 出库与货物交接 #F8F6FA {
 :下架、打托、称重;
 :发送出库清单;
 :货物交接;
 :重车过磅;
 :记录过磅数据;
+}
+group 出区核放与查验 #F5F9FA {
 :车辆核放及出区登记;
 :登记出闸纸;
 :车辆过闸口;
@@ -46,6 +65,7 @@ else (否)
   endif
 endif
 :重车出区;
+}
 stop
 @enduml
 ```
@@ -58,14 +78,29 @@ stop
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title BBC进口：区间调拨入区
 start
+group 入仓资料与申报 #F4F8FA {
 :入仓预报;
 :初审资料;
 :接单审核资料;
 :完善入仓信息;
 :核注清单报送;
 :保税核注清单推送到金二系统;
+}
+group 入区核放与查验 #F5F9F6 {
 :车辆核放及进区登记;
 :登记出闸纸;
 :车辆过卡口;
@@ -78,6 +113,8 @@ else (否)
   else (否)
   endif
 endif
+}
+group 收货理货与上架 #F8F6FA {
 :重车过磅;
 :收货;
 :货物交接;
@@ -90,6 +127,7 @@ endif
 -> 确认;
 :上架;
 :空车出区;
+}
 stop
 @enduml
 ```
@@ -103,7 +141,20 @@ stop
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
 title BBC进口：入保税仓关务操作
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 start
+group 资料与换单 #F4F8FA {
 :入仓预报;
 :初审资料;
 fork
@@ -115,6 +166,8 @@ fork again
   :确认换单完成;
 end fork
 :完善入仓信息;
+}
+group 申报与查验 #F5F9F6 {
 fork
   :核注清单报送;
   :保税核注清单推送到金二系统;
@@ -132,6 +185,8 @@ else (否)
   else (否)
   endif
 endif
+}
+group 入区理货 #F8F6FA {
 :约车;
 :车辆核放及进区登记;
 :登记出闸纸;
@@ -147,6 +202,8 @@ endif
 :确认理货报告;
 -> 确认;
 :上架;
+}
+group 补报与出区 #F5F9FA {
 if (进境备案清单前序是否两步申报) then (是)
   if (存在货物信息变化) then (是)
     :修改箱单发票资料;
@@ -156,6 +213,7 @@ if (进境备案清单前序是否两步申报) then (是)
 else (否)
 endif
 :空车出区;
+}
 stop
 @enduml
 ```
@@ -169,14 +227,29 @@ stop
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title BBC进口：区内调拨
 start
+group 资料与核注申报 #F4F8FA {
 :入仓预报;
 :初审资料;
 :接单审核资料;
 :完善进仓信息;
 :出/进核注清单报送;
 :保税核注清单推送到金二系统;
+}
+group 出仓与区内运输 #F5F9F6 {
 :约车;
 :车辆进区登记;
 :车辆过卡口;
@@ -184,6 +257,8 @@ start
 :发送出库清单;
 :货物交接;
 :车辆送货;
+}
+group 收货理货与上架 #F8F6FA {
 :收货;
 :货物交接;
 :发送理货报告;
@@ -194,6 +269,7 @@ endif
 :确认理货报告;
 :上架;
 :空车出区;
+}
 stop
 @enduml
 ```
@@ -206,7 +282,20 @@ stop
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
 title BBC进口：包裹出区
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 start
+group 订单申报 #F4F8FA {
 :订单预报：订单清单信息;
 :收到订单信息，系统自动校验;
 :预估税金;
@@ -216,6 +305,8 @@ if (回执是否异常) then (是)
 else (否)
 endif
 :订单放行;
+}
+group 出仓准备 #F5F9F6 {
 fork
   :约快递车;
 fork again
@@ -225,6 +316,8 @@ fork again
   :核对申报资料;
   :出区核注清单报送\n生成核注清单\n初审\n复审;
 end fork
+}
+group 车辆提货 #F8F6FA {
 :申报空车入区;
 :通知装货;
 :快递车入区;
@@ -233,6 +326,8 @@ end fork
 :提货交接;
 :重车过磅;
 :车辆核放及出区登记;
+}
+group 出区核放 #F5F9FA {
 :保税核注清单推送到金二系统;
 :系统返回出区保税核注清单\n单证状态“审批通过”;
 :制作出区资料;
@@ -247,6 +342,7 @@ if (状态是否出现查验) then (是)
 else (否)
 endif
 :车辆出区;
+}
 stop
 @enduml
 ```
@@ -258,17 +354,35 @@ stop
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title BBC进口：账册调拨
 start
+group 指令与资料核对 #F4F8FA {
 :发送关务服务指令;
 :关务调拨服务接单;
 :核对申报资料;
+}
+group 转入核注 #F5F9F6 {
 :转入核注清单报送;
 :保税核注清单;
 :系统返回入区保税核注清单\n单证状态“审批通过”;
+}
+group 转出核注 #F8F6FA {
 :转出核注清单报送;
 :保税核注清单推送到金二系统;
 :系统返回出区保税核注清单\n单证状态“审批通过”;
+}
 stop
 @enduml
 ```
@@ -301,8 +415,21 @@ stop
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title BBC进口：退运操作
 start
+group 退运指令与申报 #F4F8FA {
 :发送退运指令;
 :发送退运订单;
 fork
@@ -316,12 +443,16 @@ if (是否属于检验检疫名录) then (是)
   :出境检验检疫申报（单一窗口）;
 else (否)
 endif
+}
+group 车辆提货出区 #F5F9F6 {
 :提供空车过磅信息;
 :车辆核放（暂存）及进区登记;
 :库内操作;
 :重车过磅;
 :车辆核放登记（确认）;
 :车辆提货出区;
+}
+group 出境申报与交单 #F8F6FA {
 if (是否退运出境) then (是)
   :车辆还柜给码头/机场/\n深圳关、皇岗关;
   if (是否还完柜) then (是)
@@ -335,6 +466,7 @@ if (是否退运出境) then (是)
   :交单;
 else (否)
 endif
+}
 stop
 @enduml
 ```
@@ -344,13 +476,28 @@ stop
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title BBC进口：客退操作
 start
+group 客退申请与拦截 #F4F8FA {
 :申请客退;
 :通知快递拦截;
 :存放临时点;
 :申请客退;
+}
 if (海关是否同意) then (是)
+group 资料与进区 #F5F9F6 {
   :约车;
   :制作箱单发票;
   :下发报关指令;
@@ -358,6 +505,8 @@ if (海关是否同意) then (是)
   :核对申报资料;
   :车辆核放及进区登记;
   :进区;
+}
+group 查验与入仓处理 #F8F6FA {
   :等候查验;
   :查验;
   if (是否有问题) then (是)
@@ -374,6 +523,7 @@ if (海关是否同意) then (是)
     :做核注清单;
     :更新至金二系统，账册库存增加;
   endif
+}
 else (否)
 endif
 stop
@@ -385,8 +535,21 @@ stop
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title BBC进口：物料进区
 start
+group 接单与入区核放 #F4F8FA {
 :发送物料进区关务操作指令;
 fork
   :物料进区接单;
@@ -396,10 +559,13 @@ end fork
 :重车过磅;
 :制作核放单;
 :车辆重车进区登记;
+}
+group 入区交接与作业 #F5F9F6 {
 :重车入区;
 :货物交接;
 :库内操作;
 :车辆出区;
+}
 stop
 @enduml
 ```
@@ -409,8 +575,21 @@ stop
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title BBC进口：卡板出区
 start
+group 接单与车辆准备 #F4F8FA {
 :发送卡板出区关务操作指令;
 fork
   :卡板出区接单;
@@ -418,13 +597,18 @@ fork
 fork again
   :约车;
 end fork
+}
+group 入区作业与交接 #F5F9F6 {
 :空车入区;
 :库内操作;
 :货物交接;
 :重车过磅;
+}
+group 申报缴税与出区 #F8F6FA {
 :进口报关单申报;
 :进口缴税;
 :车辆出区;
+}
 stop
 @enduml
 ```
@@ -434,8 +618,21 @@ stop
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title BBC进口：保税展示
 start
+group 申报与出库准备 #F4F8FA {
 :发送出区关务操作指令;
 :保税出区接单;
 :业务申报;
@@ -445,12 +642,16 @@ fork
 fork again
   :车辆进出区登记;
 end fork
+}
+group 出区与门店交付 #F5F9F6 {
 :车辆入区;
 :库内操作;
 :重车过磅;
 :车辆进出区登记;
 :车辆出区;
 :门店卸货;
+}
+group 展示后回仓 #F8F6FA {
 -> 半年或更长时间展示以后;
 :入库指令;
 :车辆核放及进区登记;
@@ -459,6 +660,7 @@ end fork
 :重车过磅;
 :货物交接;
 :库内操作;
+}
 stop
 @enduml
 ```

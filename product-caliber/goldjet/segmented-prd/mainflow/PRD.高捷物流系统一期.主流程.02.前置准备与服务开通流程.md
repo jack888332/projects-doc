@@ -12,10 +12,23 @@
 ```plantuml
 @startuml
 skinparam activityDiamondBackgroundColor #FFF4CC
+<style>
+activityDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    RoundCorner 12
+    FontColor #78848D
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
 title 前置准备工作详细流程
 start
 :准备资料;
 fork
+group 平台与仓库配置 #F4F8FA {
   :平台签约完成;
   :收到平台对接信息;
   :维护客户店铺资料;
@@ -25,11 +38,15 @@ fork
   :创建自动寻源规则;
   :通知仓库准备耗材/\n库内操作规范;
   :准备耗材;
+}
 fork again
+group 客户建档与合同 #F5F9F6 {
   :维护客户档案;
   :维护店铺信息;
   :签订合同;
   :获取合同信息;
+}
+group 报价与备案准备 #F8F6FA {
   fork
     :设置报价规则;
   fork again
@@ -41,12 +58,15 @@ fork again
       :预审;
     end fork
   end fork
+}
+group 备案审核 #F5F9FA {
   while (是否审核通过) is (否)
     :通知客户;
     :收到意见;
     :接受意见;
   endwhile (是)
   :获取商品备案信息;
+}
 end fork
 stop
 @enduml

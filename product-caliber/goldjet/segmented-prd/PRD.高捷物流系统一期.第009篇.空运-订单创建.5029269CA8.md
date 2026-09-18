@@ -75,7 +75,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -83,7 +83,7 @@ activityDiagram {
 </style>
 |客服|
 start
-group 订单形成 #F4F8FA {
+group 订单形成 #EDF3F7 {
 if (**【1】**创建哪类订单？) then (主订单)
   |客服|
   :**【4.1】**填写主订单基础数据与服务信息;
@@ -105,7 +105,7 @@ else (子订单)
   endif
 endif
 }
-group 航线派单 #F5F9F6 {
+group 航线派单 #EEF5F0 {
 |客服|
 :**【8.1】**派单给航线部;
 |系统|

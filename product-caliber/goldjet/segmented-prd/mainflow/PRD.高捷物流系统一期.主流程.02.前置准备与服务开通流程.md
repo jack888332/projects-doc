@@ -18,7 +18,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -28,7 +28,7 @@ title 前置准备工作详细流程
 start
 :准备资料;
 fork
-group 平台与仓库配置 #F4F8FA {
+group 平台与仓库配置 #EDF3F7 {
   :平台签约完成;
   :收到平台对接信息;
   :维护客户店铺资料;
@@ -40,13 +40,13 @@ group 平台与仓库配置 #F4F8FA {
   :准备耗材;
 }
 fork again
-group 客户建档与合同 #F5F9F6 {
+group 客户建档与合同 #EEF5F0 {
   :维护客户档案;
   :维护店铺信息;
   :签订合同;
   :获取合同信息;
 }
-group 报价与备案准备 #F8F6FA {
+group 报价与备案准备 #F3EFF8 {
   fork
     :设置报价规则;
   fork again
@@ -59,7 +59,7 @@ group 报价与备案准备 #F8F6FA {
     end fork
   end fork
 }
-group 备案审核 #F5F9FA {
+group 备案审核 #EDF5F7 {
   while (是否审核通过) is (否)
     :通知客户;
     :收到意见;

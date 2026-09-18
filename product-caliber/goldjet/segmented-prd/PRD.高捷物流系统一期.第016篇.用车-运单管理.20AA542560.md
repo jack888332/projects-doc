@@ -79,7 +79,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -87,7 +87,7 @@ activityDiagram {
 </style>
 |司机|
 start
-group 任务与预报 #F4F8FA {
+group 任务与预报 #EDF3F7 {
   :**【5、6、7】**登录后查看任务详情;
   if (确认前往提货？) then (是)
     :**【8】**确认前往提货;
@@ -101,7 +101,7 @@ group 任务与预报 #F4F8FA {
   else (否)
   endif
 }
-group 提货反馈 #F5F9F6 {
+group 提货反馈 #EEF5F0 {
   |司机|
   :**【9】**确认到达提货点;
   if (提货点为航晟仓库？) then (是)
@@ -119,7 +119,7 @@ if (**【18】**本次上报异常？) then (是)
   :提交运输异常;
 else (否)
 endif
-group 卸货反馈 #F8F6FA {
+group 卸货反馈 #F3EFF8 {
   :**【20】**确认到达卸货点;
   |航晟物流|
   :**【21】**更新到达卸货点状态;

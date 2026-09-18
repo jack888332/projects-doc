@@ -67,7 +67,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -75,7 +75,7 @@ activityDiagram {
 </style>
 title 普货进口卡航流程
 start
-group 换单与转运准备 #F4F8FA {
+group 换单与转运准备 #EDF3F7 {
 :新建订单;
 :接单;
 if (理货正常？) then (是)
@@ -86,7 +86,7 @@ else (否)
 endif
 :确认换单完成;
 }
-group 转关与进场 #F5F9F6 {
+group 转关与进场 #EEF5F0 {
 -> 扫描/拍照正本提单给客服，客服确认资料后;
 :安排转运车辆;
 -> 车辆信息、驾驶员信息;
@@ -99,7 +99,7 @@ group 转关与进场 #F5F9F6 {
 :带监管车辆进入货站;
 -> 交单到货站仓管，拉货;
 }
-group 提货与发车 #F8F6FA {
+group 提货与发车 #F3EFF8 {
 if (货物异常？) then (是，货站开具破损证明)
   :联系客户，确认处理方案;
 else (否)
@@ -126,7 +126,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -134,7 +134,7 @@ activityDiagram {
 </style>
 title 转关车辆进仓流程
 start
-group 接单与资料准备 #F4F8FA {
+group 接单与资料准备 #EDF3F7 {
 :新建订单;
 :接单;
 :卡口系统录入;
@@ -142,14 +142,14 @@ group 接单与资料准备 #F4F8FA {
 :打印进口转关操作表;
 :复制司机本;
 }
-group 转关与监管仓入场 #F5F9F6 {
+group 转关与监管仓入场 #EEF5F0 {
 :带车进物流场;
 -> 海关做转关单核销，拿胶条锁，海关剪锁;
 :车辆离场确认;
 :带车进监管仓;
 -> 车辆卸货;
 }
-group 理货与离场 #F8F6FA {
+group 理货与离场 #F3EFF8 {
 :主单理货;
 :分单理货;
 -> 通知司机刷卡;
@@ -171,7 +171,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -179,7 +179,7 @@ activityDiagram {
 </style>
 title 到货换单理货流程
 start
-group 到货与换单 #F4F8FA {
+group 到货与换单 #EDF3F7 {
 :新建订单;
 :接单;
 :查到货信息;
@@ -191,7 +191,7 @@ else (否)
 endif
 :确认换单完成;
 }
-group 提货与转仓 #F5F9F6 {
+group 提货与转仓 #EEF5F0 {
 :做分运清单;
 :到货站交单;
 if (货物破损？) then (是)
@@ -202,7 +202,7 @@ endif
 :到货站找货;
 :拉货回我司监管仓;
 }
-group 理货与结果上传 #F8F6FA {
+group 理货与结果上传 #F3EFF8 {
 :理货;
 if (理货异常？) then (是)
   :通知客服;
@@ -228,7 +228,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -236,7 +236,7 @@ activityDiagram {
 </style>
 title 普货进口主流程
 start
-group 制单与申报 #F4F8FA {
+group 制单与申报 #EDF3F7 {
 :新建订单;
 :接单;
 :审核资料;
@@ -253,7 +253,7 @@ if (申报异常？) then (是)
 else (否，且货物已运抵)
 endif
 }
-group 换单与查验放行 #F5F9F6 {
+group 换单与查验放行 #EEF5F0 {
 :确认换单完成;
 -> 线下录运抵后;
 :查看报关状态;
@@ -265,7 +265,7 @@ else (否)
 endif
 :放行;
 }
-group 提货交付 #F8F6FA {
+group 提货交付 #F3EFF8 {
 if (提货方式) then (客户要求提货)
   :约车;
   :装车出仓;
@@ -320,7 +320,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -331,7 +331,7 @@ start
 -> 企业在单一窗口发起删单或海关发起删单后;
 :打印删单资料;
 fork
-group 删单与关务处理 #F4F8FA {
+group 删单与关务处理 #EDF3F7 {
   -> 同步线下找货站开《出口货物在库证明》，\n线下提交审批资料，海关审批通过;
   :确认删单;
   :在舱单系统作废预配信息;
@@ -342,7 +342,7 @@ group 删单与关务处理 #F4F8FA {
   :上传纠正和改进措施处理单;
 }
 fork again
-group 退仓与交还客户 #F5F9F6 {
+group 退仓与交还客户 #EEF5F0 {
   :收到删单提醒;
   fork
     -> 退到高捷仓;
@@ -390,14 +390,14 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
 }
 </style>
 start
-group 入仓与申报准备 #F4F8FA {
+group 入仓与申报准备 #EDF3F7 {
 :新建订单;
 fork
   -> 下发关务服务;
@@ -436,7 +436,7 @@ fork again
   endswitch
 end fork
 }
-group 申报与运抵 #F5F9F6 {
+group 申报与运抵 #EEF5F0 {
 :提交申报;
 if (申报异常？) then (是)
   :申报异常处理;
@@ -461,7 +461,7 @@ else (否)
   endif
 endif
 }
-group 查验离境 #F8F6FA {
+group 查验离境 #F3EFF8 {
 :查看报关状态;
 if (报关状态) then (查验)
   :安排查验;
@@ -492,7 +492,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -502,7 +502,7 @@ title 出口主流程（货站录运抵模式）
 start
 :新建订单;
 fork
-group 关务申报 #F4F8FA {
+group 关务申报 #EDF3F7 {
   -> 下发关务服务;
   :接单;
   :审核资料;
@@ -520,7 +520,7 @@ group 关务申报 #F4F8FA {
   endif
 }
 fork again
-group 入仓与运抵 #F5F9F6 {
+group 入仓与运抵 #EEF5F0 {
   fork
     -> 下发入仓预报;
     :接收入仓通知;
@@ -550,7 +550,7 @@ group 入仓与运抵 #F5F9F6 {
   -> 货物运抵货站;
 }
 end fork
-group 查验离境 #F8F6FA {
+group 查验离境 #F3EFF8 {
 :查看报关状态;
 if (报关状态) then (查验)
   :安排查验;

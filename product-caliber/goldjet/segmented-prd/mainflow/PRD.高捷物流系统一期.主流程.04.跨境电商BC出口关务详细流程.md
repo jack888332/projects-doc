@@ -59,7 +59,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -67,7 +67,7 @@ activityDiagram {
 </style>
 title BC出口主流程（转关模式）
 start
-group 申报与仓储准备 #F4F8FA {
+group 申报与仓储准备 #EDF3F7 {
 -> 客户提供资料给客服;
 :新建订单;
 fork
@@ -105,7 +105,7 @@ fork again
   :装车出库;
 end fork
 }
-group 理货与查验放行 #F5F9F6 {
+group 理货与查验放行 #EEF5F0 {
 if (需要理货？) then (是)
   :生成大箱号表格;
 else (否，且货物运抵货站)
@@ -121,7 +121,7 @@ else (否)
 endif
 :放行;
 }
-group 转关与离境 #F8F6FA {
+group 转关与离境 #F3EFF8 {
 -> 货站出托书后;
 :转关单申报;
 -> 回执为“海关接收通知”;
@@ -144,7 +144,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -152,7 +152,7 @@ activityDiagram {
 </style>
 title BC出口主流程（非转关模式）
 start
-group 申报与仓储准备 #F4F8FA {
+group 申报与仓储准备 #EDF3F7 {
 -> 客户提供资料给客服;
 :新建订单;
 fork
@@ -190,7 +190,7 @@ fork again
   :装车出库;
 end fork
 }
-group 理货与查验放行 #F5F9F6 {
+group 理货与查验放行 #EEF5F0 {
 if (需要理货？) then (是)
   :生成大箱号表格;
 else (否，且货物运抵货站)
@@ -224,7 +224,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -232,7 +232,7 @@ activityDiagram {
 </style>
 title BC出口转关流程（适用条件未区分）
 start
-group 申报与仓储准备 #F4F8FA {
+group 申报与仓储准备 #EDF3F7 {
 -> 客户提供资料给客服;
 :新建订单;
 fork
@@ -269,7 +269,7 @@ fork again
   :装车出库;
 end fork
 }
-group 理货与查验放行 #F5F9F6 {
+group 理货与查验放行 #EEF5F0 {
 if (需要理货？) then (是)
   :生成大箱号表格;
 else (否，且货物运抵货站)
@@ -287,7 +287,7 @@ else (否)
 endif
 :放行;
 }
-group 转关与离境 #F8F6FA {
+group 转关与离境 #F3EFF8 {
 -> 货站出托书后;
 :转关单申报;
 -> 回执为“海关接收通知”;

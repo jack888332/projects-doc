@@ -65,7 +65,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -73,7 +73,7 @@ activityDiagram {
 </style>
 |航晟物流客服|
 start
-group 订单接入 #F4F8FA {
+group 订单接入 #EDF3F7 {
   if (订单提交方式？) then (邮件)
     |外部客户|
     :**【1】**发送《用车单》;
@@ -86,7 +86,7 @@ group 订单接入 #F4F8FA {
   |航晟物流客服|
   :**【4】**查看订单列表\n按来源和状态维护订单;
 }
-group 调度与反馈 #F5F9F6 {
+group 调度与反馈 #EEF5F0 {
   :**【5.1】**选择车型;
   |航晟系统|
   :**【5.2】**按路线和车型提示\n供应商报价排序;
@@ -100,7 +100,7 @@ group 调度与反馈 #F5F9F6 {
   else (否)
   endif
 }
-group 变更与查询 #F8F6FA {
+group 变更与查询 #F3EFF8 {
   |航晟物流客服|
   if (**【7】**需要修改订单或调度？) then (是)
     :**【8.1】**按来源和状态条件\n修改或取消订单、调度;

@@ -131,7 +131,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -139,13 +139,13 @@ activityDiagram {
 </style>
 title 跨境电商BC、个人物品CC\n进口备货主流程
 start
-group 业务开通 #F4F8FA {
+group 业务开通 #EDF3F7 {
 :建档签约;
 :商品备案;
 :业务准备;
 :系统对接;
 }
-group 海外备货与出库 #F5F9F6 {
+group 海外备货与出库 #EEF5F0 {
 :客户预报（PO单）;
 :进仓预报;
 :商品送到海外仓库;
@@ -153,13 +153,13 @@ group 海外备货与出库 #F5F9F6 {
 :平台销售;
 :海外仓打包;
 }
-group 干线与进口申报 #F8F6FA {
+group 干线与进口申报 #F3EFF8 {
 :配干线;
 :海外出口申报;
 :国内口岸进口申报;
 :放行过机;
 }
-group 快递提货与跟踪 #F5F9FA {
+group 快递提货与跟踪 #EDF5F7 {
 :快递车入区申报;
 :快递揽收;
 :快递装车;
@@ -180,7 +180,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -188,25 +188,25 @@ activityDiagram {
 </style>
 title 跨境电商BC、个人物品CC\n进口集货主流程
 start
-group 业务开通 #F4F8FA {
+group 业务开通 #EDF3F7 {
 :建档签约;
 :商品备案;
 :业务准备;
 :系统对接;
 }
-group 海外集货 #F5F9F6 {
+group 海外集货 #EEF5F0 {
 :客户预报;
 :海外仓收到小包裹;
 :小包裹揽收、称重;
 :导出清单;
 }
-group 干线与进口申报 #F8F6FA {
+group 干线与进口申报 #F3EFF8 {
 :配干线;
 :海外出口申报;
 :国内口岸进口申报;
 :放行过机;
 }
-group 快递提货与跟踪 #F5F9FA {
+group 快递提货与跟踪 #EDF5F7 {
 :快递车入区申报;
 :快递完成打包;
 :快递装车;
@@ -227,7 +227,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -235,26 +235,26 @@ activityDiagram {
 </style>
 title 跨境电商BBC进口备货主流程
 start
-group 业务开通 #F4F8FA {
+group 业务开通 #EDF3F7 {
 :建档签约;
 :商品备案;
 :业务准备;
 :系统对接;
 }
-group 保税备货 #F5F9F6 {
+group 保税备货 #EEF5F0 {
 :客户预报;
 :货物入区申报;
 :货物入仓;
 :库内作业;
 }
-group 销售与出仓 #F8F6FA {
+group 销售与出仓 #F3EFF8 {
 :平台销售;
 :订单申报;
 :申报放行;
 :下发保税仓;
 :库内操作;
 }
-group 快递出区与跟踪 #F5F9FA {
+group 快递出区与跟踪 #EDF5F7 {
 :快递车入区申报;
 :快递完成打包;
 :导出清单;

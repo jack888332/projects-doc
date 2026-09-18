@@ -44,7 +44,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -52,7 +52,7 @@ activityDiagram {
 </style>
 |空运|
 start
-group 计划获取与签收 #F4F8FA {
+group 计划获取与签收 #EDF3F7 {
   :**【1】**查看航班信息;
   |货站|
   if (计划获取方式？) then (线下交付)
@@ -66,7 +66,7 @@ group 计划获取与签收 #F4F8FA {
   |货站|
   :**【4】**确认已收到打板计划;
 }
-group 板纸回执 #F5F9F6 {
+group 板纸回执 #EEF5F0 {
   :**【5.1】**提交航班号及板纸图片\n扫码入口待确认;
   |系统|
   if (能匹配有效航班号？) then (是)
@@ -137,7 +137,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -145,7 +145,7 @@ activityDiagram {
 </style>
 |空运|
 start
-group 订单接收 #F4F8FA {
+group 订单接收 #EDF3F7 {
   :**【1】**发送打板服务信息;
   |物流系统|
   if (已存在相同打板单号？) then (是)
@@ -158,7 +158,7 @@ group 订单接收 #F4F8FA {
     :**【3】**创建打板订单\n初始状态待确认;
   endif
 }
-group 货站作业 #F5F9F6 {
+group 货站作业 #EEF5F0 {
   |货站|
   :**【4】**确认货站到达;
   |物流系统|
@@ -170,7 +170,7 @@ group 货站作业 #F5F9F6 {
   |货站|
   :**【8】**上传托书;
 }
-group 重量与费用 #F8F6FA {
+group 重量与费用 #F3EFF8 {
   |空运|
   :**【9.1】**提供实际货站重量;
   |货站|

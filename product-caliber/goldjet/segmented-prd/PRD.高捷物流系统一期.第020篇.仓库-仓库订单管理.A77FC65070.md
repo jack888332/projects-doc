@@ -60,7 +60,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -68,7 +68,7 @@ activityDiagram {
 </style>
 |空运系统|
 start
-group 入仓建单 #F4F8FA {
+group 入仓建单 #EDF3F7 {
   :**【1】**发送仓库订单;
   |航晟仓库|
   :**【3】**在订单列表管理与查看订单;
@@ -76,7 +76,7 @@ group 入仓建单 #F4F8FA {
   |WMS|
   :**【7】**接收入仓单;
 }
-group 更新与入仓反馈 #F5F9F6 {
+group 更新与入仓反馈 #EEF5F0 {
   |航晟仓库|
   if (**【5】**订单信息修改？) then (是)
     if (**【6】**处理方式？) then (编辑)
@@ -101,7 +101,7 @@ group 更新与入仓反馈 #F5F9F6 {
   else (否)
   endif
 }
-group 出仓与费用 #F8F6FA {
+group 出仓与费用 #F3EFF8 {
   |航晟仓库|
   if (创建出仓单？) then (是)
     :**【13】**创建出仓单并发送给 WMS;

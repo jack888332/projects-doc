@@ -55,7 +55,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -63,7 +63,7 @@ activityDiagram {
 </style>
 |客服|
 start
-group 资料补充 #F4F8FA {
+group 资料补充 #EDF3F7 {
   :**【1】**根据客户资料补料;
   if (本次编辑哪类收发货人资料？) then (主单)
     :**【2】**填写主单收发货人资料;
@@ -72,7 +72,7 @@ group 资料补充 #F4F8FA {
   endif
   :**【4】**暂存已补充资料;
 }
-group 计费与分重 #F5F9F6 {
+group 计费与分重 #EEF5F0 {
   |打单员|
   :**【5】**填写主单计费信息;
   if (**【6】**有两个及以上分单？) then (是)
@@ -81,7 +81,7 @@ group 计费与分重 #F5F9F6 {
   else (否)
   endif
 }
-group 运单发送 #F8F6FA {
+group 运单发送 #F3EFF8 {
   |客服或打单员|
   :**【8】**发送主运单;
   if (主运单发送成功？) then (是)

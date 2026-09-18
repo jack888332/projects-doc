@@ -65,7 +65,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -73,7 +73,7 @@ activityDiagram {
 </style>
 |业务员|
 start
-group 费用审批 #F4F8FA {
+group 费用审批 #EDF3F7 {
 :**【1】**维护自动生成或手工录入的结算费用;
 #gold:(A)
 :**【2】**业务员提交审批;
@@ -94,7 +94,7 @@ endif
 |系统|
 :**【8】**生成确认结算明细\n同步金蝶，生成应收单或应付单;
 }
-group 对账调整 #F5F9F6 {
+group 对账调整 #EEF5F0 {
 |业务员或财务|
 :**【11】**生成对账单并交客户或供应商;
 |客户或供应商|
@@ -112,7 +112,7 @@ endif
 :转入收款或付款申请子流程; <<procedure>>
 }
 stop
-group 拒绝处理 #F8F6FA {
+group 拒绝处理 #F3EFF8 {
 |业务员|
 #gold:(B)
 if (**【7】**被拒绝的结算明细如何处理？) then (作废)

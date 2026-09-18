@@ -74,7 +74,7 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
@@ -82,7 +82,7 @@ activityDiagram {
 </style>
 |航司|
 start
-group 产品范围 #F4F8FA {
+group 产品范围 #EDF3F7 {
   :**【1】**提供舱位信息;
   |航线部|
   :**【2】**进入舱位产品维护页面;
@@ -94,13 +94,13 @@ group 产品范围 #F4F8FA {
     :**【7】**选择临时板;
   endif
 }
-group 周期明细 #F5F9F6 {
+group 周期明细 #EEF5F0 {
   repeat
     :**【8】**填写周期日、板型、数量\n板体积和基准载重;
     backward :**【9】**添加新明细，复制上一条信息;
   repeat while (继续添加周期日明细？) is (是) not (否)
 }
-group 期限与人员 #F8F6FA {
+group 期限与人员 #F3EFF8 {
   :**【10】**选择使用期限;
   :**【11】**选择航线运营和航线操作\n建立产品与人员的绑定;
 }
@@ -352,20 +352,20 @@ activityDiagram {
     LineColor #CAD5DA
     LineThickness 0.7
     RoundCorner 12
-    FontColor #78848D
+    FontColor #687680
     FontSize 11
     FontStyle plain
   }
 }
 </style>
 start
-group 订单配板 #F4F8FA {
+group 订单配板 #EDF3F7 {
   :**【1】**进入本人负责航线的配板页面;
   #gold:(A)
   :**【2】**选择订单明细与航班;
   :**【3】**配板;
 }
-group 分批与撤回 #F5F9F6 {
+group 分批与撤回 #EEF5F0 {
   if (**【4】**需要分批？) then (是)
     :**【5】**从已配板订单拆出部分毛件体;
     :**【6】**填写航班号和出港日期;
@@ -378,7 +378,7 @@ group 分批与撤回 #F5F9F6 {
   else (否)
   endif
 }
-group 利润与重配 #F8F6FA {
+group 利润与重配 #F3EFF8 {
   :**【8】**按航司适用规则处理预计利润;
   if (**【10】**符合航线运营\n利益最大化？) then (否)
     if (调整方式？) then (重配)

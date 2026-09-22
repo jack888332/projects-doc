@@ -386,10 +386,131 @@ stop
 | 拼多多申报准备 | 拆税依赖商品HS编码，直邮商品也需备案，底账备案序号需完整 | 缺备案或底账序号的阻断位置及补齐后重推范围 |
 | BC进口集货轨迹 | 保留仓库揽收到买家签收的仓库→干线→清关→快递轨迹；已有面单和已知快递单号不得丢失；节点规则见[客户平台路由轨迹](#doc-58EB46CA94-marketplace-route-traces) | 重复或乱序事件如何合并、跨系统操作人如何保留 |
 | BBC轨迹 | 保留清关→仓库→快递的履约记录；节点规则见[客户平台路由轨迹](#doc-58EB46CA94-marketplace-route-traces) | 与BC不能共用一条强制事件顺序；仓库事件与服务状态的具体映射仍待确认 |
-| LemonBox路由 | 不直接对接中台；OMS转发订单，中台向OMS提供运单和轨迹 | 来源引用1.13运单接口、1.14轨迹接口，未附完整契约，不能用字节同编号接口代替 |
+| [LemonBox路由](#doc-58EB46CA94-lemonbox-order-intake) | 不直接对接中台；既有OMS转发订单，中台向OMS提供运单和轨迹 | 来源引用1.13运单接口、1.14轨迹接口，未附完整契约，不能用字节同编号接口代替 |
 | 已转交订单的旧OMS操作 | 已由中台接管的订单，旧OMS执行税金或发货操作应返回错误，防止双重处理 | 接管标志、失败重试和仍保留旧OMS完成订单的区分方式 |
 
 历史切换材料按“未绑定提单”或“未海关放行”转交中台、已绑定或已放行留旧OMS完成，并区分新抓取订单与存量已取号订单；这些是指定切换时点的处置方案，不自动成为每次迁移都执行的长期规则。需要再次迁移时须确认适用时点、库存及费用交接、旧单保留和面单轨迹补齐的范围。每日凌晨3点前人工补传属于历史过渡办法，不能替代稳定接口时效要求。
+
+<a id="doc-58EB46CA94-lemonbox-order-intake"></a>
+### 8.1 LemonBox下单与接单反馈
+
+LemonBox创建客户小订单，通过订单下单接口交给既有OMS。既有OMS取得订单后，识别客户平台为LemonBox，再通过BC/CC订单同步接口转发中台；中台返回接单成功或失败，既有OMS将该结果回传LemonBox。中台接收判断通过后的订单生成及履约交接见[节点回传](#doc-58EB46CA94-lemonbox-operation-events)。
+
+既有OMS指承担转发的原有OMS，来源图称“OMS（一期）”，不指当前系统的订单中心。下列交接涉及BC/CC，包含CC集货，不扩展至BBC；具体接入资格和资料转换见[OMS订单及状态交接](PRD.高捷物流系统.第073篇.开放接入与OMS同步.14B128CCE3.md#doc-14B128CCE3-oms-sync)。
+
+```plantuml
+@startuml goldjet-lemonbox-order-intake
+hide footbox
+participant LemonBox as LB
+participant 既有OMS as OMS
+participant 中台 as MID
+
+LB -> LB : 创建客户小订单
+LB -> OMS : 提交订单\n订单下单接口
+OMS -> OMS : 识别客户平台为LemonBox
+OMS -> MID : 转发订单\nBC/CC订单同步接口
+MID -> MID : 校验并判断接收结果
+alt 接单成功
+  MID --> OMS : 返回接单成功
+  OMS --> LB : 回传接单成功
+else 接单失败
+  MID --> OMS : 返回接单失败
+  OMS --> LB : 回传接单失败
+end
+@enduml
+```
+
+本图只表达接单结果的传递方向。传输成功、中台接收成功、下游建单成功和履约完成分别判断；接单成功是否须等待下游建单完成、两端失败说明如何对应，仍待确认。这里的接单反馈不套用反向“中台向OMS同步及写入结果回告”的结果码。
+
+<a id="doc-58EB46CA94-lemonbox-operation-events"></a>
+### 8.2 LemonBox订单生成与节点回传
+
+中台接收判断通过后，向作业系统交付生成BC/CC订单。作业系统是来源图“操作系统”的业务称谓，承接订单作业和结果返回；其与仓储、运输及关务模块的具体对应尚待明确，不直接等同于富勒WMS。
+
+集货主线涉及获取运单号、揽收入库、揽收出库、干线提货、干线发运、货物到港、开始清关及清关完成，作业系统将对应节点回传中台。仓库、干线和清关节点的触发、时间与文案沿用[客户平台路由轨迹](#doc-58EB46CA94-marketplace-route-traces)；“货物到港”对应实物到港，“开始清关／清关完成”对应清关开始／清关结束。
+
+```plantuml
+@startuml goldjet-lemonbox-operation-events
+hide footbox
+<style>
+sequenceDiagram {
+  group {
+    LineColor #CAD5DA
+    LineThickness 0.7
+    FontColor #687680
+    FontSize 11
+    FontStyle plain
+  }
+  groupHeader {
+    FontColor #687680
+    FontSize 11
+    FontStyle plain
+  }
+}
+</style>
+participant 中台 as MID
+participant 作业系统 as OPS
+
+MID -> OPS : 接收判断通过后\n交付生成BC/CC订单
+group #EAF1F8 取号与仓库节点
+  OPS -> OPS : 处理运单号
+  OPS -> MID : 回传运单号节点
+  OPS -> OPS : 揽收入库
+  OPS -> MID : 回传揽收入库节点
+  OPS -> OPS : 揽收出库
+  OPS -> MID : 回传揽收出库节点
+end
+group #EAF5E9 干线节点
+  OPS -> OPS : 干线提货
+  OPS -> MID : 回传干线提货节点
+  OPS -> OPS : 干线发运
+  OPS -> MID : 回传干线发运节点
+  OPS -> OPS : 实物到港
+  OPS -> MID : 回传到港节点
+end
+group #F8EFE2 清关节点
+  OPS -> OPS : 清关开始
+  OPS -> MID : 回传清关开始节点
+  OPS -> OPS : 清关结束
+  OPS -> MID : 回传清关结束节点
+end
+@enduml
+```
+
+“处理运单号”保留获取或沿用结果：已有快递单号时沿用，取号资料按[客户下单与资料修改](PRD.高捷物流系统.第073篇.开放接入与OMS同步.14B128CCE3.md#doc-14B128CCE3-order-intake)处理；来源中的“运单号”具体对应快递单号还是其他运输单号，须在LemonBox契约中确认，不与总运单号混用。
+
+图按集货主线组织节点，每条回传只关联对应节点，不要求等待清关完成后一次性回传。回传报文是否逐条或批量、是否等待接收回执后再继续作业尚未定义；图中顺序不新增同步阻塞要求，也不覆盖异常、分批与乱序规则。清关结束不等于客户订单完成，后续快递轨迹仍按[快递节点](#doc-58EB46CA94-marketplace-route-traces)承接。
+
+<a id="doc-58EB46CA94-lemonbox-query"></a>
+### 8.3 LemonBox运单号与快递路由查询
+
+LemonBox按订单发起运单号或快递路由查询，既有OMS向中台转发，中台再向作业系统查询；结果依次经中台、既有OMS返回LemonBox。两类查询由各自请求独立触发，不以另一类查询或清关完成作为前置条件。
+
+| 本次查询 | 来源中的接口名称 | 返回内容与适用边界 |
+| --- | --- | --- |
+| 运单号查询 | 运单号查询接口 | 返回对应订单的运单信息；单号对象、字段及未取号结果须按LemonBox契约确认，不能仅凭名称认定为总运单号 |
+| 快递路由查询 | 订单快递路由查询接口；时序来源另称BC订单快递路由查询接口 | 返回对应订单的路由轨迹；CC集货是否复用带BC名称的入口、是否进行转换，以及完整结果范围尚待确认 |
+
+```plantuml
+@startuml goldjet-lemonbox-query
+hide footbox
+participant LemonBox as LB
+participant 既有OMS as OMS
+participant 中台 as MID
+participant 作业系统 as OPS
+
+LB -> OMS : 发起本次查询\n运单号或快递路由
+OMS -> MID : 转发对应查询
+MID -> OPS : 查询对应订单的结果
+OPS --> MID : 返回本次查询结果
+MID --> OMS : 返回运单信息或路由轨迹
+OMS --> LB : 回传本次查询结果
+@enduml
+```
+
+本图每次只表示表内一种查询，不表示两种查询必须同时执行。作业节点主动回传与客户按需查询分别触发；中台已有节点数据时是否仍须透传查询、数据更新和返回优先级尚待确认。两图未给出LemonBox完整请求参数、成功码及错误码，不能直接套用字节同编号接口或推定与开放查询契约完全相同。
+
+LemonBox的模式范围、作业系统职责、反馈时点和查询契约缺口集中见[对接图问题清单](../../analysis/PRD自洽性问题.md#lemonbox-flow-review)。
 
 <a id="doc-58EB46CA94-marketplace-route-traces"></a>
 ## 9. 客户平台路由轨迹
